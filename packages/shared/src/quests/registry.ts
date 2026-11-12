@@ -138,12 +138,11 @@ export const QUEST_TYPES = {
     usesQuestQr: false,
     verifications: [],
     config: z.strictObject({
+      // `.or`, not `z.union`: the Hermes guard reads `.union(` as the Set method release Hermes lacks.
       accepts: z
-        .union([
-          z.tuple([z.literal("text")]),
-          z.tuple([z.literal("photo")]),
-          z.tuple([z.literal("text"), z.literal("photo")]),
-        ])
+        .tuple([z.literal("text")])
+        .or(z.tuple([z.literal("photo")]))
+        .or(z.tuple([z.literal("text"), z.literal("photo")]))
         .default(["text"]),
       autoApprove: z.boolean().default(false),
       resubmit: z.boolean().default(false),

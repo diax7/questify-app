@@ -71,6 +71,7 @@ const questView = (quest: MemberQuest & Readonly<{ state: QuestState }>) => ({
   communityLock: quest.communityLock,
   meet: quest.meet,
   game: quest.game,
+  submission: quest.submission,
   flash: quest.flash === null ? null : { closesAt: quest.flash.closesAt.toISOString() },
   boost: boostView(quest.boost),
   firstBonus: quest.firstBonus,
@@ -106,7 +107,7 @@ export function registerHomeRoutes(app: FastifyInstance, deps: HomeDeps): void {
     if (home === null) {
       throw notEnrolled();
     }
-    return home;
+    return { ...home, photos: deps.photos === true };
   });
 
   // FR-410: the player's own points record in this event, newest first, page by page.

@@ -15,6 +15,8 @@ export type OwnSubmission = Readonly<{
   reasonSystem: boolean;
   /** The quest takes another submission after a rejection (FR-1709). */
   resubmit: boolean;
+  /** A photo sent with it was deleted since (a rejection, a removal); absent from an older API. */
+  photoGone?: boolean;
 }>;
 
 export type MySubmissions = Readonly<{
@@ -167,17 +169,20 @@ export async function fetchMySubmissions(
   return answer.kind === "ok" ? mySubmissionsOf(answer.body) : undefined;
 }
 
+/** Sends text, a photo (an id from the photo door, T-301b) or a photo with its caption; an empty caption is left out. */
 export async function sendSubmission(
   session: Pick<Session, "request">,
   questId: string,
   text: string,
   key: string,
+  photoId: string | null = null,
 ): Promise<SendAnswer> {
+  const caption = text.trim() === "" ? {} : { text };
   return sendAnswer(
     await session.request({
       method: "POST",
       path: `/v1/quests/${encodeURIComponent(questId)}/submit`,
-      body: { text },
+      body: photoId === null ? { text } : { ...caption, photoId },
       headers: { "idempotency-key": key },
     }),
   );

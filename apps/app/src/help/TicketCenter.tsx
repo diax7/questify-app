@@ -1,7 +1,7 @@
 import { TICKET_TEXT_MAX, formatNumber, type EventTicketKind, type Theme } from "@questify/shared";
 import Constants from "expo-constants";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { Platform, View } from "react-native";
 import { api } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
@@ -15,6 +15,13 @@ import {
   type SendingOff,
 } from "#src/event/help.ts";
 import type { MyEvent } from "#src/event/launch.ts";
+import {
+  PhotoField,
+  PhotosOn,
+  usePhotoDraft,
+  type PhotoDraftState,
+} from "#src/event/PhotoField.tsx";
+import { ticketPhotoPath } from "#src/event/photos.ts";
 import { sendKey } from "#src/event/submissions.ts";
 import {
   CARD_TITLES,
@@ -88,25 +95,48 @@ type FormProps = Readonly<{
   onOff: (why: SendingOff) => void;
 }>;
 
-/** Sends one card's request with one Idempotency-Key per text, kept after a failure so Retry cannot send twice. */
-function useSend(props: FormProps, facts: DeviceFacts | null | undefined) {
+/** An event request's photo, uploaded first when there is one (T-301b); its id, or why it could not be sent. */
+async function photoFor(
+  photos: PhotoDraftState,
+  eventId: string,
+): Promise<Readonly<{ photoId?: string }> | SendAnswer> {
+  if (photos.draft === null) return {};
+  const uploaded = await photos.upload(ticketPhotoPath(eventId));
+  return uploaded.kind === "uploaded" ? { photoId: uploaded.photoId } : uploaded;
+}
+
+/** Sends an event card's request: its photo first, then the request with the photo's id. */
+async function sendEventTicket(
+  props: FormProps,
+  photos: PhotoDraftState,
+  request: Readonly<{ kind: string; text: string; username: string; key: string }>,
+): Promise<SendAnswer> {
+  const eventId = props.eventId ?? "";
+  const photo = await photoFor(photos, eventId);
+  if ("kind" in photo) return photo;
+  return sendTicket(api.session, {
+    eventId,
+    kind: request.kind as EventTicketKind,
+    questId: request.kind === "report_player" ? null : props.questId,
+    ...(request.kind === "report_player" ? { reportedUsername: usernameOf(request.username) } : {}),
+    text: request.text,
+    key: request.key,
+    ...photo,
+  });
+}
+
+/** Sends one card's request with one Idempotency-Key per text and photo, kept after a failure so Retry cannot send twice. */
+function useSend(props: FormProps, facts: DeviceFacts | null | undefined, photos: PhotoDraftState) {
   const [busy, setBusy] = useState(false);
   const [last, setLast] = useState<{ key: string; text: string } | undefined>(undefined);
   const send = async (kind: string, text: string, username: string): Promise<SendAnswer> => {
-    const signature = `${kind}:${username}:${text}`;
+    const signature = `${kind}:${username}:${text}:${photos.draft?.key ?? ""}`;
     const key = sendKey(last, signature, randomUuid);
     setBusy(true);
     const answer =
       kind === "app_problem" || kind === "suggestion"
         ? await sendPlatformTicket(api.session, { kind, text, device: facts ?? null, key })
-        : await sendTicket(api.session, {
-            eventId: props.eventId ?? "",
-            kind: kind as EventTicketKind,
-            questId: kind === "report_player" ? null : props.questId,
-            ...(kind === "report_player" ? { reportedUsername: usernameOf(username) } : {}),
-            text,
-            key,
-          });
+        : await sendEventTicket(props, photos, { kind, text, username, key });
     setBusy(false);
     setLast(answer.kind === "sent" ? undefined : { key, text: signature });
     return answer;
@@ -191,6 +221,8 @@ type FieldsProps = Readonly<{
   onText: (text: string) => void;
   retrying: boolean;
   disabled: boolean;
+  /** An event request's optional photo (T-301b, FR-337); null for a request to Questify. */
+  photos: PhotoDraftState | null;
   onSend: () => void;
 }>;
 
@@ -226,6 +258,12 @@ function FormFields(props: FieldsProps) {
       {device === null ? null : (
         <AppText muted>{t("help.device.sentWith", { facts: device })}</AppText>
       )}
+      {props.photos === null ? null : (
+        <>
+          <AppText variant="label">{t("photo.add")}</AppText>
+          <PhotoField state={props.photos} disabled={props.disabled} />
+        </>
+      )}
       {canSendTicket(props.text) ? null : <AppText muted>{t("help.textRequired")}</AppText>}
       <Button
         label={props.retrying ? t("common.retry") : t("help.send")}
@@ -244,7 +282,9 @@ function CardForm(props: FormProps) {
   const [text, setText] = useState("");
   const [username, setUsername] = useState("");
   const [said, setSaid] = useState<Said>(null);
-  const { busy, retrying, send } = useSend(props, facts);
+  const photos = usePhotoDraft();
+  const photosOn = useContext(PhotosOn);
+  const { busy, retrying, send } = useSend(props, facts, photos);
   const kind = kindOf(props.card, chosen);
   const toQuestify = !cardNeedsEvent(props.card);
   const ready = isReady(kind, text, username, facts);
@@ -260,6 +300,7 @@ function CardForm(props: FormProps) {
     if (answer.kind === "sent") {
       setText("");
       setUsername("");
+      photos.clear();
       props.onSent();
     }
     setSaid(saidFor(answer, sendLine(answer, toQuestify), t));
@@ -280,7 +321,8 @@ function CardForm(props: FormProps) {
           text={text}
           onText={setText}
           retrying={retrying}
-          disabled={busy || !ready}
+          disabled={busy || photos.uploading || !ready}
+          photos={photosOn && props.card === "event" ? photos : null}
           onSend={() => void go()}
         />
       )}

@@ -257,6 +257,7 @@ const HOME = {
   helpUnread: 0,
   streak: null,
   reviewDemo: false,
+  photos: false,
 };
 
 const ok = (body: unknown) => ({ kind: "ok" as const, status: 200, body, headers: new Headers() });

@@ -27,6 +27,8 @@ export type HomeDeps = Readonly<{
   settings: SettingsService;
   /** The per-event 2-second cache of the first-N bonus counts (T-313, ADR-263), shared with the live read. */
   firstBonus: FirstBonusCache;
+  /** Whether this server stores photos (T-301b): Home says so, and the app's help form offers a photo only then. */
+  photos?: boolean;
 }>;
 
 type Text = Readonly<{ ar: string | null; en: string | null }>;
@@ -69,6 +71,8 @@ export type MemberQuest = Readonly<{
   firstBonus: QuestFirstBonus | null;
   /** Paused by the organizer (T-603b): it accepts no new start until resumed. */
   paused: boolean;
+  /** A submission quest's kinds (T-301b): `text`, `photo` or both, so the app offers the camera; null otherwise. */
+  submission: Readonly<{ accepts: readonly string[] }> | null;
 }>;
 
 /** A quest's first-N bonus as a player sees it: `mine` once they got it, else null. */
@@ -303,6 +307,8 @@ type QuestRow = Readonly<{
   first_bonus_slots: number | null;
   first_bonus_place: number | null;
   paused: boolean;
+  /** jsonb: a submission quest's `accepts`, or null for any other type. */
+  submission_accepts: string[] | null;
 }>;
 
 /** The running boost a row names, with its end as a time. */
@@ -381,6 +387,7 @@ const extrasOf = (row: QuestRow) => ({
   place: placeOf(row),
   meet: meetOf(row),
   game: gameOf(row),
+  submission: row.submission_accepts === null ? null : { accepts: row.submission_accepts },
 });
 
 const questOf = (row: QuestRow, counts: ReadonlyMap<string, FirstBonusCount>): MemberQuest => ({

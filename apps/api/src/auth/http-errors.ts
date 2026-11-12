@@ -2753,8 +2753,8 @@ export const photoUnusable = make(
 export const photoRequired = make(
   422,
   "photo_required",
-  "هذه المهمة تحتاج إلى صورة.",
-  "This quest needs a photo.",
+  "هذه المهمة تحتاج إلى صورة. حدّث التطبيق إن لم تجد خيار الصورة.",
+  "This quest needs a photo. Update the app if you don't see a photo option.",
 );
 /** A photo was sent for a quest that takes text only. */
 export const photoNotAccepted = make(

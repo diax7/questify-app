@@ -1,7 +1,7 @@
 import type { LocalizedText } from "@questify/shared";
 import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { Image, ScrollView, View } from "react-native";
 import { api } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
 import { AppText } from "#src/components/AppText.tsx";
@@ -26,6 +26,34 @@ import { PracticeLocked } from "#src/operator/Practice.tsx";
 /** What the server said when someone else had reviewed the submission first, in the operator's language. */
 const goneText = (answer: Extract<ReviewAnswer, { kind: "gone" }>, language: "ar" | "en") =>
   answer.message?.[language] ?? null;
+
+/** A submission's photo through its 5-minute URL (T-301b); a link that ran out says to refresh. */
+function ReviewPhoto({ url }: Readonly<{ url: string }>) {
+  const { t } = useI18n();
+  const [failed, setFailed] = useState(false);
+  if (failed) return <AppText muted>{t("photo.expired")}</AppText>;
+  return (
+    <Image
+      source={{ uri: url }}
+      accessibilityLabel={t("photo.alt")}
+      style={{ width: "100%", aspectRatio: 4 / 3, borderRadius: 12 }}
+      resizeMode="contain"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+/** What the player sent: the photo and its caption, or the text; erased words say so. */
+function ReviewBody({ item }: Readonly<{ item: ReviewItem }>) {
+  const { t } = useI18n();
+  if (item.photoUrl === null) return <AppText>{item.text ?? t("submissions.erased")}</AppText>;
+  return (
+    <>
+      <ReviewPhoto url={item.photoUrl} />
+      {item.text === null ? null : <AppText>{item.text}</AppText>}
+    </>
+  );
+}
 
 /** The submission to review: who sent it, what it says, Approve, and the reason with Reject. */
 function ReviewCard({
@@ -57,7 +85,7 @@ function ReviewCard({
       {item.marked ? (
         <AppText accessibilityRole="alert">{t("operator.review.marked")}</AppText>
       ) : null}
-      <AppText>{item.text ?? t("submissions.erased")}</AppText>
+      <ReviewBody item={item} />
       <Button
         label={t("operator.review.approve")}
         disabled={busy}

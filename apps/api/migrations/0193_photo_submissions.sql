@@ -669,3 +669,90 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION console_ticket(bigint, uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION console_ticket(bigint, uuid) TO questify_app;
+
+-- ================================================================ what a submission quest accepts, for the app
+-- Restated from 0097 (DROP and CREATE for the new column): `submission_accepts`, so the app offers the camera and the
+-- picker only on a quest that takes a photo. Nothing else changes; still SQL (the allowlist keeps it, ADR-682).
+DROP FUNCTION member_event_quests(uuid);
+CREATE FUNCTION member_event_quests(target uuid)
+ RETURNS TABLE(category_id uuid, category_name_ar text, category_name_en text, category_position integer, quest_id uuid, title_ar text, title_en text, description_ar text, description_en text, type text, points integer, repeat_cap integer, opens_at timestamp with time zone, closes_at timestamp with time zone, quest_position integer, done integer, earned bigint, verification text[], order_mode text, category_opens_at timestamp with time zone, unlock_after uuid, unlock_after_name_ar text, unlock_after_name_en text, completion_bonus integer, bonus_earned bigint, bonus_settled boolean, lock text, steps_done integer, steps_needed integer, refresh text, resets_at timestamp with time zone, item_ar text, item_en text, bonus_item_ar text, bonus_item_en text, place_lat numeric, place_lng numeric, place_radius_m integer, daily_cap integer, met_today integer, game_left integer, game_passed boolean, community_lock jsonb, category_community_lock jsonb, flash_closes_at timestamp with time zone, boost jsonb, first_bonus_points integer, first_bonus_slots integer, first_bonus_place integer, paused boolean, submission_accepts jsonb)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $$
+  WITH me AS (
+    SELECT n.id, n AS enrolled FROM enrollment n JOIN player p ON p.id = n.player_id
+    WHERE n.event_id = target AND n.player_id = app_player_id() AND n.status = 'active' AND p.status = 'active'
+  )
+  SELECT c.id, c.name_ar, c.name_en, c.position, q.id, q.title_ar, q.title_en, q.description_ar, q.description_en,
+         q.type, q.points, q.repeat_cap, q.opens_at, q.closes_at, q.position,
+         period_count(me.id, q)
+           + (SELECT count(*)::int FROM quiz_attempt a
+              WHERE a.enrollment_id = me.id AND a.quest_id = q.id AND a.status = 'finished' AND a.completion_id IS NULL)
+           + CASE WHEN q.type = 'game' AND period_count(me.id, q) = 0 AND game_spent(me.id, q) THEN 1 ELSE 0 END,
+         (SELECT coalesce(sum(l.score_delta), 0)::bigint FROM ledger_entry l
+          LEFT JOIN ledger_entry rv ON l.kind = 'removal' AND rv.id = l.reverses
+          WHERE l.enrollment_id = me.id AND l.quest_id = q.id AND l.kind <> 'streak'
+            AND rv.kind IS DISTINCT FROM 'streak'),
+         q.verification,
+         c.order_mode, c.opens_at, c.unlock_after,
+         CASE WHEN sees_category(me.id, u) THEN u.name_ar END,
+         CASE WHEN sees_category(me.id, u) THEN u.name_en END,
+         c.completion_bonus,
+         (SELECT coalesce(sum(l.score_delta), 0)::bigint FROM ledger_entry l
+          WHERE l.enrollment_id = me.id AND l.category_id = c.id),
+         EXISTS (SELECT 1 FROM category_bonus b
+                 WHERE b.enrollment_id = me.id AND b.category_id = c.id
+                   AND b.period_start >= category_period_start(c, e)),
+         CASE WHEN k.step IS NOT NULL THEN 'community_locked' ELSE category_rule_lock(q, me.id) END,
+         CASE WHEN q.type = 'passport' THEN (SELECT count(*)::int FROM passport_stamp p
+                                             WHERE p.enrollment_id = me.id AND p.quest_id = q.id) END,
+         CASE WHEN q.type = 'passport' THEN (q.type_config ->> 'needed')::int END,
+         c.refresh,
+         category_resets_at(c, e),
+         CASE WHEN qi.units_out < qi.stock_total AND NOT EXISTS (
+                SELECT 1 FROM quest_completion qc WHERE qc.enrollment_id = me.id AND qc.quest_id = q.id)
+              THEN qi.name_ar END,
+         CASE WHEN qi.units_out < qi.stock_total AND NOT EXISTS (
+                SELECT 1 FROM quest_completion qc WHERE qc.enrollment_id = me.id AND qc.quest_id = q.id)
+              THEN qi.name_en END,
+         CASE WHEN ci.units_out < ci.stock_total THEN ci.name_ar END,
+         CASE WHEN ci.units_out < ci.stock_total THEN ci.name_en END,
+         CASE WHEN q.type = 'location' THEN q.place_lat END,
+         CASE WHEN q.type = 'location' THEN q.place_lng END,
+         CASE WHEN q.type = 'location' THEN q.place_radius_m END,
+         CASE WHEN q.type = 'meet' THEN (q.type_config ->> 'dailyCap')::int END,
+         CASE WHEN q.type = 'meet' THEN meet_today(me.id, q) END,
+         CASE WHEN q.type = 'game' THEN game_left(me.id, q) END,
+         CASE WHEN q.type = 'game' THEN (SELECT a.passed FROM game_attempts(me.id, q) a) END,
+         community_lock_note(k.step),
+         community_lock_note(k.category_step),
+         CASE WHEN q.flash THEN q.closes_at END,
+         CASE WHEN (cb.running).id IS NOT NULL
+              THEN jsonb_build_object('boostId', (cb.running).id, 'multiplier', (cb.running).multiplier,
+                                      'endsAt', (cb.running).ends_at) END,
+         fb.points, fb.slots,
+         CASE WHEN fs.quest_id IS NOT NULL THEN first_bonus_place(fs) END,
+         q.paused_at IS NOT NULL,
+         CASE WHEN q.type = 'submission' THEN q.type_config -> 'accepts' END
+  FROM me
+  JOIN event e ON e.id = target
+  JOIN category c ON c.event_id = target AND sees_category(me.id, c)
+  CROSS JOIN LATERAL (SELECT boost_in_force(c.id, me.enrolled, now()) AS running) cb
+  LEFT JOIN category u ON u.id = c.unlock_after
+  JOIN quest q ON q.category_id = c.id AND q.event_id = target AND q.visible AND flash_shown(q)
+  CROSS JOIN LATERAL (SELECT category_community_lock(c.id) AS category_step) kc
+  CROSS JOIN LATERAL (SELECT coalesce(
+                        (SELECT s.id FROM community_step s
+                         WHERE s.unlock_quest_id = q.id
+                           AND NOT EXISTS (SELECT 1 FROM community_reach r WHERE r.step_id = s.id)),
+                        kc.category_step) AS step, kc.category_step) k
+  LEFT JOIN quest_item qi ON qi.id = q.item_id AND qi.status = 'active'
+  LEFT JOIN quest_item ci ON ci.id = c.item_id AND ci.status = 'active'
+  LEFT JOIN quest_first_bonus fb ON fb.quest_id = q.id
+  LEFT JOIN quest_bonus_slot fs ON fs.quest_id = q.id AND fs.enrollment_id = me.id
+  ORDER BY c.position, c.id, q.position, q.id
+$$
+;
+REVOKE ALL ON FUNCTION member_event_quests(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION member_event_quests(uuid) TO questify_app;

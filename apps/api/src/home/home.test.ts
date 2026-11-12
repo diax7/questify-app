@@ -28,6 +28,7 @@ const quest = (id: string, fields: Partial<MemberQuest> = {}): MemberQuest => ({
   boost: null,
   firstBonus: null,
   paused: false,
+  submission: null,
   ...fields,
 });
 

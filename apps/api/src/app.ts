@@ -27,6 +27,7 @@ import { registerShopRoutes } from "#src/rewards/routes";
 import { createEvents } from "#src/events/events";
 import { registerPlayerGuard } from "#src/players/guard";
 import { createSuspendedSet } from "#src/events/suspended-set";
+import type { HomeDeps } from "#src/home/home";
 import { registerHomeRoutes } from "#src/home/routes";
 import { createFirstBonusCache, type FirstBonusCache } from "#src/quests/first-bonus";
 import { registerOperatorAwardRoutes } from "#src/awards/routes";
@@ -441,6 +442,18 @@ function operatorDepsOf(options: AppOptions, keys: AuthKeys) {
 }
 
 /** Builds the API server. Nothing listens until the caller starts it. */
+/** The Home doors' dependencies, with whether this server stores photos (T-301b). */
+const homeDepsOf = (
+  options: AppOptions,
+  settings: SettingsService,
+  firstBonus: FirstBonusCache,
+): HomeDeps => ({
+  pool: options.pool,
+  settings,
+  firstBonus,
+  photos: options.storage !== undefined,
+});
+
 /** The after-answer work (given, or made here), drained for up to 5 s when the server closes. */
 function drainedDeferred(app: FastifyInstance, options: AppOptions): Deferred {
   const deferred =
@@ -534,7 +547,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   registerJoinRoutes(app, { pool: options.pool, keys: signInDeps.keys, settings });
   const rehearsal = createRehearsal({ pool: options.pool, keys: signInDeps.keys });
   registerRehearsalPlayerRoutes(app, rehearsal);
-  registerHomeRoutes(app, { pool: options.pool, settings, firstBonus });
+  registerHomeRoutes(app, homeDepsOf(options, settings, firstBonus));
   registerOperatorPlayerRoutes(app, {
     ...operatorDeps,
     myKey: createMyCodeKey(config.qrSecret),

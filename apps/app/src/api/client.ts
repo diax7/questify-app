@@ -17,6 +17,10 @@ export type ApiRequest = Readonly<{
   method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   path: string;
   body?: unknown;
+  /** A raw body sent as it is with its own type, in place of JSON: a photo upload (T-301b). */
+  raw?: Readonly<{ data: Blob; type: string }>;
+  /** This call's own limit, for a slow one such as a photo upload; 15 seconds otherwise. */
+  timeoutMs?: number;
   /** The access token, for the player's own routes. */
   accessToken?: string;
   headers?: Readonly<Record<string, string>>;
@@ -122,6 +126,13 @@ export function isSafePath(path: string): boolean {
   );
 }
 
+/** The body of one call: a raw one as it is, else JSON, else none. */
+const bodyOf = (request: ApiRequest): { body?: Blob | string } => {
+  if (request.raw !== undefined) return { body: request.raw.data };
+  // Stryker disable next-line ConditionalExpression: equivalent: JSON.stringify(undefined) is undefined, no body either way
+  return request.body === undefined ? {} : { body: JSON.stringify(request.body) };
+};
+
 /** The headers of one call: the install id, the language, the build's version, JSON and the access token. */
 function headersOf(
   deps: ClientDeps,
@@ -135,7 +146,9 @@ function headersOf(
     ...(deps.appVersion === undefined ? {} : { "x-app-version": deps.appVersion }),
     ...request.headers,
   };
-  if (request.body !== undefined) {
+  if (request.raw !== undefined) {
+    headers["content-type"] = request.raw.type;
+  } else if (request.body !== undefined) {
     headers["content-type"] = "application/json";
   }
   if (request.accessToken !== undefined) {
@@ -157,15 +170,17 @@ export function createClient(deps: ClientDeps): Client {
     const headers = headersOf(deps, request, deviceId);
     // A timer of our own (React Native's AbortSignal has no `timeout` helper), over the headers and the body.
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), deps.timeoutMs ?? 15_000);
+    const timer = setTimeout(
+      () => controller.abort(),
+      request.timeoutMs ?? deps.timeoutMs ?? 15_000,
+    );
     let response: Response;
     let body: unknown;
     try {
       response = await (deps.fetchImpl ?? fetch)(`${deps.baseUrl}${request.path}`, {
         method: request.method,
         headers,
-        // Stryker disable next-line ConditionalExpression: equivalent: JSON.stringify(undefined) is undefined, no body either way
-        ...(request.body === undefined ? {} : { body: JSON.stringify(request.body) }),
+        ...bodyOf(request),
         signal: controller.signal,
       });
       // Stryker disable next-line ConditionalExpression: equivalent: an empty 204 fails to parse and reads as undefined anyway

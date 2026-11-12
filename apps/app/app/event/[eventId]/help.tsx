@@ -16,6 +16,7 @@ import {
   type SendingOff,
 } from "#src/event/help.ts";
 import { fetchHome } from "#src/event/home-api.ts";
+import { PhotosOn } from "#src/event/PhotoField.tsx";
 import { RequestList } from "#src/event/Requests.tsx";
 import { initialOf } from "#src/help/center.ts";
 import { TicketCenter } from "#src/help/TicketCenter.tsx";
@@ -25,6 +26,7 @@ import { useI18n } from "#src/i18n/provider.tsx";
 function useHelp(eventId: string, helpOn: boolean) {
   const [tickets, setTickets] = useState<MyTicket[] | undefined | "failed">(undefined);
   const [off, setOff] = useState<SendingOff | null | undefined>(undefined);
+  const [photos, setPhotos] = useState(false);
   const load = useCallback(async () => {
     const [mine, home] = await Promise.all([
       fetchMyTickets(api.session, eventId),
@@ -33,6 +35,7 @@ function useHelp(eventId: string, helpOn: boolean) {
     setTickets(mine ?? "failed");
     if (home.kind === "home") {
       const { standing, event } = home.home;
+      setPhotos(home.home.photos);
       setOff(
         sendingOffFor(
           { helpOn, standing: standing.status, statusNow: event.statusNow, endsAt: event.endsAt },
@@ -52,7 +55,7 @@ function useHelp(eventId: string, helpOn: boolean) {
   useEffect(() => {
     void load();
   }, [load]);
-  return { tickets, off, setOff, load };
+  return { tickets, off, setOff, load, photos };
 }
 
 /**
@@ -69,16 +72,18 @@ export default function HelpScreen() {
     questId?: string;
     questTitle?: string;
   }>();
-  const { tickets, off, setOff, load } = useHelp(eventId, helpOn);
+  const { tickets, off, setOff, load, photos } = useHelp(eventId, helpOn);
   return (
     <Screen title={t("help.title")} header={<BackButton />}>
       <ScrollView contentContainerStyle={{ gap: 12 }}>
-        <TicketCenter
-          event={{ id: eventId, sendingOff: off }}
-          initial={initialOf(params)}
-          onSent={() => void load()}
-          onOff={setOff}
-        />
+        <PhotosOn.Provider value={photos}>
+          <TicketCenter
+            event={{ id: eventId, sendingOff: off }}
+            initial={initialOf(params)}
+            onSent={() => void load()}
+            onOff={setOff}
+          />
+        </PhotosOn.Provider>
         {off === null || off === undefined ? null : (
           <AppText accessibilityRole="alert">{t(SENDING_OFF_LINES[off])}</AppText>
         )}

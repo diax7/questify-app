@@ -13,10 +13,11 @@ import { AppText } from "#src/components/AppText.tsx";
 import { Button, Field, Problem } from "#src/components/Controls.tsx";
 import { usePlayer } from "#src/auth/player.tsx";
 import { useEvent } from "#src/event/EventContext.tsx";
+import { PhotoField, usePhotoDraft, type PhotoDraftState } from "#src/event/PhotoField.tsx";
+import { acceptsOf, CAPTION_MAX, canSendPhoto, questPhotoPath } from "#src/event/photos.ts";
 import type { Quest } from "#src/event/quests-api.ts";
 import {
   acceptGuidelines,
-  canSend,
   fetchMySubmissions,
   sendKey,
   sendSubmission,
@@ -129,46 +130,108 @@ function SubmissionStatus({
   );
 }
 
-/** The box with its counter and Send; the text and the busy flag stay with the entry. */
-function SubmissionBox({
+/** The text box, or a photo's caption once one is chosen (at most 300 characters), with its counter. */
+function TextBox({
   step,
   text,
-  busy,
+  captioned,
   onChangeText,
-  onSend,
 }: Readonly<{
   step: SubmissionStep;
   text: string;
-  busy: boolean;
+  captioned: boolean;
   onChangeText: (value: string) => void;
-  onSend: () => void;
 }>) {
   const { t, language } = useI18n();
+  const max = captioned ? CAPTION_MAX : SUBMISSION_TEXT_MAX;
   return (
     <>
-      <AppText muted>{t("submission.private")}</AppText>
       <Field
-        label={t(fieldLabelKey(step))}
+        label={t(captioned ? "photo.caption" : fieldLabelKey(step))}
         value={text}
-        onChangeText={onChangeText}
+        onChangeText={(value) => onChangeText(value.slice(0, max))}
         multiline
-        maxLength={SUBMISSION_TEXT_MAX}
-        style={{ minHeight: 96, textAlignVertical: "top" }}
+        maxLength={max}
+        style={{ minHeight: captioned ? 64 : 96, textAlignVertical: "top" }}
       />
       <AppText muted>
         {t("submission.counter", {
           count: formatNumber(text.trim().length, language),
-          max: formatNumber(SUBMISSION_TEXT_MAX, language),
+          max: formatNumber(max, language),
         })}
       </AppText>
-      <Button label={t("submission.send")} disabled={busy || !canSend(text)} onPress={onSend} />
     </>
   );
 }
 
 /**
- * A text submission quest in the quest sheet (FR-206, FR-409, FR-1706, FR-1709): the guidelines the first time, then
- * a box with a counter; afterwards where the latest answer stands. Only the event team sees what is sent (FR-205).
+ * The box with its counter and Send, and the photo when the quest takes one (T-301b): a photo-only quest shows its
+ * caption box once a photo is chosen. The text, the photo and the busy flag stay with the entry.
+ */
+function SubmissionBox({
+  quest,
+  step,
+  text,
+  photos,
+  busy,
+  onChangeText,
+  onSend,
+}: Readonly<{
+  quest: Quest;
+  step: SubmissionStep;
+  text: string;
+  photos: PhotoDraftState;
+  busy: boolean;
+  onChangeText: (value: string) => void;
+  onSend: () => void;
+}>) {
+  const { t } = useI18n();
+  const accepts = acceptsOf(quest);
+  const photo = photos.photo;
+  const ready = canSendPhoto(accepts, photo, text);
+  return (
+    <>
+      <AppText muted>{t("submission.private")}</AppText>
+      {accepts.photo ? <PhotoField state={photos} disabled={busy} /> : null}
+      {accepts.text || photo !== null ? (
+        <TextBox step={step} text={text} captioned={photo !== null} onChangeText={onChangeText} />
+      ) : null}
+      <Button
+        label={t("submission.send")}
+        disabled={busy || photos.uploading || !ready}
+        onPress={onSend}
+      />
+    </>
+  );
+}
+
+/** One send: the photo uploaded first when there is one, then the submission with its id and the text as its caption. */
+async function sendEntry(
+  questId: string,
+  text: string,
+  photos: PhotoDraftState,
+  last: Readonly<{ key: string; text: string }> | undefined,
+): Promise<{ sent: { key: string; text: string }; answer: SendAnswer }> {
+  let photoId: string | null = null;
+  if (photos.draft !== null) {
+    const uploaded = await photos.upload(questPhotoPath(questId));
+    if (uploaded.kind !== "uploaded")
+      return { sent: last ?? { key: "", text: "" }, answer: uploaded };
+    photoId = uploaded.photoId;
+  }
+  // One key per text and photo: a retry repeats both, a change makes a new send.
+  const marker = `${text}\u0000${photoId ?? ""}`;
+  const key = sendKey(last, marker, randomUuid);
+  return {
+    sent: { key, text: marker },
+    answer: await sendSubmission(api.session, questId, text, key, photoId),
+  };
+}
+
+/**
+ * A submission quest in the quest sheet (FR-204, FR-206, FR-409, FR-1706, FR-1709): the guidelines the first time, then
+ * a box with a counter and, when the quest takes one, a photo (T-301b); afterwards where the latest answer stands. Only
+ * the event team sees what is sent (FR-205).
  */
 export function SubmissionEntry({ quest, onSent }: Readonly<{ quest: Quest; onSent: () => void }>) {
   const { t, language } = useI18n();
@@ -180,6 +243,7 @@ export function SubmissionEntry({ quest, onSent }: Readonly<{ quest: Quest; onSe
   const [last, setLast] = useState<{ key: string; text: string } | undefined>(undefined);
   const [said, setSaid] = useState<string | LocalizedText | null>(null);
   const [guidelines, setGuidelines] = useState(false);
+  const photos = usePhotoDraft();
 
   const load = useCallback(async () => {
     setMine((await fetchMySubmissions(api.session, eventId)) ?? "failed");
@@ -213,11 +277,10 @@ export function SubmissionEntry({ quest, onSent }: Readonly<{ quest: Quest; onSe
   const step = submissionStep(quest.id, mine.submissions);
   const line = stepLine(step, t, language);
   const send = async () => {
-    const key = sendKey(last, text, randomUuid);
     setBusy(true);
-    const answer = await sendSubmission(api.session, quest.id, text, key);
+    const { sent, answer } = await sendEntry(quest.id, text, photos, last);
     setBusy(false);
-    setLast({ key, text });
+    setLast(sent);
     if (answer.kind === "guidelines") {
       setGuidelines(true);
       return;
@@ -225,6 +288,7 @@ export function SubmissionEntry({ quest, onSent }: Readonly<{ quest: Quest; onSe
     setSaid(answerLine(answer, t, language));
     if (answer.kind === "sent") {
       setText("");
+      photos.clear();
       setLast(undefined);
       onSent();
       await load();
@@ -235,10 +299,12 @@ export function SubmissionEntry({ quest, onSent }: Readonly<{ quest: Quest; onSe
       <SubmissionStatus step={step} line={line} said={said} />
       {showsBox(quest.state, step) ? (
         <SubmissionBox
+          quest={quest}
           step={step}
           text={text}
+          photos={photos}
           busy={busy}
-          onChangeText={(value) => setText(value.slice(0, SUBMISSION_TEXT_MAX))}
+          onChangeText={setText}
           onSend={() => void send()}
         />
       ) : null}

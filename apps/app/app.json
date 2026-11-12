@@ -95,9 +95,17 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Questify uses the camera to scan the QR codes at your event.",
+          "cameraPermission": "Questify uses the camera to scan the QR codes at your event and to take photos you choose to send.",
           "microphonePermission": false,
           "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": false,
+          "cameraPermission": "Questify uses the camera to scan the QR codes at your event and to take photos you choose to send.",
+          "microphonePermission": false
         }
       ],
       [

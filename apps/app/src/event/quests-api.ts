@@ -74,6 +74,8 @@ export type Quest = Readonly<{
   meet: Readonly<{ dailyCap: number; today: number }> | null;
   /** A game quest's attempts left (null when unlimited) and whether it passed (T-305); null for other types. */
   game: Readonly<{ attemptsLeft: number | null; passed: boolean }> | null;
+  /** A submission quest's kinds (T-301b): text, photo or both; null for other types or an older API (text). */
+  submission: Readonly<{ accepts: readonly string[] }> | null;
   /** The community goal holding it shut, its category's included (T-306c); null when free or from an older API. */
   communityLock: CommunityLock | null;
   /** A flash quest's end (T-307): it is listed only inside its window; null for any other quest or an older API. */
@@ -240,6 +242,7 @@ const withVerification = (quest: Quest): Quest => ({
   place: placeOf(quest.place),
   meet: meetOf(quest.meet),
   game: gameOf(quest.game),
+  submission: submissionOf(quest.submission),
   communityLock: lockNoteOf(quest.communityLock),
   flash: flashOf(quest.flash),
   boost: runningBoostOf(quest.boost),
@@ -250,6 +253,15 @@ const withVerification = (quest: Quest): Quest => ({
 function flashOf(value: unknown): Quest["flash"] {
   return isRecord(value) && typeof value["closesAt"] === "string"
     ? { closesAt: value["closesAt"] }
+    : null;
+}
+
+/** A submission quest's kinds as sent, or null for anything missing or not well formed. */
+function submissionOf(value: unknown): Quest["submission"] {
+  return isRecord(value) &&
+    Array.isArray(value["accepts"]) &&
+    value["accepts"].every((kind) => typeof kind === "string")
+    ? { accepts: value["accepts"] as string[] }
     : null;
 }
 

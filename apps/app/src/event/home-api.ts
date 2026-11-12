@@ -79,6 +79,8 @@ export type Home = Readonly<{
   streak: EventStreak | null;
   /** The App Review reviewer in the demo event (T-710b): the scanner offers its code picker. False from anyone else. */
   reviewDemo: boolean;
+  /** This server stores photos (T-301b): the help form may offer one. False from an older API. */
+  photos: boolean;
 }>;
 
 /**
@@ -240,6 +242,7 @@ export function readHome(body: unknown): Home | undefined {
     helpUnread: readUnread(body["help"]),
     streak: eventStreakOf(body["streak"]),
     reviewDemo: body["reviewDemo"] === true,
+    photos: body["photos"] === true,
   };
 }
 

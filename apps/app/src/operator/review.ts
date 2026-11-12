@@ -12,6 +12,8 @@ export type ReviewItem = Readonly<{
   points: number;
   /** A word-list hit (FR-1628): read it carefully. */
   marked: boolean;
+  /** The photo's signed read for 5 minutes (T-301b); null for a text submission or an older API. */
+  photoUrl: string | null;
 }>;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -48,6 +50,7 @@ export function reviewQueueOf(body: unknown): ReviewItem[] | undefined {
     text: item["text"] as string | null,
     points: item["points"] as number,
     marked: item["marked"] as boolean,
+    photoUrl: typeof item["photoUrl"] === "string" ? item["photoUrl"] : null,
   }));
 }
 

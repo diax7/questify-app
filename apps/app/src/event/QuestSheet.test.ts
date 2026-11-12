@@ -59,6 +59,7 @@ const quest = (patch: Partial<Quest> = {}): Quest => ({
   place: null,
   meet: null,
   game: null,
+  submission: null,
   communityLock: null,
   flash: null,
   boost: null,

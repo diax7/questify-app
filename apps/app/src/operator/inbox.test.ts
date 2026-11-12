@@ -149,6 +149,7 @@ const item = (id: string): ReviewItem => ({
   text: "Hi",
   points: 10,
   marked: false,
+  photoUrl: null,
 });
 
 describe("the review card the Inbox opens", () => {

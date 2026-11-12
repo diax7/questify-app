@@ -10639,6 +10639,34 @@ export const MESSAGES = {
   "onboarding.scan": { ar: "امسح رمز QR للفعالية", en: "Scan an event QR" },
   "onboarding.explore": { ar: "استكشف الفعاليات", en: "Explore events" },
   "onboarding.replay": { ar: "كيف يعمل Questify", en: "How Questify works" },
+  // Photos (T-301b): the player's camera and picker, and the team's view of a photo.
+  "photo.take": { ar: "التقط صورة", en: "Take a photo" },
+  "photo.choose": { ar: "اختر صورة", en: "Choose a photo" },
+  "photo.remove": { ar: "احذف الصورة", en: "Remove photo" },
+  "photo.preview": { ar: "صورتك", en: "Your photo" },
+  "photo.uploading": { ar: "جارٍ إرسال الصورة…", en: "Sending the photo…" },
+  "photo.caption": { ar: "تعليق (اختياري)", en: "Caption (optional)" },
+  "photo.add": { ar: "أضف صورة (اختياري)", en: "Add a photo (optional)" },
+  "photo.cameraDenied": {
+    ar: "اسمح باستخدام الكاميرا من الإعدادات لالتقاط صورة.",
+    en: "Allow the camera in Settings to take a photo.",
+  },
+  "photo.unsupported": {
+    ar: "صيغة هذه الصورة غير مدعومة. اختر صورة أخرى أو التقط صورة جديدة.",
+    en: "This photo's format isn't supported. Choose another or take a new one.",
+  },
+  "photo.updateApp": { ar: "حدّث التطبيق لإرسال الصور.", en: "Update the app to send photos." },
+  "photo.gone": { ar: "حُذفت الصورة.", en: "The photo was deleted." },
+  "photo.sent": { ar: "أُرسلت صورة.", en: "A photo was sent." },
+  "photo.alt": { ar: "الصورة المرسلة", en: "The photo sent" },
+  "photo.expired": {
+    ar: "انتهت مدة عرض الصورة. حدّث الصفحة لعرضها.",
+    en: "The photo link expired. Refresh to see it again.",
+  },
+  "quests.submission.accepts": { ar: "يرسل اللاعب", en: "Players send" },
+  "quests.submission.acceptsText": { ar: "نصًا", en: "Text" },
+  "quests.submission.acceptsPhoto": { ar: "صورة", en: "A photo" },
+  "quests.submission.acceptsEither": { ar: "نصًا أو صورة", en: "Text or a photo" },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

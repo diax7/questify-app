@@ -230,6 +230,8 @@ export async function sendTicket(
     reportedUsername?: string;
     text: string;
     key: string;
+    /** An upload from the ticket photo door (T-301b, FR-337), or none. */
+    photoId?: string;
   }>,
 ): Promise<SendAnswer> {
   return sendAnswer(
@@ -243,6 +245,7 @@ export async function sendTicket(
         ...(request.reportedUsername === undefined
           ? {}
           : { reportedUsername: request.reportedUsername }),
+        ...(request.photoId === undefined ? {} : { photoId: request.photoId }),
       },
       headers: { "idempotency-key": request.key },
     }),

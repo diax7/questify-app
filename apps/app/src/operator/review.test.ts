@@ -35,8 +35,12 @@ describe("reviewQueueOf", () => {
         text: "Hello",
         points: 150,
         marked: true,
+        photoUrl: null,
       },
     ]);
+    expect(
+      reviewQueueOf({ submissions: [{ ...ITEM, text: null, photoUrl: "https://s3.test/p.jpg" }] }),
+    ).toMatchObject([{ text: null, photoUrl: "https://s3.test/p.jpg" }]);
     expect(reviewQueueOf({ submissions: [{ ...ITEM, username: null, text: null }] })).toHaveLength(
       1,
     );

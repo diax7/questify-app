@@ -145,6 +145,40 @@ describe("createClient", () => {
     expect(Number(config.expo.version.split(".")[0])).toBeGreaterThanOrEqual(1);
   });
 
+  it("sends a raw body as it is, with its own type and a longer limit when asked (T-301b)", async () => {
+    const api = answering(201, { photoId: "p1" });
+    const photo = new Blob(["jpeg bytes"]);
+    const result = await clientWith(api.fetchImpl).request({
+      method: "POST",
+      path: "/v1/quests/q1/photo",
+      raw: { data: photo, type: "image/jpeg" },
+      timeoutMs: 60_000,
+      accessToken: "token-1",
+    });
+    expect(result).toMatchObject({ kind: "ok", status: 201, body: { photoId: "p1" } });
+    expect(api.calls[0]?.init?.body).toBe(photo);
+    expect(new Headers(api.calls[0]?.init?.headers).get("content-type")).toBe("image/jpeg");
+  });
+
+  it("keeps a call's own timeout over the client's", async () => {
+    const hanging = ((_url: string, init?: RequestInit) =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+      })) as unknown as typeof fetch;
+    const client = createClient({
+      baseUrl: "https://api.test",
+      deviceId: async () => "d",
+      language: () => "en",
+      fetchImpl: hanging,
+      timeoutMs: 60_000,
+    });
+    const started = Date.now();
+    expect(await client.request({ method: "GET", path: "/slow", timeoutMs: 20 })).toEqual({
+      kind: "network",
+    });
+    expect(Date.now() - started).toBeLessThan(5000);
+  });
+
   it("sends no body, content type or token when there are none", async () => {
     const api = answering(200, {});
     await clientWith(api.fetchImpl).request({ method: "GET", path: "/v1/config" });
