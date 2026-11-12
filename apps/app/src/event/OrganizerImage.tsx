@@ -6,6 +6,36 @@ import { createImageUrls } from "#src/event/organizer-images.ts";
 /** The app's one store of signed image URLs, read through the player's session. */
 const urls = createImageUrls((request) => api.session.request(request));
 
+type Target = Readonly<{ eventId: string; imageId: string }>;
+
+const targetOf = (eventId: string | null | undefined, imageId: string | null | undefined) =>
+  eventId === null || eventId === undefined || imageId === null || imageId === undefined
+    ? null
+    : ({ eventId, imageId } satisfies Target);
+
+/** The image's URL once read: at once when this app read it lately, else after one read; null for none. */
+function useImageUrl(target: Target | null): string | null {
+  const eventId = target?.eventId;
+  const imageId = target?.imageId;
+  const [url, setUrl] = useState<string | null>(
+    target === null ? null : (urls.known(target.eventId, target.imageId)?.url ?? null),
+  );
+  useEffect(() => {
+    let live = true;
+    if (eventId === undefined || imageId === undefined) {
+      setUrl(null);
+      return;
+    }
+    void urls.read(eventId, imageId).then((answer) => {
+      if (live) setUrl(answer?.url ?? null);
+    });
+    return () => {
+      live = false;
+    };
+  }, [eventId, imageId]);
+  return url;
+}
+
 /**
  * An organizer's image (ADR-829): a logo, a banner, a map, a slide or card picture, game art or a vote option's icon,
  * read through the event's image door. Until it loads, and whenever it cannot (no image id, no bucket, a refusal, no
@@ -27,27 +57,9 @@ export function OrganizerImage({
   resizeMode?: ImageResizeMode;
   fallback?: ReactNode;
 }>) {
-  const ready =
-    eventId === null || eventId === undefined || imageId === null || imageId === undefined
-      ? undefined
-      : urls.known(eventId, imageId);
-  const [url, setUrl] = useState<string | null>(ready?.url ?? null);
-  const [broken, setBroken] = useState(false);
-  useEffect(() => {
-    let live = true;
-    setBroken(false);
-    if (eventId === null || eventId === undefined || imageId === null || imageId === undefined) {
-      setUrl(null);
-      return;
-    }
-    void urls.read(eventId, imageId).then((answer) => {
-      if (live) setUrl(answer?.url ?? null);
-    });
-    return () => {
-      live = false;
-    };
-  }, [eventId, imageId]);
-  if (url === null || broken) return <>{fallback}</>;
+  const url = useImageUrl(targetOf(eventId, imageId));
+  const [broken, setBroken] = useState<string | null>(null);
+  if (url === null || broken === url) return <>{fallback}</>;
   return (
     <Image
       source={{ uri: url }}
@@ -56,7 +68,7 @@ export function OrganizerImage({
       accessible
       accessibilityRole="image"
       accessibilityLabel={label}
-      onError={() => setBroken(true)}
+      onError={() => setBroken(url)}
     />
   );
 }

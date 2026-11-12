@@ -3182,3 +3182,10 @@ how long may it work?
 rejection, erasure and after 365 days; counsel to confirm with Q-042.
 **Question:** does a photo from a minor need anything more (a guardian's consent, a shorter retention, or none at all
 for quests that show faces)?
+
+## Q-767 - Does CranL's PostgreSQL take `ON DELETE SET NULL (column)`? (ADR-829)
+
+**Status:** open; recommended: check the server version before deploying 0194. The map and sponsor image keys use
+`ON DELETE SET NULL (image)`, which needs PostgreSQL 15 or later; CI runs 17.
+**Question:** which PostgreSQL version does CranL run for staging and production? Below 15, 0194 needs a trigger that
+clears the column instead.

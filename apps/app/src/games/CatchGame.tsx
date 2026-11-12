@@ -169,6 +169,28 @@ function useCatchFrames(
   }, [loop, finger, read, draw, end]);
 }
 
+/** A falling item's face: the organizer's item for it (T-305b), else the currency art. */
+function ItemFace({ face, size }: Readonly<{ face: number; size: number }>) {
+  const { t } = useI18n();
+  const items = useGameArt().images.items;
+  const box = { width: size, height: size };
+  return (
+    <GamePicture
+      imageId={items?.[face]}
+      label={t("image.item", { n: face + 1 })}
+      style={box}
+      fallback={
+        <Image
+          source={FACES[face] ?? FACES[0]}
+          style={box}
+          accessible={false}
+          importantForAccessibility="no"
+        />
+      }
+    />
+  );
+}
+
 /**
  * Catch on its server-issued round (T-305c, ADR-216): items fall from the seed on the fixed tick and the player drags
  * the basket. A fixed pool of views moves every frame. The field never mirrors. Ends on the last tick, or at once
@@ -194,7 +216,6 @@ export function CatchGame({
 }>) {
   const { t, language } = useI18n();
   const styles = useThemedStyles(makeStyles);
-  const art = useGameArt().images;
   const { width } = useWindowDimensions();
   const loop = useRef(startCatch(seed, params));
   const finished = useRef(false);
@@ -250,18 +271,7 @@ export function CatchGame({
               pointerEvents="none"
               style={[styles.item, { transform: position.getTranslateTransform() }]}
             >
-              {/* The organizer's item for this face (T-305b), else the currency art. */}
-              <GamePicture
-                imageId={art.items?.[face]}
-                label={t("image.item", { n: face + 1 })}
-                style={{ width: field.item, height: field.item }}
-                fallback={
-                  <Image
-                    source={FACES[face] ?? FACES[0]}
-                    style={{ width: field.item, height: field.item }}
-                  />
-                }
-              />
+              <ItemFace face={face} size={field.item} />
             </Animated.View>
           );
         })}

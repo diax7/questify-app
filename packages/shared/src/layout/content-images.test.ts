@@ -9,6 +9,13 @@ const slide = {
 };
 const card = { id: "abcdef", kind: "text", title: { ar: "", en: "" }, body: { ar: "", en: "Hi" } };
 const content = (patch: Record<string, unknown>) => ({ ...EMPTY_CONTENT, ...patch });
+const page = (block: Record<string, unknown>) =>
+  content({
+    page: {
+      title: { ar: "", en: "Venue" },
+      blocks: [{ kind: "text", text: { ar: "", en: "Doors open at 9" } }, block],
+    },
+  });
 
 /** Organizer images on Home and the custom page (T-610b, T-613b, ADR-829): ids only, older readers drop them. */
 describe("images in the event's content", () => {
@@ -38,13 +45,6 @@ describe("images in the event's content", () => {
   });
 
   it("takes an image part on the custom page with its words, and drops a damaged one when read", () => {
-    const page = (block: Record<string, unknown>) =>
-      content({
-        page: {
-          title: { ar: "", en: "Venue" },
-          blocks: [{ kind: "text", text: { ar: "", en: "Doors open at 9" } }, block],
-        },
-      });
     const good = { kind: "image", image: IMAGE, alt: { ar: "", en: "The hall" } };
     const checked = checkHomeContent(page(good));
     expect(checked.ok && checked.value.page?.blocks[1]).toEqual({

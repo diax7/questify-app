@@ -87,7 +87,12 @@ export function registerImageReadRoutes(app: FastifyInstance, deps: ImageReadDep
     async (request, reply) => {
       const seat = playerSeat(request);
       if (seat === undefined || deps.storage === undefined) throw notFound();
-      return redirect(deps, request, reply, await keyOf(deps, seat, "event_image_key", request.params));
+      return redirect(
+        deps,
+        request,
+        reply,
+        await keyOf(deps, seat, "event_image_key", request.params),
+      );
     },
   );
 }
@@ -100,7 +105,12 @@ export function registerImageTeamReadRoutes(scope: FastifyInstance, deps: ImageR
     async (request, reply) => {
       if (deps.storage === undefined) throw notFound();
       const seat = teamSeat(organizerContextOf(request));
-      return redirect(deps, request, reply, await keyOf(deps, seat, "team_image_key", request.params));
+      return redirect(
+        deps,
+        request,
+        reply,
+        await keyOf(deps, seat, "team_image_key", request.params),
+      );
     },
   );
 }

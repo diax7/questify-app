@@ -19,7 +19,7 @@ import {
 } from "@questify/shared";
 import { api, keyValueStore } from "#src/api/app-session.ts";
 import { markOpened, readMyEvents, type MyEvent } from "#src/event/launch.ts";
-import { useEventConfig } from "#src/event/useEventConfig.ts";
+import { useEventConfig, type EventImages } from "#src/event/useEventConfig.ts";
 import { fetchSponsors, lookupOf, type SponsorLookup } from "#src/event/sponsors.ts";
 import { TermsScope } from "#src/i18n/provider.tsx";
 import { ThemeProvider, useTheme } from "#src/theme/theme.tsx";
@@ -54,8 +54,7 @@ type EventValue = Readonly<{
   /** The event's accent colour (T-602, FR-1023), or null for Questify green; the provider applies it to the theme. */
   accent: AccentKey | null;
   /** The event's logo and banner image ids (T-602b), null for Questify's own art. */
-  logo: string | null;
-  banner: string | null;
+  images: EventImages;
   /**
    * The bar items and Home blocks to show, in order (T-606, FR-1749). Read with `playerTabs` and `homeBlocks`, which also
    * apply the event's switches: a layout never shows what a switch took away.
@@ -116,8 +115,7 @@ export function EventProvider({
     livePollSeconds,
     featureOn,
     accent,
-    logo,
-    banner,
+    images,
     layout,
     maintenance,
   } = useEventConfig(eventId);
@@ -139,8 +137,7 @@ export function EventProvider({
       helpOn,
       featureOn,
       accent,
-      logo,
-      banner,
+      images,
       layout,
       maintenance,
       livePollSeconds,
@@ -161,8 +158,7 @@ export function EventProvider({
       helpOn,
       featureOn,
       accent,
-      logo,
-      banner,
+      images,
       layout,
       maintenance,
       livePollSeconds,

@@ -206,7 +206,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("sponsors over HTTP", () => {
     expect(answer.statusCode).toBe(200);
     expect(answer.headers["cache-control"]).toContain("no-store");
     expect(answer.json()).toEqual({
-      sponsors: [{ id: made.id, name: { ar: "أكمي", en: "Acme" }, tier: "gold", booth: "B1" }],
+      sponsors: [
+        {
+          id: made.id,
+          name: { ar: "أكمي", en: "Acme" },
+          tier: "gold",
+          booth: "B1",
+          logo: null,
+          banner: null,
+        },
+      ],
       tags: [{ kind: "quest", targetId: shown, sponsorId: made.id }],
     });
     expect(answer.body).not.toContain(hidden);

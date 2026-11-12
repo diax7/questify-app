@@ -18,6 +18,34 @@ type Reply = { statusCode: number; headers: Record<string, unknown>; json: <T = 
 
 const codeOf = (reply: Reply) => [reply.statusCode, reply.json<{ code?: string }>().code];
 
+const layoutWith = (content: object) => ({
+  bar: { order: BAR_KEYS, hidden: [] },
+  home: { order: [...HOME_KEYS, "card:aaaaaa11"], hidden: ["podium"] },
+  info: { order: INFO_KEYS, hidden: ["schedule"] },
+  content: { ...EMPTY_CONTENT, ...content },
+  looks: DEFAULT_LOOKS,
+});
+const card = (image: string) => ({
+  id: "aaaaaa11",
+  kind: "text",
+  title: { ar: "", en: "" },
+  body: { ar: "", en: "Hi" },
+  image,
+});
+const slide = (image: string) => ({
+  title: { ar: "", en: "Welcome" },
+  subtitle: { ar: "", en: "" },
+  action: { type: "none" },
+  image,
+});
+const vote = (image: string) => ({
+  options: [
+    { id: "a", text: { en: "Robots" }, image },
+    { id: "b", text: { en: "Space" } },
+  ],
+});
+const game = (images: object) => ({ game: "slide_puzzle", level: "easy", attempts: 3, images });
+
 /**
  * Organizer images over HTTP on the S3 double (ADR-829): the team's upload door, the two read doors (a 302 to a 5-minute
  * signed URL on the bucket's host, every refusal one 404), idempotent repeats, photos off, and each holder: a branding,
@@ -264,27 +292,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer images over HTTP", (
   });
 
   describe("the holders", () => {
-    const layoutWith = (content: object) => ({
-      bar: { order: BAR_KEYS, hidden: [] },
-      home: { order: [...HOME_KEYS, "card:aaaaaa11"], hidden: ["podium"] },
-      info: { order: INFO_KEYS, hidden: ["schedule"] },
-      content: { ...EMPTY_CONTENT, ...content },
-      looks: DEFAULT_LOOKS,
-    });
-    const card = (image: string) => ({
-      id: "aaaaaa11",
-      kind: "text",
-      title: { ar: "", en: "" },
-      body: { ar: "", en: "Hi" },
-      image,
-    });
-    const slide = (image: string) => ({
-      title: { ar: "", en: "Welcome" },
-      subtitle: { ar: "", en: "" },
-      action: { type: "none" },
-      image,
-    });
-
     it("saves a branding logo and banner of the event, and refuses another event's or another organizer's", async () => {
       const event = await newEvent(orgA);
       const logo = await imageOf(orgA, event, "logo");
@@ -402,24 +409,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer images over HTTP", (
           visible: true,
           config,
         });
-      const vote = (image: string) => ({
-        options: [
-          { id: "a", text: { en: "Robots" }, image },
-          { id: "b", text: { en: "Space" } },
-        ],
-      });
       const made = await create("vote", vote(icon));
       expect(made.statusCode).toBe(201);
       const refused = await create("vote", vote(foreign));
       expect(refused.json()).toMatchObject({
         code: "image_unknown",
         details: { field: "config.options.0.image" },
-      });
-      const game = (images: object) => ({
-        game: "slide_puzzle",
-        level: "easy",
-        attempts: 3,
-        images,
       });
       expect((await create("game", game({ picture }))).statusCode).toBe(201);
       expect(codeOf(await create("game", game({ picture: icon })))).toEqual([422, "image_unknown"]);

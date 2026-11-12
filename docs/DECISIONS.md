@@ -9172,3 +9172,38 @@ Q-150 to Q-152 as recommended; Q-764 to Q-766.
 queues uploads during a burst (503 `busy` beyond four waiting). `S3_ENDPOINT` and `MEDIA_HOST` are operator-set until
 CranL's bucket endpoint is confirmed by the contract test. Hold and report kinds for photos wait for T-504b (no player
 sees a photo in phase 1). The exports carry no photo column yet (FOLLOWUPS).
+
+## ADR-829 - Photo storage, phase 2 part A: organizer images by id, two read doors, a sweep for what nothing names
+
+**Status:** Proposed (photo phase 2 part A, 2026-11-12; plan `docs/plans/2026-11-12-organizer-images.md` sections 2
+and 3). Builds on ADR-828; T-602b, T-610b, T-613b, T-506b, T-507b, T-305b and vote option images (ADR-190). Q-767.
+**Decision:**
+- **Kinds.** `logo` and `icon` are PNG at most 512 px (transparency kept); `banner` and `map` are JPEG at most 2,048 px;
+  `picture` JPEG at most 1,600 px. Each holder takes one kind; the same list is migration 0194's CHECK and
+  `IMAGE_PURPOSES` in shared. Every image keeps the photo pipeline's sniff, gate, 32 MP limit, rotate and metadata strip.
+- **Upload.** `POST /v1/organizers/{o}/events/{e}/images?purpose=` (owners and editors inside their scope, raw body,
+  Idempotency-Key) answers `201 {imageId, width, height}`. `media_image_reserve` caps 30 uploads a staff member in
+  10 minutes and 200 images an event has not used yet (MD429); an archived or suspended event is MI409.
+- **Reads.** `GET /v1/events/{e}/images/{id}` (an active member, the event not suspended) and
+  `GET /v1/organizers/{o}/events/{e}/images/{id}` (the team) answer a 302 to a 300-second signed URL with
+  `Cache-Control: private, max-age=240` and `Referrer-Policy: no-referrer`, or, to a caller that asks for JSON and not
+  an image (the app's client), `{url, expiresAt}`. Every refusal is one 404. The web forwarder passes `location` only on
+  these two paths and only to the photo bucket's own https origin (`MEDIA_HOST`); any other redirect there is a 404.
+- **Holders name ids, never URLs.** A map's picture and a sponsor's logo and banner are columns with a composite foreign
+  key to `media_object (id, event_id)` (`ON DELETE SET NULL (col)`); the JSON holders (branding, layout, game art, vote
+  options) go through `media_images_use` inside the save's transaction, which refuses an id that is not a stored image
+  of this event and of the field's kind (MI422, 422 `image_unknown {field}`) and marks it used.
+- **Deletion.** `media_sweep_images` (the media worker) deletes an organizer slot never stored after 30 minutes and a
+  stored image last named more than 24 hours ago that `event_image_refs` (every uuid in the event's config, quests and
+  pending change-set items, plus the columns) no longer lists; a still-named one is marked used, so it is looked at a day
+  later. Rows are taken FOR UPDATE SKIP LOCKED: a save in flight keeps its image, and a save that waited on a swept row
+  is refused.
+- **Duplicating an event** strips every image id from the copy (`media_refs_strip_event`); it shows the default art.
+- **No bucket**: the dashboard's image fields are hidden (the event read carries `photos`), uploads answer 503
+  `photos_off`, reads 404, and the app draws Questify's own art; older apps drop the new fields.
+**Why:** the bucket stays private and keyed by the database (ADR-828); a holder can never name another event's image;
+nothing is left behind once nothing names it.
+**Trade-offs:** an image stays up to a day and a worker run after its last holder lets go; an audit revert can name an
+image already deleted (the read answers 404 and the art falls back). The app asks for JSON instead of following the 302,
+so no redirect carries its token to the bucket (plan section 5's fallback, taken first). The dashboard previews and
+the screen poll draw no pictures yet (FOLLOWUPS).

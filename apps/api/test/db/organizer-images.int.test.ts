@@ -120,10 +120,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer images (database)", 
     await store(slot, context);
     return slot;
   };
-  const use = (event: string, image: string, kind = "picture", context = teamA()) =>
+  const use = (event: string, imageId: string, kind = "picture", context = teamA()) =>
     query(context, "SELECT media_images_use($1, $2::uuid[], $3::text[], $4::text[])", [
       event,
-      [image],
+      [imageId],
       [kind],
       ["branding.logo"],
     ]);
@@ -703,7 +703,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer images (database)", 
       expect(await refusal(game("catch", { items: Array(6).fill(id) }))).toBe("23514");
       expect(await refusal(game("tap_rush", { items: [id] }))).toBe("23514");
       expect(await refusal(game("catch", { items: ["not-an-id"] }))).toBe("23514");
-      const vote = (image: unknown) =>
+      const vote = (pic: unknown) =>
         owner(
           `INSERT INTO quest (event_id, category_id, type, title_en, points, type_config)
            VALUES ($1, $2, 'vote', 'V', 10, $3)`,
@@ -712,7 +712,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer images (database)", 
             category?.id,
             JSON.stringify({
               options: [
-                { id: "a", text: { ar: "", en: "A" }, image },
+                { id: "a", text: { ar: "", en: "A" }, image: pic },
                 { id: "b", text: { ar: "", en: "B" } },
               ],
             }),

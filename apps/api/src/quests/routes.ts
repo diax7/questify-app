@@ -258,8 +258,6 @@ export function answer<T>(
       throw souvenirInUse(result.what, subject);
     case "invalid_item":
       throw invalidItem();
-    case "image_unknown":
-      throw imageUnknown({ field: result.field });
     case "poll_locked":
       throw pollLocked({ field: result.field });
     case "first_bonus_paid":
@@ -285,12 +283,15 @@ const LIVE_EDIT_ERRORS = {
   key_reused: idempotencyKeyReused,
 } as const;
 
-/** The live points edits' refusals (T-604). */
+/** The live points edits' refusals (T-604), and an image a game or vote names that is not this event's (ADR-829). */
 function liveEditAnswer(
-  result: Extract<Refused, { kind: keyof typeof LIVE_EDIT_ERRORS | "over_cap" }>,
+  result: Extract<Refused, { kind: keyof typeof LIVE_EDIT_ERRORS | "over_cap" | "image_unknown" }>,
 ): never {
   if (result.kind === "over_cap") {
     throw overCap({ cap: "each", limit: result.limit });
+  }
+  if (result.kind === "image_unknown") {
+    throw imageUnknown({ field: result.field });
   }
   throw LIVE_EDIT_ERRORS[result.kind]();
 }

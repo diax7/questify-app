@@ -397,7 +397,8 @@ export function PodiumBlock({
  * screen reader. Nothing at all while there is none or it cannot be drawn, so Home looks as before.
  */
 export function EventBannerPicture({ name }: Readonly<{ name: string }>) {
-  const { eventId, banner } = useEvent();
+  const { eventId, images } = useEvent();
+  const banner = images.banner;
   const styles = useThemedStyles(makeStyles);
   return banner === null ? null : (
     <OrganizerImage eventId={eventId} imageId={banner} label={name} style={styles.eventBanner} />

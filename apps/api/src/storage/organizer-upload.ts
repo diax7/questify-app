@@ -98,9 +98,14 @@ export async function uploadOrganizerImage(
         return rows[0]?.ok === true;
       }),
   });
-  return {
-    imageId: slot.id,
-    width: image?.width ?? slot.width ?? 0,
-    height: image?.height ?? slot.height ?? 0,
-  };
+  return answerOf(slot, image);
 }
+
+/** The new image's id and size: as just encoded, or as stored by the first try of the same key. */
+const answerOf = (
+  slot: ImageSlot,
+  image: Readonly<{ width: number; height: number }> | undefined,
+): StoredImage =>
+  image === undefined
+    ? { imageId: slot.id, width: slot.width ?? 0, height: slot.height ?? 0 }
+    : { imageId: slot.id, width: image.width, height: image.height };

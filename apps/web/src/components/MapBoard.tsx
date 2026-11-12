@@ -39,7 +39,7 @@ export function MapBoard({
   label: string;
   pins: readonly TeamMapPin[];
   /** The map's picture (T-506b): the board takes its aspect from it, and the pins keep their thousandths. */
-  image?: SizedImage | null;
+  image?: SizedImage | null | undefined;
   labelOf: (pin: TeamMapPin) => string;
   selectedId: string | null;
   draft: Readonly<{ x: number; y: number }> | null;

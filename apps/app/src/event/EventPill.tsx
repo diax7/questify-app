@@ -22,7 +22,8 @@ export function eventName(event: Pick<MyEvent, "name" | "joinCode">, language: L
  */
 export function EventPill() {
   const { t, language } = useI18n();
-  const { eventId, events, knownName, maintenance, logo } = useEvent();
+  const { eventId, events, knownName, maintenance, images } = useEvent();
+  const logo = images.logo;
   const [open, setOpen] = useState(false);
   const styles = useThemedStyles(makeStyles);
   const current = events?.find((event) => event.id === eventId);

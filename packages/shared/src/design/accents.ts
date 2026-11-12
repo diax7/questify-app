@@ -39,14 +39,15 @@ export const DEFAULT_BRANDING: Branding = { accent: null };
 
 const IMAGE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+const image = (value: unknown): string | undefined =>
+  typeof value === "string" && IMAGE_ID.test(value) ? value.toLowerCase() : undefined;
+
 /** The branding with its images, each kept only when it is an image id (lowercase), so none means the key is absent. */
 export function withBrandingImages(
   accent: AccentKey | null,
   logo: unknown,
   banner: unknown,
 ): Branding {
-  const image = (value: unknown) =>
-    typeof value === "string" && IMAGE_ID.test(value) ? value.toLowerCase() : undefined;
   const logoId = image(logo);
   const bannerId = image(banner);
   return {

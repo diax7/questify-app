@@ -14,6 +14,14 @@ import { api, keyValueStore } from "#src/api/app-session.ts";
 import { helpDeskOn, loadEventConfig, locationQuestsOn, nfcTagsOn } from "#src/config/remote.ts";
 import { livePollSecondsOf } from "#src/event/polls.ts";
 
+/** The event's logo and banner (T-602b): organizer image ids, null for Questify's own art. */
+export type EventImages = Readonly<{ logo: string | null; banner: string | null }>;
+
+const imagesOf = (branding: ComposedConfig["branding"] | undefined): EventImages => ({
+  logo: branding?.logo ?? null,
+  banner: branding?.banner ?? null,
+});
+
 export type EventSettings = Readonly<{
   terms: EventTerms;
   /** The labels the event renamed (FR-1843, T-614), per language; none until the configuration says so. */
@@ -27,8 +35,7 @@ export type EventSettings = Readonly<{
   /** The event's accent colour (T-602, FR-1023), or null for Questify green. */
   accent: AccentKey | null;
   /** The event's logo and banner image ids (T-602b), null for Questify's own art. */
-  logo: string | null;
-  banner: string | null;
+  images: EventImages;
   /** The event's bar and Home blocks to show, in order (T-606); Questify's own until the configuration says otherwise. */
   layout: ComposedLayout;
   /** Why play is paused in this event (T-703b, FR-1771), in both languages; null while it runs. */
@@ -83,8 +90,7 @@ export function useEventConfig(eventId: string): EventSettings {
     livePollSeconds,
     featureOn,
     accent: config?.branding.accent ?? null,
-    logo: config?.branding.logo ?? null,
-    banner: config?.branding.banner ?? null,
+    images: imagesOf(config?.branding),
     layout: config?.layout ?? DEFAULT_COMPOSED_LAYOUT,
     maintenance,
   };

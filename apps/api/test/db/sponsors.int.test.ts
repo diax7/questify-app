@@ -324,8 +324,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("sponsors (database)", () => {
     await f.join(solo, who);
     const read = await seen(who, solo);
     expect(read.sponsors).toEqual([
-      { id: plat, name: { ar: "ماسي", en: "Plat" }, tier: "platinum", booth: "A1" },
-      { id: other, name: { ar: "Other", en: "Other" }, tier: "bronze", booth: null },
+      {
+        id: plat,
+        name: { ar: "ماسي", en: "Plat" },
+        tier: "platinum",
+        booth: "A1",
+        logo: null,
+        banner: null,
+      },
+      {
+        id: other,
+        name: { ar: "Other", en: "Other" },
+        tier: "bronze",
+        booth: null,
+        logo: null,
+        banner: null,
+      },
     ]);
     expect(read.tags).toEqual([
       { kind: "quest", targetId: shown, sponsorId: plat },
@@ -373,6 +387,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("sponsors (database)", () => {
       "created_by",
       "created_at",
       "updated_at",
+      // The logo and the banner (T-507b, 0194): organizer image ids, never a contact or a link.
+      "logo",
+      "banner",
     ]);
     expect(by("sponsor_tag")).toEqual([
       "id",

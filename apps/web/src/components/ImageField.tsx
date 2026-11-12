@@ -66,6 +66,65 @@ async function send(
   }
 }
 
+/** Why a file is refused before it is sent: a type the server does not take, or over 8 MB. */
+function fileProblem(file: File): "image.wrongType" | "image.tooLarge" | null {
+  if (!(IMAGE_UPLOAD_TYPES as readonly string[]).includes(file.type)) return "image.wrongType";
+  return file.size > IMAGE_UPLOAD_BYTES ? "image.tooLarge" : null;
+}
+
+/** The upload of one picked file: busy while it runs, the refusal's words when it fails, the new id when it worked. */
+function useUpload(
+  language: Language,
+  purpose: ImagePurpose,
+  onChange: (next: string | null) => void,
+) {
+  const t = useTranslator(language);
+  const scope = useContext(ImageScopeContext);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const pick = async (file: File | undefined) => {
+    if (file === undefined || scope === null) return;
+    const refused = fileProblem(file);
+    setProblem(refused === null ? null : t(refused));
+    if (refused !== null) return;
+    setBusy(true);
+    const sent = await send(scope, purpose, file, (body) =>
+      body === undefined ? t("image.failed") : describeProblem(body, language, t).text,
+    );
+    setBusy(false);
+    if ("id" in sent) onChange(sent.id);
+    else setProblem(sent.error);
+  };
+  return { busy, problem, pick };
+}
+
+/** The stored image through the team's read door, or "No image". */
+function ImagePreview({
+  language,
+  purpose,
+  label,
+  value,
+}: Readonly<{ language: Language; purpose: ImagePurpose; label: string; value: string | null }>) {
+  const t = useTranslator(language);
+  const src = useTeamImageSrc(value);
+  if (src === null) return <Muted>{t("image.none")}</Muted>;
+  return (
+    <img
+      src={src}
+      alt={t("image.preview", { label })}
+      referrerPolicy="no-referrer"
+      decoding="async"
+      style={{
+        display: "block",
+        inlineSize: "100%",
+        maxInlineSize: purpose === "logo" || purpose === "icon" ? "8rem" : "20rem",
+        blockSize: "auto",
+        borderRadius: "var(--radius-md)",
+      }}
+    />
+  );
+}
+
 /**
  * One organizer image of an event (ADR-829): a preview through the team's read door, a file picker (JPEG, PNG or WebP,
  * at most 8 MB, checked here and again by the server), Replace and Remove. It holds only the image's id; the holder's own
@@ -87,80 +146,33 @@ export function ImageField({
   disabled?: boolean;
 }>) {
   const t = useTranslator(language);
-  const scope = useContext(ImageScopeContext);
   const input = useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
-  if (scope === null || !scope.photos) return null;
-
-  const pick = async (file: File | undefined) => {
-    if (file === undefined) return;
-    setProblem(null);
-    if (!(IMAGE_UPLOAD_TYPES as readonly string[]).includes(file.type)) {
-      setProblem(t("image.wrongType"));
-      return;
-    }
-    if (file.size > IMAGE_UPLOAD_BYTES) {
-      setProblem(t("image.tooLarge"));
-      return;
-    }
-    setBusy(true);
-    const sent = await send(scope, purpose, file, (body) =>
-      body === undefined ? t("image.failed") : describeProblem(body, language, t).text,
-    );
-    setBusy(false);
-    if ("id" in sent) onChange(sent.id);
-    else setProblem(sent.error);
-  };
-
+  const { busy, problem, pick } = useUpload(language, purpose, onChange);
+  const on = useImagesOn();
+  if (!on) return null;
+  const off = disabled || busy;
   return (
     <Stack>
       <span>{label}</span>
-      {value === null ? (
-        <Muted>{t("image.none")}</Muted>
-      ) : (
-        <img
-          src={teamImagePath(scope.organizerId, scope.eventId, value)}
-          alt={t("image.preview", { label })}
-          referrerPolicy="no-referrer"
-          decoding="async"
-          style={{
-            display: "block",
-            inlineSize: "100%",
-            maxInlineSize: purpose === "logo" || purpose === "icon" ? "8rem" : "20rem",
-            blockSize: "auto",
-            borderRadius: "var(--radius-md)",
-          }}
-        />
-      )}
+      <ImagePreview language={language} purpose={purpose} label={label} value={value} />
       <input
         ref={input}
         aria-label={label}
         type="file"
         accept={IMAGE_UPLOAD_TYPES.join(",")}
         hidden
-        disabled={disabled || busy}
+        disabled={off}
         onChange={(event) => {
           void pick(event.currentTarget.files?.[0]);
           event.currentTarget.value = "";
         }}
       />
       <Toolbar>
-        <Button
-          size="sm"
-          disabled={disabled || busy}
-          aria-busy={busy}
-          onClick={() => input.current?.click()}
-        >
+        <Button size="sm" disabled={off} aria-busy={busy} onClick={() => input.current?.click()}>
           {busy ? t("image.uploading") : t(value === null ? "image.choose" : "image.replace")}
         </Button>
         {value === null ? null : (
-          <Button
-            size="sm"
-            variant="quiet"
-            disabled={disabled || busy}
-            onClick={() => onChange(null)}
-          >
+          <Button size="sm" variant="quiet" disabled={off} onClick={() => onChange(null)}>
             {t("image.remove")}
           </Button>
         )}

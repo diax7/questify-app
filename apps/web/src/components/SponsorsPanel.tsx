@@ -56,6 +56,41 @@ function useSponsorWrites(props: SponsorsProps) {
   return { model, notice, failure, writes, t };
 }
 
+/** The sponsor's logo and strip banner (T-507b), where this server stores images. */
+function SponsorImages({
+  language,
+  draft,
+  busy,
+  change,
+}: Readonly<{
+  language: Language;
+  draft: SponsorDraft;
+  busy: boolean;
+  change: (draft: SponsorDraft) => void;
+}>) {
+  const t = useTranslator(language);
+  return (
+    <>
+      <ImageField
+        language={language}
+        purpose="logo"
+        label={t("image.logo")}
+        value={draft.logo}
+        disabled={busy}
+        onChange={(logo) => change({ ...draft, logo })}
+      />
+      <ImageField
+        language={language}
+        purpose="banner"
+        label={t("image.banner")}
+        value={draft.banner}
+        disabled={busy}
+        onChange={(banner) => change({ ...draft, banner })}
+      />
+    </>
+  );
+}
+
 function SponsorForm({
   language,
   draft,
@@ -135,22 +170,7 @@ function SponsorForm({
             />
           </Field>
         </FieldGroup>
-        <ImageField
-          language={language}
-          purpose="logo"
-          label={t("image.logo")}
-          value={draft.logo}
-          disabled={busy}
-          onChange={(logo) => change({ ...draft, logo })}
-        />
-        <ImageField
-          language={language}
-          purpose="banner"
-          label={t("image.banner")}
-          value={draft.banner}
-          disabled={busy}
-          onChange={(banner) => change({ ...draft, banner })}
-        />
+        <SponsorImages language={language} draft={draft} busy={busy} change={change} />
         <Toolbar align="end">
           <Button variant="quiet" disabled={busy} onClick={cancel}>
             {t("common.cancel")}

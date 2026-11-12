@@ -130,7 +130,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("souvenir sponsor tags (databas
     const acme = await sponsor("Acme", { nameAr: "أكمي", tier: "platinum" });
     const [tagged, plain] = [await earned(), await earned()];
     await tag("souvenir", tagged, acme);
-    const label = { name: { ar: "أكمي", en: "Acme" }, tier: "platinum" };
+    // The logo and its event (T-507b, 0194) ride along; null while the sponsor has none.
+    const label = {
+      name: { ar: "أكمي", en: "Acme" },
+      tier: "platinum",
+      logo: null,
+      eventId: f.ids.eventA,
+    };
     const [taggedItem, plainItem] = [await itemOf(tagged), await itemOf(plain)];
     const locker = await lockerOf();
     const row = locker.find((entry) => entry.item.id === taggedItem);
@@ -158,6 +164,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("souvenir sponsor tags (databas
     expect(await labelOf(rule)).toEqual({
       name: { ar: "Two renamed", en: "Two renamed" },
       tier: "bronze",
+      logo: null,
+      eventId: f.ids.eventA,
     });
     await f.run(f.actor, "SELECT sponsor_delete($1, $2, $3)", [f.ids.eventA, two, randomUUID()]);
     expect(await tagsOf(rule)).toBe(0);

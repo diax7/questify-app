@@ -219,9 +219,17 @@ function readFeatured(raw: unknown, path: string, mode: Mode): Read<FeaturedTarg
     return fail(`${path}.kind`, "must be a quest or a reward");
   }
   const image = readImageId(found.value["image"], `${path}.image`, mode);
-  if (!image.ok) return image;
+  return image.ok ? featuredOf(kind, id, image.value, path) : image;
+}
+
+function featuredOf(
+  kind: FeaturedTarget["kind"],
+  id: unknown,
+  image: string | undefined,
+  path: string,
+): Read<FeaturedTarget> {
   return typeof id === "string" && UUID.test(id)
-    ? ok({ kind, id: id.toLowerCase(), ...imagePart(image.value) })
+    ? ok({ kind, id: id.toLowerCase(), ...imagePart(image) })
     : fail(`${path}.id`, "must be a quest or reward of the event");
 }
 
