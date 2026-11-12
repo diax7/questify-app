@@ -19,7 +19,7 @@
     },
     "redis": { "name": "questify-cache", "type": "redis" }
   },
-  "buckets": [],
+  "buckets": ["questify-media-staging"],
   "apps": {
     "api": {
       "name": "questify-api-staging",
@@ -50,7 +50,12 @@
         "TELEMETRY_EXPORTER": "otlp",
         "OTEL_EXPORTER_OTLP_ENDPOINT": { "template": "{monitoring.url}/api/v1/otlp" },
         "OTEL_EXPORTER_OTLP_HEADERS": { "secret": "operator" },
-        "TELEMETRY_TRACE_RATIO": "0"
+        "TELEMETRY_TRACE_RATIO": "0",
+        "S3_ENDPOINT": { "secret": "operator" },
+        "S3_BUCKET": "questify-media-staging",
+        "S3_REGION": "riyadh-1",
+        "S3_ACCESS_KEY_ID": { "secret": "operator" },
+        "S3_SECRET_ACCESS_KEY": { "secret": "operator" }
       }
     },
     "web": {
@@ -67,7 +72,8 @@
         "NODE_ENV": "production",
         "API_ORIGIN": { "template": "http://{api.host}:3000" },
         "DASHBOARD_ORIGIN": "https://questify.nafes.com",
-        "PLAYER_WEB_SESSION": "on"
+        "PLAYER_WEB_SESSION": "on",
+        "MEDIA_HOST": { "secret": "operator" }
       }
     },
     "monitoring": {

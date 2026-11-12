@@ -146,6 +146,16 @@ function diffSource(spec, key, app, have) {
   return changes;
 }
 
+/** A missing bucket is created; one CranL reports in another region is a person's to move (photos stay in riyadh-1). */
+function diffBucket(spec, bucket, have) {
+  if (have === undefined) return [api({ op: "bucket.create", bucket })];
+  if (have.region !== undefined && have.region !== spec.region)
+    return [
+      manual({ op: "bucket.manual", bucket, field: "region", from: have.region, to: spec.region }),
+    ];
+  return [];
+}
+
 /**
  * The changes that make CranL match the file, in the order `apply` makes them.
  *
@@ -157,7 +167,7 @@ export function diff(spec, state) {
   for (const [key, db] of Object.entries(spec.databases))
     changes.push(...diffDatabase(spec, key, db, state.databases[key]));
   for (const bucket of spec.buckets)
-    if (!state.buckets.has(bucket)) changes.push(api({ op: "bucket.create", bucket }));
+    changes.push(...diffBucket(spec, bucket, state.buckets.get(bucket)));
   const urls = Object.fromEntries(
     Object.entries(state.apps).map(([key, have]) => [key, have?.url]),
   );

@@ -160,7 +160,12 @@ export function fakeCranl(): FakeCranl {
     if (root === "databases") return databaseRoutes(method, parts, body);
     if (root === "buckets" && method === "GET") return json(200, { buckets: state.buckets });
     if (root === "buckets") {
-      state.buckets.push({ id: id("bucket"), name: body.name });
+      state.buckets.push({
+        id: id("bucket"),
+        name: body.name,
+        region: body.region,
+        project: { id: body.project_id },
+      });
       return json(201, {});
     }
     return json(404, { error: { code: "not_found" } });

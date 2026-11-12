@@ -93,11 +93,12 @@ export async function observe(client, spec) {
     project,
     apps: {},
     databases: {},
-    buckets: new Set(buckets.map((b) => b.name)),
+    // Bucket names are account-wide: a name taken anywhere exists. Its region when CranL says (else the RUNBOOK check).
+    buckets: new Map(buckets.map((b) => [b.name, { region: b.region }])),
     // Everything the project holds, declared or not: apply's budget check counts the old apps too (ADR-812).
     live: project
-      ? { apps: inProject(apps), databases: inProject(databases) }
-      : { apps: 0, databases: 0 },
+      ? { apps: inProject(apps), databases: inProject(databases), buckets: inProject(buckets) }
+      : { apps: 0, databases: 0, buckets: 0 },
   };
   for (const [key, db] of Object.entries(spec.databases)) {
     const summary = project && byName(databases, projectId, db.name);

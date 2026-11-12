@@ -18,6 +18,10 @@ const OPERATOR = {
   SECRET_API_OTEL_EXPORTER_OTLP_HEADERS: "operator-otlp-headers",
   SECRET_MONITORING_METRICS_PASSWORD: "operator-metrics-password",
   SECRET_MONITORING_METRICS_PASSWORD_HASH: "operator-metrics-hash",
+  SECRET_API_S3_ENDPOINT: "https://s3.riyadh-1.example.test",
+  SECRET_API_S3_ACCESS_KEY_ID: "operator-s3-key-id",
+  SECRET_API_S3_SECRET_ACCESS_KEY: "operator-s3-secret",
+  SECRET_WEB_MEDIA_HOST: "questify-media-staging.s3.riyadh-1.example.test",
 };
 
 const staging = () => loadSpec(join(ROOT, "ops", "cranl", "staging.json"));
@@ -131,7 +135,8 @@ describe("apply on an empty account", () => {
     const spec = staging();
     spec.apps.extra = { ...spec.apps.web, name: "questify-extra-staging" };
     const cranl = fakeCranl();
-    await expect(apply({ client: clientFor(cranl), spec, env: OPERATOR })).rejects.toThrow(
+    const env = { ...OPERATOR, SECRET_EXTRA_MEDIA_HOST: "media.example.test" };
+    await expect(apply({ client: clientFor(cranl), spec, env })).rejects.toThrow(
       /budget \(nothing was changed\): the file declares 4 apps, the budget is 3$/,
     );
     expect(cranl.writes).toEqual([]);
@@ -162,6 +167,52 @@ describe("apply on an empty account", () => {
     expect(cranl.projects.map((p) => p.name)).toContain("Questify");
     expect(cranl.buckets.map((b) => b.name)).toEqual(["questify-media"]);
     expect(cranl.apps.every((a) => a.project.id === cranl.projects.at(-1)!.id)).toBe(true);
+  });
+
+  it("creates the photo bucket in the environment's region, in its project (T-301b)", async () => {
+    const { cranl } = await applied();
+    expect(cranl.buckets).toEqual([
+      expect.objectContaining({
+        name: "questify-media-staging",
+        region: "riyadh-1",
+        project: { id: cranl.projects.find((p) => p.name === "Nafes")!.id },
+      }),
+    ]);
+    const create = cranl.writes.find((w) => w.path.endsWith("/buckets"));
+    expect(create?.body).toMatchObject({
+      name: "questify-media-staging",
+      region: "riyadh-1",
+      project_id: expect.any(String),
+    });
+  });
+
+  it("refuses a second bucket in the file, or one more in a project that holds one, before any write", async () => {
+    const two = { ...staging(), buckets: ["questify-media-staging", "questify-extra"] };
+    const empty = fakeCranl();
+    await expect(apply({ client: clientFor(empty), spec: two, env: OPERATOR })).rejects.toThrow(
+      /the file declares 2 buckets, the budget is 1$/,
+    );
+    expect(empty.writes).toEqual([]);
+
+    const { cranl } = await applied();
+    const writes = cranl.writes.length;
+    const renamed = { ...staging(), buckets: ["questify-media-staging-2"] };
+    await expect(
+      apply({ client: clientFor(cranl), spec: renamed, env: OPERATOR, runId: "run2" }),
+    ).rejects.toThrow(/buckets: 1 exist and 1 would be created, the budget is 1$/);
+    expect(cranl.writes.length).toBe(writes);
+  });
+
+  it("counts only the project's own buckets, and reuses a name another project took", async () => {
+    const cranl = fakeCranl();
+    cranl.buckets.push({
+      id: "b7r",
+      name: "b7r-media",
+      region: "riyadh-1",
+      project: { id: "other" },
+    });
+    await apply({ client: clientFor(cranl), spec: staging(), env: OPERATOR, runId: "run1" });
+    expect(cranl.buckets.map((b) => b.name)).toEqual(["b7r-media", "questify-media-staging"]);
   });
 });
 
@@ -208,6 +259,24 @@ describe("plan on an existing environment", () => {
     expect(result.rest).toHaveLength(4);
     expect(web.env.get("DASHBOARD_ONLY")).toBe("x");
     expect(web.cron).toHaveLength(1);
+  });
+
+  it("names a bucket CranL placed in another region as a manual step, and trusts one with no region shown", async () => {
+    const { cranl } = await applied();
+    const bucket = cranl.buckets[0]!;
+    bucket.region = "jeddah-1";
+    expect(await planOf(cranl)).toEqual([
+      {
+        sort: "manual",
+        op: "bucket.manual",
+        bucket: "questify-media-staging",
+        field: "region",
+        from: "jeddah-1",
+        to: "riyadh-1",
+      },
+    ]);
+    delete bucket.region;
+    expect(await planOf(cranl)).toEqual([]);
   });
 
   it("names a build folder, branch or region the API cannot change as a manual step", async () => {
