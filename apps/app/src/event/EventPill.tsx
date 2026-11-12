@@ -6,6 +6,7 @@ import { AppText } from "#src/components/AppText.tsx";
 import { Sheet } from "#src/components/Sheet.tsx";
 import { useEvent } from "#src/event/EventContext.tsx";
 import type { MyEvent } from "#src/event/launch.ts";
+import { OrganizerImage } from "#src/event/OrganizerImage.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
@@ -21,7 +22,7 @@ export function eventName(event: Pick<MyEvent, "name" | "joinCode">, language: L
  */
 export function EventPill() {
   const { t, language } = useI18n();
-  const { eventId, events, knownName, maintenance } = useEvent();
+  const { eventId, events, knownName, maintenance, logo } = useEvent();
   const [open, setOpen] = useState(false);
   const styles = useThemedStyles(makeStyles);
   const current = events?.find((event) => event.id === eventId);
@@ -40,7 +41,16 @@ export function EventPill() {
         hitSlop={{ top: 7, bottom: 7 }}
         style={styles.pill}
       >
-        <AppText variant="label" numberOfLines={1}>
+        {logo === null ? null : (
+          <OrganizerImage
+            eventId={eventId}
+            imageId={logo}
+            label={name}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        )}
+        <AppText variant="label" numberOfLines={1} style={styles.name}>
           {name} ▾
         </AppText>
       </Pressable>
@@ -70,7 +80,12 @@ export function EventPill() {
 }
 
 const makeStyles = (theme: Theme) => ({
+  logo: { width: 24, height: 24 },
+  name: { flexShrink: 1 },
   pill: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: theme.spacing.xs,
     alignSelf: "flex-start" as const,
     maxWidth: "100%" as const,
     paddingHorizontal: theme.spacing.md,

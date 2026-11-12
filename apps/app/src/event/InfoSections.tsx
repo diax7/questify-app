@@ -3,8 +3,10 @@ import { useState } from "react";
 import { Linking, Pressable, View } from "react-native";
 import { isolatedLtr } from "#src/auth/sign-in-api.ts";
 import { AppText } from "#src/components/AppText.tsx";
+import { useEvent } from "#src/event/EventContext.tsx";
 import { useOpen } from "#src/event/HomeBlocks.tsx";
 import type { ContactRow, FaqRow, PartView } from "#src/event/info-page.ts";
+import { OrganizerImage } from "#src/event/OrganizerImage.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
@@ -96,6 +98,13 @@ function ListPart({ items }: Readonly<{ items: readonly string[] }>) {
 }
 
 /** One part of the extra page: a heading, a paragraph, a list, or a link that asks before it leaves the app. */
+/** An organizer picture on the page (T-613b): full width at 16:9; nothing at all when it cannot be drawn. */
+function ImagePart({ image, alt }: Readonly<{ image: string; alt: string }>) {
+  const { eventId } = useEvent();
+  const styles = useThemedStyles(makeStyles);
+  return <OrganizerImage eventId={eventId} imageId={image} label={alt} style={styles.picture} />;
+}
+
 export function PagePart({ part }: Readonly<{ part: PartView }>) {
   const open = useOpen();
   const styles = useThemedStyles(makeStyles);
@@ -110,6 +119,8 @@ export function PagePart({ part }: Readonly<{ part: PartView }>) {
       return <AppText>{part.text}</AppText>;
     case "list":
       return <ListPart items={part.items} />;
+    case "image":
+      return <ImagePart image={part.image} alt={part.alt} />;
     default:
       return (
         <Pressable
@@ -135,4 +146,5 @@ const makeStyles = (theme: Theme) => ({
   },
   item: { flexDirection: "row" as const, gap: theme.spacing.sm },
   itemText: { flex: 1 },
+  picture: { width: "100%" as const, aspectRatio: 16 / 9, borderRadius: theme.radius.md },
 });

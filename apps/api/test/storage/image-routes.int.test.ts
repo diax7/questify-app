@@ -193,6 +193,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer images over HTTP", (
       const fetched = await fetch(url);
       expect([fetched.status, fetched.headers.get("content-type")]).toEqual([200, "image/png"]);
 
+      // The app's client asks for JSON: the same signed URL, so no redirect carries its token to the bucket.
+      const asJson = await test.app.inject({
+        method: "GET",
+        url: `/v1/events/${event}/images/${stored.imageId}`,
+        headers: { authorization: `Bearer ${token}`, accept: "application/json" },
+      });
+      expect(asJson.statusCode).toBe(200);
+      const answer = asJson.json<{ url: string; expiresAt: string }>();
+      expect(new URL(answer.url).pathname).toBe(`/${fake.settings.bucket}/${key}`);
+      const left = new Date(answer.expiresAt).getTime() - Date.now();
+      expect(left).toBeGreaterThan(280_000);
+      expect(left).toBeLessThanOrEqual(300_000);
       const preview = await teamRead(orgA, event, stored.imageId);
       expect(preview.statusCode).toBe(302);
       expect(new URL(String(preview.headers["location"])).pathname).toBe(

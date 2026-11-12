@@ -27,6 +27,7 @@ import {
   BannerBlock,
   CountdownBlock,
   CustomPageBlock,
+  EventBannerPicture,
   FeaturedBlock,
   PodiumBlock,
   QuickLinksBlock,
@@ -565,6 +566,7 @@ function HomeCards({
   ranking,
 }: Readonly<{ home: Home; ranking: RankingAnswer | undefined }>) {
   const { featureOn, layout } = useEvent();
+  const { language } = useI18n();
   const eventId = home.event.id;
   const props: BlockProps = {
     home,
@@ -576,6 +578,7 @@ function HomeCards({
   };
   return (
     <>
+      <EventBannerPicture name={textIn(home.event.name, language)} />
       <RehearsalStrip shown={home.event.rehearsal} />
       <AddEmailCard />
       <HelpStrip eventId={eventId} unread={home.helpUnread} />

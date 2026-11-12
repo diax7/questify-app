@@ -5,11 +5,12 @@ import { Animated, Image, Pressable, View, useWindowDimensions } from "react-nat
 import { AppText } from "#src/components/AppText.tsx";
 import { useReduceMotion } from "#src/components/motion.tsx";
 import { GameStatus, useTimeLeft } from "#src/games/GameStatus.tsx";
+import { GamePicture, useGameArt } from "#src/games/art.tsx";
 import { useRound, type Finished } from "#src/games/round.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
-/** The default puzzle pictures (ADR-215), chosen by the seed; organizer pictures are T-305b. */
+/** The default puzzle pictures (ADR-215), chosen by the seed when the organizer gave none (T-305b). */
 const PICTURES = [
   require("#assets/games/puzzles/picture-0.webp"),
   require("#assets/games/puzzles/picture-1.webp"),
@@ -57,6 +58,14 @@ function Tile({
     Animated.timing(offset, { toValue: to, duration: 120, useNativeDriver: true }).start();
   }, [now.column, now.row, cell, reduce, offset]);
   const home = { row: Math.trunc((tile - 1) / size), column: (tile - 1) % size };
+  const own = useGameArt().images.picture;
+  const whole = {
+    position: "absolute" as const,
+    width: cell * size,
+    height: cell * size,
+    left: -home.column * cell,
+    top: -home.row * cell,
+  };
   return (
     <Animated.View
       style={[
@@ -74,15 +83,13 @@ function Tile({
         onPress={() => onSlide(tile)}
         style={styles.press}
       >
-        <Image
-          source={PICTURES[picture] ?? PICTURES[0]}
-          style={{
-            position: "absolute",
-            width: cell * size,
-            height: cell * size,
-            left: -home.column * cell,
-            top: -home.row * cell,
-          }}
+        {/* The organizer's picture (T-305b) is cut the same way; the seed's default stands in for it. */}
+        <GamePicture
+          imageId={own}
+          label={t("image.puzzle")}
+          style={whole}
+          resizeMode="cover"
+          fallback={<Image source={PICTURES[picture] ?? PICTURES[0]} style={whole} />}
         />
         <View style={styles.badge}>
           <AppText variant="label">{formatNumber(tile, language)}</AppText>

@@ -21,7 +21,7 @@ import { randomUuid } from "#src/api/uuid.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { PopIn } from "#src/components/motion.tsx";
-import { useTerms } from "#src/event/EventContext.tsx";
+import { useEventIdOrNull, useTerms } from "#src/event/EventContext.tsx";
 import { levelLine, resendable, resultLine } from "#src/event/game-words.ts";
 import {
   games,
@@ -32,6 +32,7 @@ import {
   type PendingResult,
   type ResultAnswer,
 } from "#src/event/games.ts";
+import { GameArtScope } from "#src/games/art.tsx";
 import { CatchGame } from "#src/games/CatchGame.tsx";
 import { MemoryGame } from "#src/games/MemoryGame.tsx";
 import { drawable, type Finished } from "#src/games/round.ts";
@@ -186,10 +187,15 @@ function StageView({
   onResend: (pending: PendingResult) => void;
 }>) {
   const { t } = useI18n();
+  const eventId = useEventIdOrNull();
   return (
     <>
       {stage.kind === "intro" ? <Intro round={round} onStart={onStart} /> : null}
-      {stage.kind === "play" ? <Board round={round} onFinish={onFinish} /> : null}
+      {stage.kind === "play" ? (
+        <GameArtScope eventId={eventId ?? null} images={round.images}>
+          <Board round={round} onFinish={onFinish} />
+        </GameArtScope>
+      ) : null}
       {stage.kind === "sending" ? <AppText muted>{t("play.game.sending")}</AppText> : null}
       {stage.kind === "answered" ? <AnsweredView stage={stage} onResend={onResend} /> : null}
       {stage.kind === "intro" || stage.kind === "answered" ? (

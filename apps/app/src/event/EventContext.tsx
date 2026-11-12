@@ -53,6 +53,9 @@ type EventValue = Readonly<{
   featureOn: (feature: string) => boolean;
   /** The event's accent colour (T-602, FR-1023), or null for Questify green; the provider applies it to the theme. */
   accent: AccentKey | null;
+  /** The event's logo and banner image ids (T-602b), null for Questify's own art. */
+  logo: string | null;
+  banner: string | null;
   /**
    * The bar items and Home blocks to show, in order (T-606, FR-1749). Read with `playerTabs` and `homeBlocks`, which also
    * apply the event's switches: a layout never shows what a switch took away.
@@ -113,6 +116,8 @@ export function EventProvider({
     livePollSeconds,
     featureOn,
     accent,
+    logo,
+    banner,
     layout,
     maintenance,
   } = useEventConfig(eventId);
@@ -134,6 +139,8 @@ export function EventProvider({
       helpOn,
       featureOn,
       accent,
+      logo,
+      banner,
       layout,
       maintenance,
       livePollSeconds,
@@ -154,6 +161,8 @@ export function EventProvider({
       helpOn,
       featureOn,
       accent,
+      logo,
+      banner,
       layout,
       maintenance,
       livePollSeconds,
@@ -177,6 +186,11 @@ export function EventProvider({
 /** The words of the event the screen is inside. */
 export function useTerms(): EventTerms {
   return useEvent().terms;
+}
+
+/** The event the screen is inside, or null on a screen outside any event (the locker, Questify home). */
+export function useEventIdOrNull(): string | null {
+  return useContext(EventContext)?.eventId ?? null;
 }
 
 export function useEvent(): EventValue {

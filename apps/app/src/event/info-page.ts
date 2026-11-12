@@ -53,7 +53,9 @@ export function faqRows(faq: readonly FaqEntry[], language: Language): FaqRow[] 
 export type PartView =
   | Readonly<{ kind: "heading" | "text"; text: string }>
   | Readonly<{ kind: "list"; items: string[] }>
-  | Readonly<{ kind: "link"; label: string; url: string; host: string }>;
+  | Readonly<{ kind: "link"; label: string; url: string; host: string }>
+  /** An organizer picture (T-613b), with its words for a screen reader. */
+  | Readonly<{ kind: "image"; image: string; alt: string }>;
 
 /** The page's parts in order, in the player's language; a part with nothing to say is left out. */
 export function partViews(page: CustomPage, language: Language): PartView[] {
@@ -67,6 +69,9 @@ export function partViews(page: CustomPage, language: Language): PartView[] {
     if (block.kind === "list") {
       const items = listItems(localIn(block.items, language));
       return items.length === 0 ? [] : [{ kind: "list", items }];
+    }
+    if (block.kind === "image") {
+      return [{ kind: "image", image: block.image, alt: localIn(block.alt, language) }];
     }
     const text = localIn(block.text, language);
     return text === "" ? [] : [{ kind: block.kind, text }];

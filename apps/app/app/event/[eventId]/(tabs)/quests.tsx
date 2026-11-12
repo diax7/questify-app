@@ -16,7 +16,7 @@ import { Screen } from "#src/components/Screen.tsx";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { EventPill } from "#src/event/EventPill.tsx";
 import { FirstBonusRibbon } from "#src/event/FirstBonusRibbon.tsx";
-import { PresentedBy } from "#src/event/PresentedBy.tsx";
+import { PresentedBy, SponsorBanner } from "#src/event/PresentedBy.tsx";
 import { MapsView } from "#src/event/MapsView.tsx";
 import { boostLine, flashLine } from "#src/event/flash-boost.ts";
 import { forget } from "#src/event/launch.ts";
@@ -313,6 +313,7 @@ function CategorySection({
         ))}
         <DropLines quest={undefined} boost={category.boost} timeZone={timeZone} />
       </Pressable>
+      <SponsorBanner sponsor={sponsors.of("category", category.id)} />
       <PresentedBy sponsor={sponsors.of("category", category.id)} />
       {open ? (
         <View style={grid ? styles.grid : styles.stack}>

@@ -26,6 +26,9 @@ export type EventSettings = Readonly<{
   featureOn: (feature: string) => boolean;
   /** The event's accent colour (T-602, FR-1023), or null for Questify green. */
   accent: AccentKey | null;
+  /** The event's logo and banner image ids (T-602b), null for Questify's own art. */
+  logo: string | null;
+  banner: string | null;
   /** The event's bar and Home blocks to show, in order (T-606); Questify's own until the configuration says otherwise. */
   layout: ComposedLayout;
   /** Why play is paused in this event (T-703b, FR-1771), in both languages; null while it runs. */
@@ -80,6 +83,8 @@ export function useEventConfig(eventId: string): EventSettings {
     livePollSeconds,
     featureOn,
     accent: config?.branding.accent ?? null,
+    logo: config?.branding.logo ?? null,
+    banner: config?.branding.banner ?? null,
     layout: config?.layout ?? DEFAULT_COMPOSED_LAYOUT,
     maintenance,
   };

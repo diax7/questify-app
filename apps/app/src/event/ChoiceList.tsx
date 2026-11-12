@@ -1,6 +1,8 @@
 import type { Theme } from "@questify/shared";
 import { Pressable, View } from "react-native";
 import { AppText } from "#src/components/AppText.tsx";
+import { useEventIdOrNull } from "#src/event/EventContext.tsx";
+import { OrganizerImage } from "#src/event/OrganizerImage.tsx";
 import type { PlayChoice } from "#src/event/plays.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
@@ -30,6 +32,7 @@ export function ChoiceList({
 }>) {
   const { language } = useI18n();
   const styles = useThemedStyles(makeStyles);
+  const eventId = useEventIdOrNull();
   const isChosen = (id: string) => (multiple ? selected.includes(id) : chosen === id);
   const locked = disabled || marks !== undefined;
   const choiceRole = multiple ? "checkbox" : "radio";
@@ -55,7 +58,18 @@ export function ChoiceList({
               wrong && styles.wrong,
             ]}
           >
-            <AppText variant="label">{textIn(choice.text, language)}</AppText>
+            {choice.image === undefined ? null : (
+              <OrganizerImage
+                eventId={eventId}
+                imageId={choice.image}
+                label={textIn(choice.text, language)}
+                style={styles.icon}
+                resizeMode="contain"
+              />
+            )}
+            <AppText variant="label" style={styles.text}>
+              {textIn(choice.text, language)}
+            </AppText>
           </Pressable>
         );
       })}
@@ -65,7 +79,12 @@ export function ChoiceList({
 
 const makeStyles = (theme: Theme) => ({
   list: { gap: theme.spacing.sm },
+  icon: { width: 40, height: 40 },
+  text: { flexShrink: 1 },
   choice: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: theme.spacing.md,
     paddingVertical: theme.spacing.md,
     paddingHorizontal: theme.spacing.lg,
     borderRadius: theme.radius.md,

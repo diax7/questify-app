@@ -80,7 +80,11 @@ export function GameEntry({
     setBusy(false);
     lostKey.current = answer.kind === "network" ? key : null;
     if (answer.kind === "round") {
-      games.keepRound(answer.round);
+      games.keepRound(
+        sheet !== "failed" && sheet !== "update" && sheet?.images !== undefined
+          ? { ...answer.round, images: sheet.images }
+          : answer.round,
+      );
       router.push({
         pathname: "/event/[eventId]/game",
         params: { eventId, roundId: answer.round.roundId },

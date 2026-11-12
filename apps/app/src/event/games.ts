@@ -2,6 +2,7 @@ import {
   ENGINE_VERSIONS,
   gameTarget,
   isGameName,
+  type GameImages,
   type GameName,
   type GameTarget,
   type StreakBonus,
@@ -44,6 +45,8 @@ export type GameSheet = Readonly<{
   retryAt: string | null;
   /** The server's clock offset when the sheet was read. */
   offsetMs: number;
+  /** The organizer's art (T-305b), read through the event's image door; absent for the default art. */
+  images?: GameImages;
 }>;
 
 /**
@@ -66,6 +69,23 @@ export function gameSheetOf(body: unknown, receivedAt: number): GameSheet | "upd
   return sheetFields(body, game, clockOffset(body["serverNow"], receivedAt));
 }
 
+const ids = (value: unknown): string[] | undefined =>
+  Array.isArray(value) && value.every((id) => typeof id === "string") ? value : undefined;
+
+/** The art a sheet carries, each field only when it is the right shape; an older API sends none. */
+function imagesOf(value: unknown): { images?: GameImages } {
+  if (!isRecord(value)) return {};
+  const faces = ids(value["faces"]);
+  const items = ids(value["items"]);
+  const picture = typeof value["picture"] === "string" ? value["picture"] : undefined;
+  const images: GameImages = {
+    ...(faces === undefined ? {} : { faces }),
+    ...(items === undefined ? {} : { items }),
+    ...(picture === undefined ? {} : { picture }),
+  };
+  return Object.keys(images).length === 0 ? {} : { images };
+}
+
 function sheetFields(body: Record<string, unknown>, game: GameName, offsetMs: number): GameSheet {
   return {
     game,
@@ -80,6 +100,7 @@ function sheetFields(body: Record<string, unknown>, game: GameName, offsetMs: nu
     done: body["done"] === true,
     retryAt: stringOrNull(body["retryAt"]),
     offsetMs,
+    ...imagesOf(body["images"]),
   };
 }
 
@@ -106,6 +127,8 @@ export type IssuedRound = Readonly<{
   engineVersion: number;
   deadlineAt: string;
   offsetMs: number;
+  /** The organizer's art from the sheet the round was started from (T-305b); none for the default art. */
+  images?: GameImages;
 }>;
 
 /** Why no round was issued: an update first, a game refusal, or a quest refusal in the sheet's words. */

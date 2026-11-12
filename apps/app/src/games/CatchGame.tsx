@@ -19,6 +19,7 @@ import {
   toBoardUnits,
   type CatchLoop,
 } from "#src/games/realtime.ts";
+import { GamePicture, useGameArt } from "#src/games/art.tsx";
 import { monotonicNow, secondsLeftOf, type Finished } from "#src/games/round.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
@@ -193,6 +194,7 @@ export function CatchGame({
 }>) {
   const { t, language } = useI18n();
   const styles = useThemedStyles(makeStyles);
+  const art = useGameArt().images;
   const { width } = useWindowDimensions();
   const loop = useRef(startCatch(seed, params));
   const finished = useRef(false);
@@ -248,9 +250,17 @@ export function CatchGame({
               pointerEvents="none"
               style={[styles.item, { transform: position.getTranslateTransform() }]}
             >
-              <Image
-                source={FACES[face] ?? FACES[0]}
+              {/* The organizer's item for this face (T-305b), else the currency art. */}
+              <GamePicture
+                imageId={art.items?.[face]}
+                label={t("image.item", { n: face + 1 })}
                 style={{ width: field.item, height: field.item }}
+                fallback={
+                  <Image
+                    source={FACES[face] ?? FACES[0]}
+                    style={{ width: field.item, height: field.item }}
+                  />
+                }
               />
             </Animated.View>
           );

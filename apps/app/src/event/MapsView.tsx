@@ -15,6 +15,7 @@ import { AppText } from "#src/components/AppText.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { Sheet } from "#src/components/Sheet.tsx";
 import { useEvent } from "#src/event/EventContext.tsx";
+import { OrganizerImage } from "#src/event/OrganizerImage.tsx";
 import { fetchMaps, isHere, mapToShow, pinGlyph, pinName, pinStatus } from "#src/event/maps.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
@@ -103,12 +104,28 @@ function Board({
   onOpen,
 }: Readonly<{ data: MemberMaps; map: MemberMap; onOpen: (pin: MemberMapPin) => void }>) {
   const { t, language } = useI18n();
+  const { eventId } = useEvent();
   const styles = useThemedStyles(makeStyles);
+  const name = t("mapsView.board", { name: textIn(map.name, language) });
+  const image = map.image ?? null;
   return (
     <View
-      accessibilityLabel={t("mapsView.board", { name: textIn(map.name, language) })}
-      style={styles.board}
+      accessibilityLabel={name}
+      style={[
+        styles.board,
+        image === null ? null : { aspectRatio: image.width / image.height, overflow: "hidden" },
+      ]}
     >
+      {image === null ? null : (
+        // The organizer's picture is the board (T-506b); the pins keep their thousandths of it.
+        <OrganizerImage
+          eventId={eventId}
+          imageId={image.id}
+          label={name}
+          style={styles.boardPicture}
+          resizeMode="stretch"
+        />
+      )}
       {map.pins.map((pin) => (
         <PinMark
           key={pin.id}
@@ -307,6 +324,13 @@ export function MapsView({
 const makeStyles = (theme: Theme) => ({
   list: { gap: theme.spacing.md },
   chips: { gap: theme.spacing.sm },
+  boardPicture: {
+    position: "absolute" as const,
+    top: 0,
+    left: 0,
+    width: "100%" as const,
+    height: "100%" as const,
+  },
   board: {
     width: "100%" as const,
     aspectRatio: 4 / 3,

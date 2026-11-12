@@ -14,7 +14,8 @@ import { streakBonusPaidOf } from "#src/streaks/event-streak.ts";
 
 /** Organizer text as the API sends it: null where a language was not written. */
 export type PlayText = Readonly<{ ar: string | null; en: string | null }>;
-export type PlayChoice = Readonly<{ id: string; text: PlayText }>;
+/** `image`: a vote option's organizer icon (ADR-190), drawn beside its text, which stays its name. */
+export type PlayChoice = Readonly<{ id: string; text: PlayText; image?: string }>;
 
 export const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;

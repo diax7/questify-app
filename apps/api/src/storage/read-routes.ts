@@ -52,6 +52,7 @@ async function keyOf(
  */
 async function redirect(
   deps: ImageReadDeps,
+  request: FastifyRequest,
   reply: FastifyReply,
   key: string | undefined,
 ): Promise<FastifyReply> {
@@ -61,13 +62,19 @@ async function redirect(
     IMAGE_URL_SECONDS,
     key.endsWith(".png") ? "image/png" : "image/jpeg",
   );
-  return reply
-    .code(302)
-    .header("location", signed.url)
-    .header("cache-control", IMAGE_CACHE)
-    .header("referrer-policy", "no-referrer")
-    .send();
+  reply.header("cache-control", IMAGE_CACHE).header("referrer-policy", "no-referrer");
+  // The app asks for JSON (its client always does): it then loads the URL itself, so no redirect can carry its token
+  // on to the bucket (plan section 5). A browser's <img> asks for an image and follows the 302.
+  if (wantsJson(request)) {
+    return reply.send({ url: signed.url, expiresAt: signed.expiresAt.toISOString() });
+  }
+  return reply.code(302).header("location", signed.url).send();
 }
+
+const wantsJson = (request: FastifyRequest): boolean => {
+  const accept = String(request.headers.accept ?? "");
+  return accept.includes("application/json") && !accept.includes("image/");
+};
 
 const playerSeat = (request: FastifyRequest): RequestContext | undefined =>
   request.player === undefined ? undefined : { playerId: request.player.id };
@@ -80,7 +87,7 @@ export function registerImageReadRoutes(app: FastifyInstance, deps: ImageReadDep
     async (request, reply) => {
       const seat = playerSeat(request);
       if (seat === undefined || deps.storage === undefined) throw notFound();
-      return redirect(deps, reply, await keyOf(deps, seat, "event_image_key", request.params));
+      return redirect(deps, request, reply, await keyOf(deps, seat, "event_image_key", request.params));
     },
   );
 }
@@ -93,7 +100,7 @@ export function registerImageTeamReadRoutes(scope: FastifyInstance, deps: ImageR
     async (request, reply) => {
       if (deps.storage === undefined) throw notFound();
       const seat = teamSeat(organizerContextOf(request));
-      return redirect(deps, reply, await keyOf(deps, seat, "team_image_key", request.params));
+      return redirect(deps, request, reply, await keyOf(deps, seat, "team_image_key", request.params));
     },
   );
 }

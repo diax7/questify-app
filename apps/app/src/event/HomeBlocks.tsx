@@ -38,6 +38,7 @@ import {
   type FeaturedView,
   type TapOutcome,
 } from "#src/event/home-content.ts";
+import { OrganizerImage } from "#src/event/OrganizerImage.tsx";
 import { partViews } from "#src/event/info-page.ts";
 import { fetchQuests, type QuestsView } from "#src/event/quests-api.ts";
 import { fetchShop, type ShopView } from "#src/event/shop-api.ts";
@@ -91,19 +92,42 @@ export function useOpen(): (outcome: TapOutcome) => void {
   );
 }
 
-function SlideFace({ slide, label }: Readonly<{ slide: BannerSlide; label: string }>) {
+/** White on a dark scrim over an organizer's slide picture, so the title reads whatever the picture holds. */
+const OVER_PICTURE = "#FFFFFF";
+
+/**
+ * One slide: its title and subtitle on the accent, or over the organizer's banner picture (T-610b) behind a dark scrim
+ * when the slide has one; the title stays, and is the picture's name for a screen reader.
+ */
+function SlideFace({
+  slide,
+  label,
+  eventId,
+}: Readonly<{ slide: BannerSlide; label: string; eventId: string | undefined }>) {
   const { language } = useI18n();
   const { theme } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const subtitle = localIn(slide.subtitle, language);
+  // The scrim stays while the picture loads or when it cannot: white on the darkened accent still reads.
+  const pictured = slide.image !== undefined && eventId !== undefined;
+  const ink = pictured ? OVER_PICTURE : theme.colors.onPrimaryAction;
   return (
     <View style={styles.slide} accessible accessibilityLabel={label}>
-      <AppText variant="title" style={{ color: theme.colors.onPrimaryAction }}>
+      {pictured ? (
+        <View style={styles.slideBack}>
+          <OrganizerImage
+            eventId={eventId}
+            imageId={slide.image}
+            label={label}
+            style={styles.slidePicture}
+          />
+          <View style={styles.scrim} />
+        </View>
+      ) : null}
+      <AppText variant="title" style={{ color: ink }}>
         {localIn(slide.title, language)}
       </AppText>
-      {subtitle === "" ? null : (
-        <AppText style={{ color: theme.colors.onPrimaryAction }}>{subtitle}</AppText>
-      )}
+      {subtitle === "" ? null : <AppText style={{ color: ink }}>{subtitle}</AppText>}
     </View>
   );
 }
@@ -118,10 +142,13 @@ export function BannerSlider({
   slides,
   outcomeOf,
   open,
+  eventId,
 }: Readonly<{
   slides: readonly BannerSlide[];
   outcomeOf: (action: BannerSlide["action"]) => TapOutcome | null;
   open: (outcome: TapOutcome) => void;
+  /** The event whose slide pictures to draw (T-610b); Questify home has none. */
+  eventId?: string;
 }>) {
   const { t, language, rtl } = useI18n();
   const reduceMotion = useReduceMotion();
@@ -169,14 +196,14 @@ export function BannerSlider({
   return (
     <View style={styles.banner} {...responder.panHandlers}>
       {outcome === null ? (
-        <SlideFace slide={slide} label={label} />
+        <SlideFace slide={slide} label={label} eventId={eventId} />
       ) : (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={label}
           onPress={() => open(outcome)}
         >
-          <SlideFace slide={slide} label={label} />
+          <SlideFace slide={slide} label={label} eventId={eventId} />
         </Pressable>
       )}
       {showDots(count) ? (
@@ -206,13 +233,13 @@ export function BannerSlider({
 
 /** An event's banner: a tap opens the event's own screens whose switches are on, or a web link. */
 export function BannerBlock({ slides }: Readonly<{ slides: readonly BannerSlide[] }>) {
-  const { featureOn } = useEvent();
+  const { eventId, featureOn } = useEvent();
   const open = useOpen();
   const outcomeOf = useCallback(
     (action: BannerSlide["action"]) => tapOutcome(action, featureOn),
     [featureOn],
   );
-  return <BannerSlider slides={slides} outcomeOf={outcomeOf} open={open} />;
+  return <BannerSlider slides={slides} outcomeOf={outcomeOf} open={open} eventId={eventId} />;
 }
 
 const ICONS: Readonly<Record<QuickLinkIcon, keyof typeof Ionicons.glyphMap>> = {
@@ -297,6 +324,14 @@ export function FeaturedBlock({ target }: Readonly<{ target: FeaturedTarget }>) 
       }
       style={styles.card}
     >
+      {target.image === undefined ? null : (
+        <OrganizerImage
+          eventId={eventId}
+          imageId={target.image}
+          label={t("home.featured.title")}
+          style={styles.cardPicture}
+        />
+      )}
       <AppText variant="title">{t("home.featured.title")}</AppText>
       <AppText variant="label">{textIn(view.title, language)}</AppText>
       {view.kind === "quest" && view.note !== null ? <AppText muted>{t(view.note)}</AppText> : null}
@@ -357,12 +392,33 @@ export function PodiumBlock({
 }
 
 /** The organizer's text card (FR-1828): plain text in the player's language; nothing in it is tappable. */
+/**
+ * The event's banner picture at the top of Home (T-602b, FR-1023): the organizer's own, 3:1, with the event's name for a
+ * screen reader. Nothing at all while there is none or it cannot be drawn, so Home looks as before.
+ */
+export function EventBannerPicture({ name }: Readonly<{ name: string }>) {
+  const { eventId, banner } = useEvent();
+  const styles = useThemedStyles(makeStyles);
+  return banner === null ? null : (
+    <OrganizerImage eventId={eventId} imageId={banner} label={name} style={styles.eventBanner} />
+  );
+}
+
 export function TextCardBlock({ card }: Readonly<{ card: TextCard }>) {
   const { language } = useI18n();
+  const { eventId } = useEvent();
   const styles = useThemedStyles(makeStyles);
   const title = localIn(card.title, language);
   return (
     <View style={styles.card}>
+      {card.image === undefined ? null : (
+        <OrganizerImage
+          eventId={eventId}
+          imageId={card.image}
+          label={title === "" ? localIn(card.body, language) : title}
+          style={styles.cardPicture}
+        />
+      )}
       {title === "" ? null : <AppText variant="title">{title}</AppText>}
       <AppText>{localIn(card.body, language)}</AppText>
     </View>
@@ -443,7 +499,28 @@ const makeStyles = (theme: Theme) => ({
   pageLink: { flexDirection: "row" as const, alignItems: "center" as const, gap: theme.spacing.md },
   pageTitle: { flex: 1 },
   banner: { gap: theme.spacing.sm },
+  slidePicture: { width: "100%" as const, height: "100%" as const },
+  slideBack: {
+    position: "absolute" as const,
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderRadius: theme.radius.lg,
+    overflow: "hidden" as const,
+  },
+  scrim: {
+    position: "absolute" as const,
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  cardPicture: { width: "100%" as const, aspectRatio: 16 / 9, borderRadius: theme.radius.md },
+  eventBanner: { width: "100%" as const, aspectRatio: 3, borderRadius: theme.radius.lg },
   slide: {
+    overflow: "hidden" as const,
     gap: theme.spacing.xs,
     minHeight: 120,
     justifyContent: "center" as const,

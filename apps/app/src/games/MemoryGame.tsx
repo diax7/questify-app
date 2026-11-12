@@ -10,6 +10,7 @@ import * as Haptics from "#src/platform/haptics.ts";
 import { useEffect, useRef, useState } from "react";
 import { Animated, Image, Pressable, View, useWindowDimensions } from "react-native";
 import { useReduceMotion } from "#src/components/motion.tsx";
+import { GamePicture, useGameArt } from "#src/games/art.tsx";
 import { GameStatus, useTimeLeft } from "#src/games/GameStatus.tsx";
 import { faceUp, useRound, type Finished } from "#src/games/round.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
@@ -64,12 +65,16 @@ function Card({
   }, [up, reduce, turn]);
   const scaleX = turn.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0, 1] });
   const card = CARDS[picture % CARDS.length] ?? CARDS[0];
+  // The organizer's face for this picture (T-305b), named "Picture N"; the default card for the rest.
+  const own = useGameArt().images.faces?.[picture];
+  const pictureName = own === undefined ? t(card.name) : t("image.picture", { n: picture + 1 });
   const label = t("play.game.card", {
     n: index + 1,
     row: Math.trunc(index / columns) + 1,
     column: (index % columns) + 1,
-    state: up ? t("play.game.faceUp", { picture: t(card.name) }) : t("play.game.faceDown"),
+    state: up ? t("play.game.faceUp", { picture: pictureName }) : t("play.game.faceDown"),
   });
+  const art = { width: size * 0.8, height: size * 0.8 };
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={() => onFlip(index)}>
       <Animated.View
@@ -81,7 +86,12 @@ function Card({
         ]}
       >
         {face ? (
-          <Image source={card.art} style={{ width: size * 0.8, height: size * 0.8 }} />
+          <GamePicture
+            imageId={own}
+            label={pictureName}
+            style={art}
+            fallback={<Image source={card.art} style={art} />}
+          />
         ) : null}
       </Animated.View>
     </Pressable>
