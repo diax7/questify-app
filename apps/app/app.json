@@ -4,14 +4,24 @@
     "slug": "nafes",
     "scheme": "questify",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/1ff85195-221e-4284-87b5-392d625f94cc"
+    },
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "ios": {
       "bundleIdentifier": "app.questify.mobile",
       "supportsTablet": false,
+      "config": {
+        "usesNonExemptEncryption": false
+      },
       "infoPlist": {
         "CFBundleAllowMixedLocalizations": true,
-        "CFBundleLocalizations": ["ar", "en"]
+        "CFBundleLocalizations": ["ar", "en"],
+        "NSPhotoLibraryAddUsageDescription": "Questify saves your event recap image to Photos only when you choose Save Image."
       },
       "privacyManifests": {
         "NSPrivacyAccessedAPITypes": [

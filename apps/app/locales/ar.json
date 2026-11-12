@@ -2,6 +2,7 @@
   "ios": {
     "NSCameraUsageDescription": "يستخدم Questify الكاميرا لمسح رموز QR في فعاليتك.",
     "NSLocationWhenInUseUsageDescription": "يستخدم Questify موقعك أثناء فتح التطبيق لتسجيل حضورك في أماكن المهام وللحفاظ على عدالة اللعب في فعاليتك. يمكنك دائمًا مسح رمز QR بدلًا من ذلك.",
-    "NFCReaderUsageDescription": "يقرأ Questify بطاقات NFC في فعاليتك حين تلمس إحداها من داخل التطبيق. يمكنك دائمًا مسح رمز QR بدلًا من ذلك."
+    "NFCReaderUsageDescription": "يقرأ Questify بطاقات NFC في فعاليتك حين تلمس إحداها من داخل التطبيق. يمكنك دائمًا مسح رمز QR بدلًا من ذلك.",
+    "NSPhotoLibraryAddUsageDescription": "يحفظ Questify صورة ملخص فعاليتك في الصور فقط حين تختار حفظ الصورة."
   }
 }

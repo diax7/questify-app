@@ -11,10 +11,30 @@
     },
     "preview": {
       "distribution": "internal",
+      "channel": "demo",
       "android": { "buildType": "apk" },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://questify-api-staging-3ez01s.cranl.net",
         "EXPO_PUBLIC_QUEST_CODE_ORIGIN": "https://questify.nafes.com"
+      }
+    },
+    "demo-ios": {
+      "distribution": "store",
+      "channel": "demo",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://questify-api-staging-3ez01s.cranl.net",
+        "EXPO_PUBLIC_QUEST_CODE_ORIGIN": "https://questify.nafes.com"
+      }
+    }
+  },
+  "submit": {
+    "demo-ios": {
+      "ios": {
+        "ascAppId": "SET_ASC_APP_ID_DIGITS",
+        "ascApiKeyPath": "$EXPO_ASC_API_KEY_PATH",
+        "ascApiKeyIssuerId": "$EXPO_ASC_ISSUER_ID",
+        "ascApiKeyId": "$EXPO_ASC_KEY_ID"
       }
     }
   }

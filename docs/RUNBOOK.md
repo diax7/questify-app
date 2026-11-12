@@ -1286,6 +1286,132 @@ the first step of that rerun.
   5. Phone 1 and phone 2: sign up, join with the code. Phone 1 scans the printed code. Phone 2's ranking shows
      phone 1 first with the quest's points within its 15-second refresh; phone 1's Home shows the new balance.
 
+## Phone demo builds (EAS)
+
+Cloud builds of the player app for the phone demo (T-010): an Android APK installed from a link, an iPhone build in
+TestFlight, and over-the-air JavaScript updates to both. Expo project `nafess-team/nafes`, id
+`1ff85195-221e-4284-87b5-392d625f94cc`; bundle id and package `app.questify.mobile`. Both demo profiles talk to
+**staging** (`EXPO_PUBLIC_API_URL=https://questify-api-staging-3ez01s.cranl.net`,
+`EXPO_PUBLIC_QUEST_CODE_ORIGIN=https://questify.nafes.com`).
+
+| `apps/app/eas.json` | What it makes | Channel |
+|---|---|---|
+| build `preview` | Android APK (internal distribution, install by link); an iOS `preview` would be ad hoc and need registered devices, so it is not used | `demo` |
+| build `demo-ios` | iOS store-signed build for TestFlight; build number auto-incremented by EAS (`appVersionSource: remote`, `autoIncrement`) | `demo` |
+| submit `demo-ios` | Upload to App Store Connect with the API key; `ascApiKeyPath`, `ascApiKeyIssuerId`, `ascApiKeyId` are `$EXPO_ASC_*` and read from the environment at run time | - |
+| build `development` | The development client (no channel; JavaScript from `expo start`) | - |
+
+**`ascAppId` is a placeholder** (`SET_ASC_APP_ID_DIGITS`). It is the numeric "Apple ID" of the app record in App Store
+Connect (App Information → General → Apple ID, about 10 digits), which exists only after Dhia creates the record.
+EAS reads it only from `eas.json` (it is not taken from the environment) and needs it in non-interactive mode; until it
+is set, `eas submit` stops with "Invalid ... ascAppId ... should consist only of digits". Replace it in a normal
+commit once known; it is not a secret.
+
+### Secrets and environment (never echoed, never committed)
+
+Run everything from `apps/app`. The token and the key stay in their files; commands read them inline:
+
+```sh
+cd /home/deploy/questify-app/apps/app
+EAS="npx --yes eas-cli@27.7.2"              # pinned; eas.json asks for >= 25
+ASC_DIR=/home/deploy/.config/questify/asc
+export EXPO_ASC_API_KEY_PATH="$(ls "$ASC_DIR"/AuthKey_*.p8)"            # exactly one key file
+export EXPO_ASC_KEY_ID="$(basename "$EXPO_ASC_API_KEY_PATH" .p8 | sed 's/^AuthKey_//')"
+export EXPO_ASC_ISSUER_ID="$(cat "$ASC_DIR/issuer-id")"                  # UUID from App Store Connect → Integrations
+export EXPO_APPLE_TEAM_ID="$(cat "$ASC_DIR/team-id")"                    # 10 characters, developer.apple.com → Membership
+export EXPO_APPLE_TEAM_TYPE=INDIVIDUAL                                   # or COMPANY_OR_ORGANIZATION, per Dhia's account
+```
+
+Each `$EAS` command below starts with `EXPO_TOKEN="$(cat /home/deploy/.config/questify/expo-token)"`: type it out in
+full, never `echo` it, never `set -x`, never `export` it into a shared shell. `issuer-id` and `team-id` are small files the
+coordinator creates next to the key once Dhia gives the values. The key must be a **team** key with the App Manager
+(or Admin) role, so that it can make certificates and profiles as well as upload.
+
+### Android preview APK
+
+```sh
+EXPO_TOKEN="$(cat /home/deploy/.config/questify/expo-token)" $EAS build --platform android --profile preview \
+  --non-interactive --json --wait > /tmp/questify-android-build.json
+```
+
+The first run makes the Android keystore on EAS by itself (kept there; never delete it, later updates need it). The
+JSON's `[0].artifacts.buildUrl` is the APK; the build page `https://expo.dev/accounts/nafess-team/projects/nafes/builds/<id>`
+shows an install QR. Send Dhia the page link: on the phone, open it, download, allow "install unknown apps" once.
+
+### iOS build and TestFlight
+
+1. **Once, before the first iOS build: signing credentials.** In non-interactive mode EAS refuses to *create* a
+   distribution certificate (it only reuses one), so the first setup is interactive. With the ASC variables above set
+   it uses the API key and never asks for an Apple ID password:
+   `EXPO_TOKEN="$(cat /home/deploy/.config/questify/expo-token)" $EAS credentials:configure-build --platform ios --profile demo-ios`
+   in a real terminal (a pty; answer Yes to generating the distribution certificate and the provisioning profile).
+   This also turns on the bundle id's capabilities from the entitlements (Push, NFC tag reading). After that, every
+   build below runs non-interactively.
+2. **Build:**
+   ```sh
+   EXPO_TOKEN="$(cat /home/deploy/.config/questify/expo-token)" $EAS build --platform ios --profile demo-ios \
+     --non-interactive --json --wait > /tmp/questify-ios-build.json
+   BUILD_ID="$(node -p 'require("/tmp/questify-ios-build.json")[0].id')"
+   ```
+3. **Submit to TestFlight** (needs the real `ascAppId`):
+   ```sh
+   EXPO_TOKEN="$(cat /home/deploy/.config/questify/expo-token)" $EAS submit --platform ios --profile demo-ios \
+     --id "$BUILD_ID" --non-interactive --auto-testflight-setup --wait \
+     --what-to-test "Questify demo on staging: sign in, join the demo event, scan its QR codes."
+   ```
+   `ITSAppUsesNonExemptEncryption` is `false` in the build (HTTPS through the OS only), so App Store Connect asks no
+   export questions and the build turns "Ready to Test" after Apple's processing (about 10 to 30 minutes).
+4. **Dhia as internal tester.** `--auto-testflight-setup` creates, when the app has no TestFlight group yet, the
+   internal group "Team (Expo)" with access to every build and invites every App Store Connect user with the Admin
+   role, which includes Dhia as Account Holder. Internal testing needs no Beta App Review. If the app already had a
+   group, add him by hand: App Store Connect → the app → TestFlight → Internal Testing → the group → Testers → +.
+   Internal testers must be App Store Connect users of the team (at most 100).
+
+### What Dhia does (once)
+
+- In App Store Connect → Apps → +: New App, iOS, name "Questify" (or the store name), primary language, bundle id
+  `app.questify.mobile` (appears after step 1 above, or register it at developer.apple.com → Identifiers), SKU any
+  text. Then send the app's numeric Apple ID (for `ascAppId`).
+- Create the team API key (Users and Access → Integrations → App Store Connect API, role App Manager), download the
+  `.p8` once and give it with its Issuer ID; the team id is on developer.apple.com → Membership.
+- On the iPhone: install **TestFlight** from the App Store, signed in with the same Apple ID, accept the email invite,
+  install Questify. On Android: open the build page link and install the APK.
+
+### Over-the-air updates (EAS Update, channel `demo`)
+
+The app carries `expo-updates`; `updates.url` is `https://u.expo.dev/<project id>` and `runtimeVersion` uses the
+`appVersion` policy, so a build of app `version` 1.0.0 takes only updates published for runtime `1.0.0`. It checks on
+launch and applies the update on the next launch. Both demo builds listen on channel `demo`. Publish after a
+JavaScript-only change (from `apps/app`, committed tree):
+
+```sh
+EXPO_TOKEN="$(cat /home/deploy/.config/questify/expo-token)" \
+EXPO_PUBLIC_API_URL=https://questify-api-staging-3ez01s.cranl.net \
+EXPO_PUBLIC_QUEST_CODE_ORIGIN=https://questify.nafes.com \
+  $EAS update --channel demo --platform all --message "<what changed>" --non-interactive
+```
+
+The `EXPO_PUBLIC_*` values must be given here: `eas update` bundles on this machine and does **not** read a build
+profile's `env` from `eas.json`. Check with `$EAS update:list --branch demo --non-interactive`. To undo, republish the
+previous group: `$EAS update:republish --group <previous group id> --message "Roll back" --non-interactive`.
+
+**Needs a new build instead of an update** (and, for a native change, a new `version` in `app.json`, such as 1.0.1, so
+old builds never get JavaScript that expects native code they lack):
+- adding, removing or upgrading any package with native code or a config plugin, and every Expo SDK or React Native
+  bump;
+- any permission or its text (`infoPlist`, `locales/*.json`, plugin permission strings, Android `permissions` or
+  `blockedPermissions`), entitlements (NFC, push, associated domains);
+- `app.json` native fields: name, icon, splash, scheme, bundle id or package, orientation, `plugins`, `ios`/`android`
+  blocks, `runtimeVersion`, `updates`;
+- the version and build number themselves.
+
+Code, copy, styles, images bundled by the app and `EXPO_PUBLIC_*` values can go by update. Store rules still apply to
+updates (bug fixes and modest changes, no new features or quest types, STORE_COMPLIANCE §1.5).
+
+**Free plan:** builds are the scarce part (a small monthly quota with queueing on the free plan, check expo.dev →
+Billing); prefer an update for JavaScript-only changes, build only with a native change, and build iOS only when a
+TestFlight build is really needed. Updates on the free plan are counted by monthly active users, far above a demo.
+
 ## Database and deploy
 
 Staging deploy steps: `docs/agents/COORDINATOR_HANDOFF.md`, using `scripts/cranl/deploy-staging.py`.
