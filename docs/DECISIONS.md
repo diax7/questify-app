@@ -2418,6 +2418,8 @@ bar shows the next level without its reward (FR-416).
 Questify bucket exists; sharing `b7r-media` under a prefix is not used.
 **Why:** CranL Pro allows one bucket per account and `b7r-media` uses it (ADR-107 addendum 2), so ADR-109's bucket does
 not exist yet; a switch for an unbuilt store is a speculative feature. Plan: `docs/plans/2026-10-24-t-301-submissions.md`.
+**Carried out 2026-11-12 (T-301b, ADR-828):** Dhia raised the CranL plan (Q-149), so each environment has its own
+bucket (`questify-media-staging` first); photos are built.
 
 ## ADR-184 — Pending points live on the submission; the ledger holds only points that moved
 **Status:** Accepted (developer, delegated by Dhia, 2026-11-09, built and reviewed in T-301); was: Proposed (Claude, 2026-10-24; T-301; revised after the CTO plan review).
@@ -2435,12 +2437,16 @@ path: `remove_award` marks the linked submission removed. The `sub:` key prefix 
 `sharp` (with `limitInputPixels`, one image at a time) to JPEG of at most 2,048 px, which strips EXIF (GPS, device). The team views photos through 5-minute signed URLs
 on the bucket's host, never the API origin. New dependencies: `sharp`, `aws4fetch`.
 **Why:** SECURITY threat 8 (type checks, re-encoding, not served from the API origin) and no location data stored.
+**Changed 2026-11-12 (T-301b, ADR-828):** HEIC is refused with 415 (prebuilt libvips decodes no HEVC); the inputs are
+JPEG, PNG and WebP by magic bytes, and the app's picker hands over JPEG. The pixel cap starts at 32 MP.
 
 ## ADR-186 — Retention of submission photos (T-301b)
 **Status:** Proposed (Claude, 2026-10-24; T-301; moved to T-301b). Q-152.
 **Decision:** rejected and removed photos, and those of a deleted account or a wiped rehearsal, are deleted at once
 through a `media_delete` outbox the worker drains (timeout, retry). Approved photos follow event retention (Q-075).
 **Why:** PDPL minimisation: a rejected photo has no further purpose.
+**Interim purge 2026-11-12 (T-301b, ADR-828):** until counsel answers Q-075, every photo (any state, submissions and
+tickets) is deleted 365 days after its event ends (`media_purge_due`).
 
 ## ADR-187 — Auto-approved submissions stay in the queue until seen
 **Status:** Proposed (Claude, 2026-10-24; T-301). Q-153.
@@ -9125,3 +9131,44 @@ No migration: marks are compared only inside one event. Run `reseal` then `check
 not caught (the re-seal then reports a `conflict`). After launch the same change would cost a rotation-sized walk.
 Binding a cipher to its row (w2-crypto 2) was considered and dropped: it needs a v3 format and a re-seal of every row,
 and only the database owner can swap ciphers (SECURITY.md V11).
+
+## ADR-828 - Photo storage, phase 1: one private bucket per environment, deleted by construction
+
+**Status:** Proposed (T-301b phase 1, 2026-11-12; plan `docs/plans/2026-11-12-photo-storage.md` with its CTO review,
+section 10). Carries out ADR-183, changes ADR-185 (HEIC refused) and adds ADR-186's interim purge. Q-149 resolved;
+Q-150 to Q-152 as recommended; Q-764 to Q-766.
+**Decision:**
+- **Bucket.** One private CranL bucket per environment (`questify-media-staging` now, production later), declared in
+  `ops/cranl/<env>.json`; `apply` sends the region and counts buckets in the project's budget (1). The API reads
+  `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` (all or none; path-style unless
+  `S3_URL_STYLE=virtual`); without them photos are off (503 `photos_off`, the builder refuses photo quests). The web
+  adds `MEDIA_HOST` (a host name) to `img-src`.
+- **Keys** are `o/<organizer>/e/<event>/<purpose>/<id>.jpg`, built by the database from a `media_object` row whose CHECK
+  ties the key to its own organizer, event, purpose and id; no client input reaches a key, and a URL is signed only for
+  a key a seat-checked reader returned (`event_submissions`, `operator_submissions`, `event_tickets`, `operator_ticket`,
+  `console_ticket`), for 300 seconds, with `response-content-type=image/jpeg` and `inline`.
+- **Upload.** `POST /v1/quests/{id}/photo` and `POST /v1/events/{id}/tickets/photo` take the raw image (JPEG, PNG or
+  WebP by magic bytes, 8 MB, Idempotency-Key, hashed as bytes), reserve a slot (`media_reserve`: the caller's seat, at
+  most 5 unused slots per player and event in 30 minutes, MD429), re-encode with sharp (upright, at most 2,048 px,
+  white behind transparency, JPEG 82, no metadata, 32 MP cap, one image at a time with 4 waiting), PUT outside any
+  transaction, then `media_stored`. A refused image gives its slot back. The photo id is then sent with the submission
+  (`submit_quest`, 5 arguments) or the ticket (`open_ticket`, 7 arguments), which lock the object and re-check its
+  owner, event, purpose, state and age under the lock. The 4- and 6-argument doors stay as text-only wrappers for an API
+  still running the old code during a deploy.
+- **Deletion by construction.** A `media_object` row that goes queues its key (BEFORE DELETE trigger into
+  `media_delete`); a submission lets go of its photo when it is rejected, removed or erased, a ticket when it is
+  deleted, and both when their row is deleted (AFTER triggers delete the object row). Unattached uploads are swept
+  after 30 minutes; everything is purged 365 days after its event ends. The media worker (every 30 s, its own lease,
+  SKIP LOCKED) deletes keys after its claim commits; a 404 is done, a failure backs off 1 minute to 1 hour.
+- **What accepts what.** `accepts` is `["text"]`, `["photo"]` or `["text","photo"]` (`quest_submission_kinds`), fixed
+  once the quest has a submission (SA409, `accepts_locked`); a photo's caption is at most 300 characters.
+- **The app** uses `expo-image-picker` (system picker, no library permission; camera with the QR scan's permission;
+  `requireOptionalNativeModule`, so an older binary asks for an update). Get help offers a photo only when Home says the
+  server stores photos (`photos`). No player sees another player's photo (FR-205); the player's own list shows only
+  whether the photo was deleted.
+**Why:** PDPL minimisation (no EXIF, short retention, deletes that cannot be forgotten by a code path), SECURITY threat
+8 (type checks, re-encoding, never served from our origin), tenant isolation by key shape and seat-checked readers.
+**Trade-offs:** sharp grows the image by the libvips binaries (about 8 MB); one image at a time bounds memory but
+queues uploads during a burst (503 `busy` beyond four waiting). `S3_ENDPOINT` and `MEDIA_HOST` are operator-set until
+CranL's bucket endpoint is confirmed by the contract test. Hold and report kinds for photos wait for T-504b (no player
+sees a photo in phase 1). The exports carry no photo column yet (FOLLOWUPS).

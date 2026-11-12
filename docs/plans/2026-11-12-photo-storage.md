@@ -288,3 +288,56 @@ The coordinator's decisions on the review; where they differ from sections 1 to 
 15. One per-player rate limit: the database cap `MD429` (drop the route's 20 per 10 minutes).
 16. `response-content-disposition=inline`, `referrerpolicy="no-referrer"` on the dashboard `<img>`, and `Cache-Control: no-store` on queue reads that carry URLs.
 17. Lock order, written in the migration header: `submission` → `media_object` → `media_delete`.
+
+## 11. As built (phase 1, 2026-11-12) and hand mutants
+
+**Built:** 1a (0192, `apps/api/src/storage`, the fake S3 in `test/storage/fake-s3.ts`, the media worker, `ops/cranl`),
+1b (0193, the photo door, `submit_quest` with a photo, the queues' signed URLs, the app's camera and picker, the
+dashboard's builder and queue) and 1c (ticket photos: the ticket photo door, `open_ticket` with a photo, the Help desk,
+the operator's ticket, the Inbox mark, the console's escalated ticket, Get help in the app). ADR-828; Q-764 to Q-766.
+
+**Deviations from sections 1 to 10:**
+- No `media_forget(key)`: section 10 (1) makes deletion structural, so a holder only clears `photo` or deletes its row
+  and AFTER triggers delete the object row; `media_release(id)` gives a refused upload's slot back.
+- `media_reserve(purpose, event, quest, key)` takes the quest for a submission (its event is the quest's) and the event
+  for a ticket; it also refuses a closed quest or a closed help desk early (the attach checks again).
+- `submit_quest`'s kind refusal is `SM422` (`photo_required` / `photo_not_accepted`), not `SK422`, which already meant a
+  reused key; a photo that is not the caller's usable upload is `SM404` (`photo_unusable`, one answer for every reason).
+- The queue and ticket readers return `photo_key` (and `photo_gone` for submissions); `queue_rows`, `own_submissions` and
+  `inbox_rows` became PL/pgSQL (three allowlist entries gone). The Inbox carries `hasPhoto` only; the item's own read
+  signs the URL.
+- `member_event_quests` is restated with `submission_accepts`, so the app knows which quests take a photo; Home carries
+  `photos`, so Get help offers a photo only on a server with a bucket.
+- The photos-off gate is the builder routes' (`refusePhotosOff`); `mergeQuest` refuses only video. The builder's read
+  carries `photos`. A change set does not check the bucket (FOLLOWUPS).
+- `S3_ENDPOINT` and the web's `MEDIA_HOST` are operator secrets in `ops/cranl/staging.json` (the endpoint was not known
+  when this was written); `S3_BUCKET` and `S3_REGION` are plain.
+- The app's camera is `expo-image-picker`'s (one module for both sources), and the upload is a `fetch` of the photo's
+  bytes through the session (so the token is refreshed first and a 401 retried) with a 90-second limit; no byte
+  progress (FOLLOWUPS). The web forwarder takes 8 MB and 90 seconds on the two photo paths only.
+- The exports are unchanged (FOLLOWUPS); hold and report kinds wait for T-504b (section 2).
+
+**Hand mutants** (`.scratch`-style runner: each edit alone, its suite, then `git restore`):
+
+| Mutant | File | Result | Test |
+|---|---|---|---|
+| drop the key prefix CHECK | 0192 | killed | `test/db/media` "forces the key" |
+| `submit_quest` skips the photo-owner check | 0193 (`photo_to_attach`) | killed | `test/db/media` "another player's photo" |
+| release trigger without the `erased_at` branch | 0193 | killed | `test/db/media` "erased account" |
+| no trigger on submission DELETE | 0193 | killed | `test/db/media` "rehearsal" |
+| no trigger on ticket DELETE | 0193 | killed | `test/db/media` "ticket's photo" |
+| the sweep ignores the 30 minutes | 0192 | killed | `test/db/media` "sweeps uploads" |
+| `event_submissions` without its seat check (stands in for "the queue signs a client key": no client input reaches a key) | 0193 | killed | `test/security/cross-tenant` "keeps photos" |
+| the worker deletes inside the claim's transaction | `storage/worker.ts` | killed | `test/storage/worker` "after the claim" |
+| no `rotate()` | `storage/images.ts` | killed | `images.test` "upright" |
+| metadata kept (`withMetadata()`) | `storage/images.ts` | killed | `images.test` "EXIF" |
+| `limitInputPixels` back to the default | `storage/images.ts` | killed | `images.test` "bomb" |
+| the client retries a 403 | `storage/client.ts` | killed | `client.test` "403" |
+| URLs signed for 3,600 s | `storage/signed.ts` | killed | `test/submissions/photo` "5-minute URL" |
+| a raw body fingerprinted as JSON | `conventions.ts` | survived (equivalent: the JSON form still differs per byte, only larger) | FOLLOWUPS |
+
+13 of 14 killed; the survivor is equivalent in behaviour.
+
+**Mutation targets for `mutation.yml` (tier A, access and storage code this change wrote):** `apps/api/src/storage/*.ts`,
+`apps/api/src/submissions/submissions.ts`, `apps/api/src/tickets/tickets.ts`. The SQL is held by the database tests
+above.

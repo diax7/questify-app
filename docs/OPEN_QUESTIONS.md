@@ -52,7 +52,7 @@ overlap the ones above were merged into them.
 | Q-070 | Deferred deep link on iOS (F-71): is "the event page copies the code, the app offers a one-tap paste button" reliable and allowed, with no fingerprinting or tracking SDK (PD-27)? Android uses the Play install referrer **Stage 6 proposal:** the event page copies the link on tap; after install a "Paste event code" button reads it; Android uses the install referrer. No fingerprinting: shared venue Wi-Fi makes it unreliable. Confirm in the grill | Decides whether "scan → install → land in the event" works on iPhone or needs a second scan | 6 |
 | Q-071 | NFC (F-105): which tag type; iOS and Android read/write limits; how the app proves a tap came from a real tag rather than a shared link; share of Saudi Android phones without NFC **Stage 6 note:** static NFC tags can be copied, so a tap is a weaker proof than a scan. **Answered 2026-10-24 (T-308 plan, ADR-234, ADR-237; Dhia: basic tags only, Q-198):** `react-native-nfc-manager` v4.1.0 reads and writes NDEF on both phones. iOS: in-app reading always shows the system sheet; background reading only for universal links (iPhone XS+). No Saudi figure for phones without NFC; budget Android lines still lack it. Basic tags (NTAG213/215): a signed URL, a tap whose sticker id differs is paid and flagged; the QR always stays on. Sources in the plan | Decides whether NFC quests work on every phone and how far they can be trusted | 6 |
 | Q-074 | Tuning values and their defaults: My QR grace period; the rotation interval of screen QR codes (30–60 s); thresholds for the flags ("far from the venue", impossible speed, bursts); "running low" for stock and uploaded codes; how long pickups stay reserved by default | The SRS states the behaviors; the numbers need real-world testing. Organizers adjust some per event | 6 |
-| Q-075 | Retention periods per data type: location readings, photos, help tickets, logs, closed-event data, inactive accounts, organizer exports, the deletion fingerprint (FR-1704). Closed-event data never includes the permanent record FR-751 keeps: score, `final_rank`, `souvenir_receipt`, `player_item`, XP and achievements stay (ADR-337, T-410) | The privacy policy must state a period per type (`STORE_COMPLIANCE.md` §4); PDPL minimization | 8 (counsel, with Q-051) |
+| Q-075 | Retention periods per data type: location readings, photos, help tickets, logs, closed-event data, inactive accounts, organizer exports, the deletion fingerprint (FR-1704). Closed-event data never includes the permanent record FR-751 keeps: score, `final_rank`, `souvenir_receipt`, `player_item`, XP and achievements stay (ADR-337, T-410) | The privacy policy must state a period per type (`STORE_COMPLIANCE.md` §4); PDPL minimization. Interim (T-301b, ADR-828): photos are deleted 365 days after their event ends | 8 (counsel, with Q-051) |
 | Q-076 | Wallet passes: does Apple allow an organizer's logo and name on a Questify-signed pass, and does a Pass Type ID on the personal developer account (ADR-010) work for this? Do both wallets accept the Questify frame design? **Stage 6:** the signing certificate can be made without a Mac (OpenSSL on Windows plus the Apple developer web portal). Whether the personal account works for a Pass Type ID is not checked | The pass design depends on it | 6 / 8. **User states yes, Apple allows an event logo on a wallet pass (2026-10-17); not independently checked.** |
 | Q-077 | When is the first event, and what is cut if the build runs long? The user chose no review point and no cut order (Stage 5, 2026-10-17). **2026-10-21: no pilot event yet; keep building in task order (user).** | v1 holds about 510 requirements for a team of one developer plus Claude; without a date or a cut order the first event can slip indefinitely | 8 |
 | Q-078 | The stores list the individual (Dhia) as seller (ADR-010), but a company signs the organizer contracts and invoices (ADR-076). Which party is named as the controller of player data in the privacy policy and terms, and who is responsible to organizers and players? | Decides the wording of the privacy policy, terms and organizer DPA (with Q-043) | 8, counsel |
@@ -219,18 +219,22 @@ Legend, one per five levels. Keep, or rename?
 CranL Pro allows one bucket per account and `b7r-media` uses it. Photos are T-301b, blocked until a Questify bucket in
 `riyadh-1` exists (ADR-183). Ask CranL for a second bucket (or a plan with more), or use Oracle Object Storage in
 Riyadh? Sharing `b7r-media` is not recommended. **Dhia (2026-11-01): "Later"** (asked with the options a second CranL bucket, Oracle Object Storage, or later). The upload tasks stay parked: T-301b, T-305b, T-504b, T-506b, T-507b, T-602b.
+**Resolved 2026-11-12:** Dhia raised the CranL plan, so each environment gets its own bucket (`questify-media-staging`
+first). T-301b phase 1 is built on it (ADR-828); the other upload tasks are unblocked.
 
 ## Q-150 — Submission sizes (2026-10-24, T-301)
 Text up to 1,000 characters (T-301); for T-301b, photos up to 8 MB uploaded, stored as JPEG of at most
-2,048 px. Agree?
+2,048 px. Agree? **Built as recommended (T-301b, ADR-828), with a 300-character caption on a photo.**
 
 ## Q-151 — Two new server dependencies (2026-10-24, T-301b)
 `sharp` to re-encode photos (strips location data, refuses disguised files) and `aws4fetch` to sign S3 requests
 (ADR-185). Agree, or upload straight to the bucket with presigned URLs and no re-encoding?
+**Built as recommended (T-301b, ADR-828):** through the API, re-encoded; HEIC is refused (415).
 
 ## Q-152 — Submission retention (2026-10-24, T-301)
 A deleted account's submission text is cleared at once (T-301). For T-301b: rejected and removed photos deleted at once; approved photos kept for the event's retention period (Q-075, counsel).
-Agree?
+Agree? **Built as recommended (T-301b, ADR-828),** with an interim purge of every photo 365 days after its event ends
+until counsel answers Q-075.
 
 ## Q-153 — Auto-approved submissions in the queue (2026-10-24, T-301)
 ADR-187: they pay at once but stay in the queue as "not yet seen" until a reviewer opens them. Agree?
@@ -3157,3 +3161,24 @@ them one or move the store to PostgreSQL or Redis.
 **Question:** after a rotation the old secret is kept only to read opt-out links already sent. 90 days covers the life
 of a promotional message in an inbox; a longer window keeps more links working, a shorter one holds an old secret less
 long. Is 90 days right, and should the removal be a calendar reminder or a check that warns when the pair is older?
+
+## Q-764 - Should a photo quest be able to ask for review even with auto-approve? (ADR-828)
+
+**Status:** open; recommended: no change in phase 1. An auto-approved photo pays at once and waits in the queue as
+"not yet seen" (ADR-187); only the event team sees it, never another player (FR-205).
+**Question:** an organizer may want photos checked before they pay. Should a photo quest refuse auto-approve, or warn
+the organizer when both are on? Product direction, not a technical call.
+
+## Q-765 - Does a player's data request include their photos? (ADR-828, PDPL access right)
+
+**Status:** open; recommended: yes, as signed links valid for a short time in the data download, once counsel answers
+Q-075. Today the download (T-708) lists submissions with their text and kind, not the photo.
+**Question:** PDPL's access right covers personal data a player sent; is a link to each stored photo enough, and for
+how long may it work?
+
+## Q-766 - Photos from players aged 13 to 17 (ADR-828, with Q-042)
+
+**Status:** open; recommended: allowed, as text is, since only the event team sees them and they are deleted on
+rejection, erasure and after 365 days; counsel to confirm with Q-042.
+**Question:** does a photo from a minor need anything more (a guardian's consent, a shorter retention, or none at all
+for quests that show faces)?

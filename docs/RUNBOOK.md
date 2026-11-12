@@ -810,7 +810,7 @@ A background loop (`questify_tick` names it) has not finished a run for five min
 events in the API log: `lifecycle` `event.lifecycle_failed` and the other step names in `events/tick.ts`; `community` `community.*`;
 `souvenir` `souvenir.tick_failed`; `invitation` `invitation.settle_failed`, `invitation.send_failed`; `rank_push`
 `ranking.push_tick_failed`; `organizer_alerts` `organizer_alert.run_failed`; `team_alerts` `team_alert.run_failed`; `ranking_repair`
-`ranking.repair_failed`; `push_worker` `push.*_failed`. A run that never ends is a database call with no answer. **Do:** restart that
+`ranking.repair_failed`; `push_worker` `push.*_failed`; `media` `media.run_failed`, `storage.failed`. A run that never ends is a database call with no answer. **Do:** restart that
 instance: every loop is safe to restart (rows are leased or taken with SKIP LOCKED, and other instances keep running). Record the cause
 in `docs/FOLLOWUPS.md`.
 
@@ -1600,6 +1600,34 @@ react-native-web dependency, which T-502 does not add. No EAS build or real vend
   `LIMIT least(free, n)` (one line); the dashboard already repeats calls.
 - **Hot path check:** the update trigger fires on every `UPDATE enrollment` (each scan's score update) and exits early.
   If `QuestifyCompletionSlow` fires after the deploy, compare a quest scan's time with the T-221 numbers in TASKS.
+
+### Photo storage (migrations 0192 and 0193; T-301b, ADR-828)
+
+- **Deploy.** 0192 adds two tables and doors; 0193 restates `submit_quest` and `open_ticket` with a photo (the old
+  signatures stay as text-only wrappers, so the old API keeps working until it restarts), recreates the queue and ticket
+  readers and `member_event_quests` (DROP and CREATE: a request in that instant may get "function does not exist" and
+  is retried), and adds triggers on `submission` and `ticket`. Both take `lock_timeout = '10s'`; run them in a quiet
+  minute, then `node migrate.cjs --verify`.
+- **Turning photos on.** Set the API's `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`,
+  `S3_SECRET_ACCESS_KEY` (all five, or the API does not start) and the web's `MEDIA_HOST` (the bucket's host name, for
+  `img-src`). Without them photos stay off: 503 `photos_off`, the builder refuses photo quests.
+- **Before the first real photo:** check in the CranL dashboard that the bucket is in `riyadh-1` (PDPL), that it is
+  private, and run the contract test against it: `S3_CONTRACT=1 S3_ENDPOINT=… S3_BUCKET=… S3_REGION=…
+  S3_ACCESS_KEY_ID=… S3_SECRET_ACCESS_KEY=… npx vitest run apps/api/test/storage/contract.int.test.ts` (put, signed get,
+  unsigned get 403, unsigned list 403, an 8 MB PUT, delete). `plan` names a bucket CranL shows in another region as a
+  manual step; when CranL shows no region, this dashboard check is the only one.
+- **Rotating the bucket keys.** Create the new key pair in CranL, set both variables, restart, run the contract test,
+  then revoke the old pair. Nothing stored depends on the key; signed URLs already handed out stop working (5 minutes
+  at most).
+- **A stuck delete.** `SELECT key, attempts, last_code, due_at FROM media_delete ORDER BY attempts DESC LIMIT 20` as the
+  owner. `status_403` means the keys lost the right to delete; `timeout` or `network` a CranL outage. Rows back off to
+  an hour and retry by themselves; nothing is lost while a row exists. Never delete a row by hand before the object is
+  gone from the bucket.
+- **Deleting one photo on request** (until T-504b adds the hold): as the owner, `UPDATE submission SET photo = NULL
+  WHERE id = <id>` (or `UPDATE ticket SET photo = NULL WHERE id = <id>`); the trigger deletes the object row and queues
+  the key, and the next worker run deletes it. Note it in the audit trail of the request.
+- **The media loop** reports as `media` in `QuestifyLoopStalled`; its failure events are `media.run_failed` and
+  `storage.failed` (operation, purpose and status only).
 
 ### The admin re-check sweep (migration 0191; deploy steps)
 

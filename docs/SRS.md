@@ -942,7 +942,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-201 | F-03 | Must | pending |
 | FR-202 | F-03, F-92 | Must | pending |
 | FR-203 | F-04 | Must | `test/db/challenge-survey-share.int`, `test/plays/survey-share.int` (T-303) |
-| FR-204 | F-05 | Must | pending (T-301b: photos) |
+| FR-204 | F-05 | Must | built (T-301b phase 1, ADR-828; not yet run on a phone): `test/db/media.int`, `test/submissions/photo.int`, `apps/app/src/event/photos.test.ts` |
 | FR-205 | F-05 | Must | `test/db/submissions.int`, `test/submissions/routes.int` (T-301) |
 | FR-206 | F-05 | Must | `test/db/submissions.int`, `test/submissions/routes.int`, `apps/app/src/event/submissions.test.ts` (T-301) |
 | FR-207 | F-06 | Must | `test/db/vote-quiz.int`, `test/plays/routes.int`, `apps/app/src/event/plays.test.ts` (T-302) |
@@ -1029,7 +1029,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-334 | F-115 | Could | pending |
 | FR-335 | F-116 | Should | pending |
 | FR-336 | F-116 | Should | pending |
-| FR-337 | F-118 | Should | partly built (T-310: text, from a quest or the event; the photo is T-301b, ADR-248): `test/db/tickets.int`, `test/tickets/routes.int`, `apps/app/src/event/help.test.ts` |
+| FR-337 | F-118 | Should | built (T-310: text, from a quest or the event; T-301b: the optional photo, ADR-828): `test/db/tickets.int`, `test/tickets/routes.int`, `test/submissions/photo.int`, `apps/app/src/event/help.test.ts` |
 | FR-338 | F-118 | Should | partly built (T-310: the reply and Solved, read on Home and in Your requests; the push is T-501's): `test/db/tickets.int`, `test/tickets/routes.int`, `e2e/help-desk.spec` |
 | FR-339 | F-118 | Should | `test/db/tickets.int`, `test/security/outsider.int`, `test/tickets/routes.int` (T-310) |
 | FR-401 | F-121 | Must | pending |

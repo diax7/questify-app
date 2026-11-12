@@ -1120,6 +1120,27 @@ delete guard). Quest `type` gains `submission` with `type_config {accepts: ["tex
 text only).
 **PII:** free text may name people; no AI moderation (ADR-071); visible only to the player and the event's team
 (FR-205).
+**Photos (T-301b, migration 0193, ADR-828):** `kind` is `text` or `photo`; `photo → media_object` (unique, NO ACTION)
+and `photo_gone_at` (the photo was deleted). A photo submission may carry a caption in `body` (at most 300 characters);
+CHECKs: text has a body, a text submission has no photo, a pending photo submission holds its photo unless the account
+or the photo is gone. A rejection, removal or erasure lets go of the photo, and a deleted row deletes it (triggers).
+`type_config.accepts` is `["text"]`, `["photo"]` or `["text", "photo"]` (`quest_submission_kinds`), fixed once the quest
+has a submission (SA409). `ticket.photo → media_object` (unique, NO ACTION): an event ticket's optional photo, deleted
+with the ticket.
+
+### media_object, media_delete (migration 0192, T-301b, ADR-828)
+**Built:** `media_object (id uuid, organizer_id, event_id, purpose submission|ticket, key unique, state
+reserved|stored|attached, bytes, width, height, uploaded_by_player → player, request_key, created_at, stored_at,
+attached_at)`, unique (uploader, request_key); `key` is CHECKed to equal `o/<organizer>/e/<event>/<purpose>/<id>.jpg`;
+event FK ON DELETE CASCADE. `media_delete (id, key unique, organizer_id, due_at, attempts, lease_until, last_code,
+created_at)` with no foreign key: a key outlives its row until the bucket confirms the delete. Every `media_object` row
+that goes queues its key (BEFORE DELETE trigger). Unattached rows are swept after 30 minutes; every row is purged 365
+days after its event ends (interim, Q-075). RLS forced, no grant: the doors are `media_reserve`, `media_stored`,
+`media_release` (the caller's own slot) and the system seat's `media_delete_claim`, `media_delete_done`,
+`media_delete_failed`, `media_sweep_uploads`, `media_purge_due`. Lock order: submission or ticket → media_object →
+media_delete.
+**PII:** the photo itself lives in the private bucket in `riyadh-1`, re-encoded with no metadata; the rows hold no
+image, only its key and size.
 
 ### quest_vote, quiz_attempt, quiz_answer (migration 0041, T-302, ADR-190 to ADR-195)
 **Built:** `quest_vote (organizer_id, event_id, enrollment_id, quest_id, option_id, completion_id unique, created_at)`,

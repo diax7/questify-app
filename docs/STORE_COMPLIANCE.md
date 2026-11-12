@@ -693,9 +693,12 @@ manifest. Inspect the merged manifest of every release build.
   (`READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`, `SYSTEM_ALERT_WINDOW`), plus `RECORD_AUDIO`,
   `READ_MEDIA_IMAGES` and `READ_MEDIA_VIDEO`, so no library can add them unnoticed.
 - **iOS** has `NSCameraUsageDescription` only: no microphone, no photo library.
-- **The camera text:** "Questify uses the camera to scan the QR codes at your event." /
-  «يستخدم كويستفاي الكاميرا لمسح رموز QR في فعاليتك.», through `apps/app/locales/{ar,en}.json`. It names scanning
-  only, because photo quests do not exist yet; widen it to the draft above with T-301.
+- **The camera text (widened 2026-11-12, T-301b):** "Questify uses the camera to scan the QR codes at your event and
+  to take photos you choose to send." / «يستخدم Questify الكاميرا لمسح رموز QR في فعاليتك ولالتقاط الصور التي تختار
+  إرسالها.», through `apps/app/locales/{ar,en}.json` and the `expo-camera` and `expo-image-picker` plugins (the same
+  text in both). Photos come from the camera or the **system** picker (`expo-image-picker`, `photosPermission: false`):
+  no photo-library permission on either platform (FR-204); `READ_MEDIA_*` stay blocked. Re-check the merged manifest
+  of the first release build with the picker.
 - **When the camera is asked for:** the app asks in context when the player opens the scanner, never at launch.
 - **Repeat** the check on every release build.
 

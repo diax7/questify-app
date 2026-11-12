@@ -199,6 +199,17 @@
 
 Claude's lean: **production on Oracle (Riyadh main, Jeddah recovery) once the console confirms PostgreSQL and the cache there; staging, rehearsal and demos on CranL Pro in Riyadh.** The server is plain containers plus PostgreSQL, so moving between hosts later is a data migration, not a rewrite. If Oracle's console lacks PostgreSQL in Riyadh, the next candidates are sccc or Google Dammam. Questions for CranL before trusting it with production: who runs the Riyadh and Jeddah hardware; is it in-Kingdom; automatic backups and how often; point-in-time restore; copy of backups to a second city; HA failover for a managed PostgreSQL; the written uptime commitment; maximum database size and connections; and its CST registration or hosting partner's.
 
+## CranL buckets (T-301b, ADR-828)
+
+- **What:** one private S3-compatible bucket per environment (`questify-media-staging` now; production later) holds the
+  players' photos, re-encoded with no metadata. Personal data: yes (data map: photos, in `riyadh-1`).
+- **Calls:** PUT and DELETE from the API (SigV4 on our own fetch, `aws4fetch`'s signer), 10 s timeout, two retries on
+  network errors, 5xx and 429 with jitter, never on 403; redirects refused. Fallback: the upload answers 503
+  `storage_unavailable` and attaches nothing; a failed delete keeps its `media_delete` row and backs off (1 minute to 1
+  hour). Reads are 5-minute presigned GETs the browser or the app fetches from the bucket's host.
+- **Open:** the endpoint and the region string are confirmed by the contract test (RUNBOOK "Photo storage"); per-bucket
+  keys before production (CranL keys are probably account-wide).
+
 ## CranL staging (built 2026-10-19)
 
 - **Project:** Nafes, region `riyadh-1` (Riyadh). **Apps:** `questify-api-staging` (Dockerfile build from the public repository, port 3000), live at https://questify-api-staging-3ez01s.cranl.net/healthz. **Databases:** `questify-db` (PostgreSQL), `questify-cache` (Redis). Database hosts are internal names, not reachable from the internet (checked: name does not resolve from outside).

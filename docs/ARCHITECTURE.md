@@ -39,10 +39,10 @@ graph TD
 | Player app | All player and operator screens; scanning; mini-games; keeps the last working configuration | HTTPS JSON `/v1`, server-sent events for live updates | API |
 | Web app | Event page, station (rotating QR) page, big screen, deletion page, organizer dashboard, Questify console | Same API; staff cookie session | API |
 | API server | Authentication, authorization, all rules; the modules below | REST `/v1`, event stream | PostgreSQL, Redis, storage |
-| Workers | Sends SMS, email, push; scheduled jobs (daily word, reports, reservation expiry, flag checks, nightly backup dump); wallet pass updates. **Run inside the API container in v1** (mode setting; ADR-109) and can be split out later | In-process loops over PostgreSQL tables with leases (`SKIP LOCKED`; ADR-333, ADR-345); pg-boss is not used | PostgreSQL, providers |
+| Workers | Sends SMS, email, push; the media worker (T-301b: every 30 s it sweeps uploads never attached after 30 minutes, purges photos 365 days after their event, and deletes queued keys from the bucket after its claim commits, `src/storage/worker.ts`); scheduled jobs (daily word, reports, reservation expiry, flag checks, nightly backup dump); wallet pass updates. **Run inside the API container in v1** (mode setting; ADR-109) and can be split out later | In-process loops over PostgreSQL tables with leases (`SKIP LOCKED`; ADR-333, ADR-345); pg-boss is not used | PostgreSQL, providers |
 | PostgreSQL | The only source of truth, including the append-only points record | SQL | none |
 | Redis-compatible store | Live rankings, rate limits, short-lived login/QR windows. **Rebuildable** from PostgreSQL | Redis protocol | none |
-| Object storage | Photos, organizer art, exports | Signed URLs | none |
+| Object storage | Photos (T-301b, ADR-828): one private CranL bucket per environment in `riyadh-1`; organizer art and exports later | The API PUTs and DELETEs with SigV4 (`src/storage`), the team reads through 5-minute signed GET URLs on the bucket's host; keys come from `media_object` rows only | none |
 | Providers | SMS, email, push, wallet, device integrity | See `INTEGRATIONS.md` | none |
 
 ### Modules inside the API server
