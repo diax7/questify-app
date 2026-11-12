@@ -1145,6 +1145,16 @@ days after its event ends (interim, Q-075). RLS forced, no grant: the doors are 
 media_delete.
 **PII:** the photo itself lives in the private bucket in `riyadh-1`, re-encoded with no metadata; the rows hold no
 image, only its key and size.
+**Organizer images (migration 0194, ADR-829):** `purpose` also takes `logo`, `icon` (PNG, `format png`), `banner`,
+`picture`, `map` (JPEG); the key ends `.png` or `.jpg` by `format`; `uploaded_by_player` is set exactly for `submission`
+and `ticket`, `uploaded_by_staff → staff_user` (ON DELETE SET NULL) for organizer kinds, unique (staff, request_key);
+`used_at` is when a save last named the image; unique `(id, event_id)` for the holders' composite keys. Holders:
+`event_map.image`, `sponsor.logo`, `sponsor.banner` (`(col, event_id) → media_object (id, event_id)`, ON DELETE SET NULL
+(col)); ids in `event.config.branding`, `event.config.layout.content` and `quest.type_config` (`images`, vote
+`options[].image`, CHECK `quest_images_shape`). Doors: `media_image_reserve`, `media_image_stored`,
+`media_image_release` (the caller's own slot), `media_images_use` (inside a save), `event_image_key` (member),
+`team_image_key` (team), `member_quest_images`, and the system's `media_sweep_images` (a slot never stored after 30
+minutes, a stored image named nowhere for 24 hours). A duplicated event names none of its source's images.
 
 ### quest_vote, quiz_attempt, quiz_answer (migration 0041, T-302, ADR-190 to ADR-195)
 **Built:** `quest_vote (organizer_id, event_id, enrollment_id, quest_id, option_id, completion_id unique, created_at)`,

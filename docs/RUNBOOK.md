@@ -1628,6 +1628,16 @@ react-native-web dependency, which T-502 does not add. No EAS build or real vend
   the key, and the next worker run deletes it. Note it in the audit trail of the request.
 - **The media loop** reports as `media` in `QuestifyLoopStalled`; its failure events are `media.run_failed` and
   `storage.failed` (operation, purpose and status only).
+- **Organizer images (migration 0194, ADR-829).** Before deploying, check that CranL's PostgreSQL is 15 or later
+  (`SHOW server_version`; Q-767): the map and sponsor image keys use `ON DELETE SET NULL (column)`. 0194 takes
+  `media_object` ACCESS EXCLUSIVE and adds a CHECK to `quest` (a full scan of `quest`): run it in a quiet minute. The
+  worker's run also calls `media_sweep_images` (its count joins `swept`): an organizer slot never stored after 30
+  minutes, and a stored image no setting, quest, pending change set, map or sponsor of its event has named for 24 hours.
+  To see what waits: `SELECT purpose, count(*) FROM media_object WHERE purpose NOT IN ('submission', 'ticket') AND
+  coalesce(used_at, stored_at) < now() - interval '24 hours' GROUP BY 1` as the owner. To delete one organizer image
+  on request, clear it from its holder (a save without it, or `UPDATE event_map SET image = NULL …`); the sweep takes it
+  a day later, or `DELETE FROM media_object WHERE id = <id>` as the owner queues its key at once (the holders' reads then
+  fall back to the default art).
 
 ### The admin re-check sweep (migration 0191; deploy steps)
 
