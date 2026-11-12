@@ -48,8 +48,11 @@ const STATE = process.env.DEMO_STATE ?? join(DIR, `${HOST.replace(/[^a-z0-9.-]/g
 /** Staging or this machine only (fake data, ADR-810): production holds real people. */
 function checkTarget() {
   const local = /^(127\.0\.0\.1|localhost)(:\d+)?$/.test(HOST);
-  if (!local && !HOST.includes("staging")) {
-    throw new Error(`Refusing ${HOST}: the demo runs against staging or a local API only.`);
+  const staging = /^questify-api-staging-[a-z0-9]+\.cranl\.net$/.test(HOST);
+  if (!local && !(staging && new URL(API).protocol === "https:")) {
+    throw new Error(
+      `Refusing ${HOST}: the demo runs against the https staging API or a local API only.`,
+    );
   }
 }
 

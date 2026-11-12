@@ -166,6 +166,28 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the full phone demo script", (
     expect(html.match(/<svg/g)?.length).toBeGreaterThanOrEqual(9);
   });
 
+  it("refuses any API that is not the https staging API or this machine, before any request", async () => {
+    const out = await mkdtemp(join(tmpdir(), "questify-demo-"));
+    for (const api of [
+      "https://questify-api-production-x.cranl.net",
+      "https://evil-staging.example",
+      "http://questify-api-staging-3ez01s.cranl.net",
+    ]) {
+      const env = {
+        ...process.env,
+        DEMO_API: api,
+        DEMO_OUT: out,
+        DEMO_STATE: join(out, "s.json"),
+        DEMO_OWNER_EMAIL: "x@demo.test",
+      };
+      await expect(run(process.execPath, [CLI, "signup"], { env })).rejects.toMatchObject({
+        code: 1,
+        stderr: expect.stringContaining("Refusing"),
+      });
+    }
+    await rm(out, { recursive: true, force: true });
+  });
+
   it("runs from the command line: sign-up, the emailed code, build, and never prints a secret", async () => {
     const out = await mkdtemp(join(tmpdir(), "questify-demo-"));
     const email = "cli-owner@demo.test";
