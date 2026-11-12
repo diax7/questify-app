@@ -6,14 +6,19 @@
 //   node scripts/demo/full-demo.mjs signup            first time: makes the owner account, emails its code
 //   node scripts/demo/full-demo.mjs login [--as admin] signs in again (owner by default), emails the code
 //   node scripts/demo/full-demo.mjs code <123456> [--as admin]   takes the emailed code; keeps the session
-//   node scripts/demo/full-demo.mjs build [--reset]   builds or completes the demo (admin part when signed in as admin)
-//                                                     and writes the QR sheet; run again any time, it adds only what
-//                                                     is missing; --reset ends the demo event and builds a new one
+//   node scripts/demo/full-demo.mjs build [--reset] [--daily-word]
+//                                                     builds or completes the demo (admin part when signed in as
+//                                                     admin) and writes the QR sheet; run again any time, it adds or
+//                                                     tops up only what is missing, and exits 1 if any step was
+//                                                     SKIPPED; --reset ends the demo event and builds a new one
+//                                                     (it stops if the old one cannot be ended); --daily-word also
+//                                                     turns the staging-wide daily word cadence to daily (docs/demo/
+//                                                     PHONE_DEMO.md says how to revert it)
 //   node scripts/demo/full-demo.mjs logout            ends both sessions and forgets them
 //
 // Settings (environment): DEMO_OWNER_EMAIL (signup, login), DEMO_OWNER_PASSWORD (optional: else a long random one is
-// made and kept in the state file; the owner sets their own with "Forgot password?"), DEMO_ADMIN_EMAIL and
-// DEMO_ADMIN_PASSWORD (only for `login --as admin`), DEMO_API (default the staging API), DEMO_WEB (default
+// made and kept in the state file; one from the environment is never written; the owner sets their own with "Forgot
+// password?"), DEMO_ADMIN_EMAIL and DEMO_ADMIN_PASSWORD (only for `login --as admin`; never written), DEMO_API (default the staging API), DEMO_WEB (default
 // https://questify.nafes.com), DEMO_OUT (where the QR sheet goes, default ~/.questify-demo), DEMO_STATE (default
 // ~/.questify-demo/<api host>.json, mode 0600), DEMO_CODE (instead of the code argument). Nothing secret is
 // printed: not the password, the code, the challenge or the session.
@@ -34,7 +39,7 @@ import {
 import { ORGANIZER_NAME } from "./lib/content.mjs";
 import { createApi } from "./lib/http.mjs";
 import { qrSheet } from "./lib/print.mjs";
-import { buildDemo } from "./lib/run.mjs";
+import { buildDemo, skippedOf } from "./lib/run.mjs";
 
 /** One line on standard output (never a secret: see the header). */
 const say = (line) => process.stdout.write(`${line}\n`);
@@ -67,9 +72,13 @@ function need(name) {
 const roleOf = (args) =>
   args.includes("--as") && args[args.indexOf("--as") + 1] === "admin" ? "admin" : "owner";
 
+/** The owner password from the environment (never written down), else a generated one kept in the state file. */
 function ownerPassword(state) {
+  if (process.env.DEMO_OWNER_PASSWORD) {
+    return process.env.DEMO_OWNER_PASSWORD;
+  }
   state.owner ??= {};
-  state.owner.password ??= process.env.DEMO_OWNER_PASSWORD || generatedPassword();
+  state.owner.password ??= generatedPassword();
   return state.owner.password;
 }
 
@@ -133,7 +142,7 @@ function writeSheet(demo) {
   return file;
 }
 
-async function build(api, state, reset) {
+async function build(api, state, { reset, dailyWord }) {
   const ownerCookie = await session(api, state, "owner");
   if (ownerCookie === undefined) {
     throw new Error("The owner is not signed in: run login, then code.");
@@ -145,6 +154,7 @@ async function build(api, state, reset) {
     adminCookie,
     accept: await acceptance(api, "organizer"),
     reset,
+    dailyWord,
   });
   for (const line of demo.log) {
     say(`- ${line}`);
@@ -156,6 +166,13 @@ async function build(api, state, reset) {
   say(`Dashboard: ${WEB}/en/organizers/${demo.organizerId}/events/${demo.eventId}`);
   say(`Play in a phone browser: ${WEB}/play`);
   say(`QR sheet: ${sheet}`);
+  const skipped = skippedOf(demo.log);
+  if (skipped.length > 0) {
+    // The sheet is written (the rest works), but the build is not complete: the exit status says so.
+    throw new Error(
+      `${skipped.length} step(s) SKIPPED (listed above); fix the cause and run build again, it tops up what is missing.`,
+    );
+  }
 }
 
 async function logout(api, state) {
@@ -179,13 +196,17 @@ async function main([command, ...args]) {
     login: () => begin(api, state, role, false),
     code: () =>
       takeCode(api, state, role, process.env.DEMO_CODE ?? args.find((a) => /^[0-9]{6}$/.test(a))),
-    build: () => build(api, state, args.includes("--reset")),
+    build: () =>
+      build(api, state, {
+        reset: args.includes("--reset"),
+        dailyWord: args.includes("--daily-word"),
+      }),
     logout: () => logout(api, state),
   };
   const run = commands[command];
   if (run === undefined) {
     throw new Error(
-      "Usage: full-demo.mjs signup | login [--as admin] | code <code> [--as admin] | build [--reset] | logout",
+      "Usage: full-demo.mjs signup | login [--as admin] | code <code> [--as admin] | build [--reset] [--daily-word] | logout",
     );
   }
   await run();

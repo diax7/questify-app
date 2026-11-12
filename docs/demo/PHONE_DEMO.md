@@ -164,9 +164,11 @@ on a laptop screen. The dashboard's own **Codes** page of the event prints the s
 
 ## For the coordinator: running the script
 
-The script only calls the public API, as the dashboard does. It refuses any API host without `staging` in it (or a local
-one). Nothing secret is printed or stored in the repository: the generated owner password, the pending challenge and the
-session cookies are kept in `~/.questify-demo/<api host>.json` (mode 0600).
+The script only calls the public API, as the dashboard does. It refuses any API host but the exact https staging one (or a local
+one). Nothing secret is printed or stored in the repository. The state file `~/.questify-demo/<api host>.json` (mode 0600,
+written whole through a temporary file and a rename) holds the pending challenge, the session cookies and the owner
+password only when the script generated it; a `DEMO_OWNER_PASSWORD` or `DEMO_ADMIN_PASSWORD` from the environment is
+never written. A state file that is not valid JSON stops the run ("state file unreadable"); fix or delete it.
 
 ```sh
 # First time: make the owner account and its organizer; the code goes to DEMO_OWNER_EMAIL (Dhia's mailbox).
@@ -175,14 +177,28 @@ DEMO_CODE='<6 digits from Dhia>' node scripts/demo/full-demo.mjs code
 # Optional, for activation and the daily word: a Questify admin account (password from the environment).
 DEMO_ADMIN_EMAIL=... DEMO_ADMIN_PASSWORD=... node scripts/demo/full-demo.mjs login --as admin
 DEMO_CODE='<6 digits>' node scripts/demo/full-demo.mjs code --as admin
-# Build (again any time: it adds only what is missing), then the QR sheet is in ~/.questify-demo/demo-codes.html.
+# Build (again any time: it adds or tops up only what is missing), then the QR sheet is in ~/.questify-demo/demo-codes.html.
 node scripts/demo/full-demo.mjs build
-# A fresh event with a new join code (the old one is ended):
+# Also fill the daily word for the next 6 days, turning the staging-wide word cadence to daily (see below):
+node scripts/demo/full-demo.mjs build --daily-word
+# A fresh event with a new join code (the old one is ended; if it cannot be ended the build stops):
 node scripts/demo/full-demo.mjs build --reset
 node scripts/demo/full-demo.mjs logout
 ```
 
 A later sign-in (`login`, then `code`) needs a new emailed code: a staff session ends after a while. Without the admin
-step the event waits in the console's activation queue (Dhia activates it, section 1). The admin step also turns the
-daily word's cadence to daily from the next Questify day when today has no word, and fills the next 7 days in both
-languages. Tested end to end on the local test database: `apps/api/test/demo/full-demo.int.test.ts`.
+step the event waits in the console's activation queue (Dhia activates it, section 1).
+
+**Exit status.** `build` exits 1 when any step was SKIPPED (a feature the platform keeps off, a refused call): the QR sheet
+is still written and the SKIPPED lines are listed, but the build is not complete. Fix the cause and run `build` again: it
+tops up a half-built item (reward codes, map pins, a sponsor's tag). `build` writes the shop settings only when they differ
+from the demo's.
+
+**The daily word (`--daily-word`).** The word's cadence is one setting for the whole staging platform, not for the demo
+event, so `build` leaves it alone unless you pass `--daily-word`. With the flag, when today has no word and the cadence is
+not daily, it turns daily from the next Questify day (the log says what it was, for example `was weekly`), and the next 6
+days (tomorrow on; today's period has started and cannot take a word) are filled in both languages. Without the flag a
+cadence that is not daily is left alone and no words are set. To revert, as a Questify admin send
+`PUT /v1/admin/daily/cadence` with `{"kind":"word","cadence":"weekly"}` (or the previous value) and an `Idempotency-Key`;
+the change applies from the next Questify day, and words already set stay in the bank. Tested end to end on the local
+test database: `apps/api/test/demo/full-demo.int.test.ts`.

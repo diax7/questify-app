@@ -5,38 +5,76 @@ import { DAILY_WORDS, MAP, SESSIONS, SPONSORS, homeContent } from "./content.mjs
 const DAY_MS = 86_400_000;
 const sameEn = (value, en) => (value ?? "").trim() === en;
 
-/** The hall map with its pins; the main stage quest gets a quest pin. */
+/** True when a pin is already on the map: the same quest, amenity, or kind and English name. */
+const hasPin = (pins, wanted) =>
+  pins.some((pin) => {
+    if (pin.kind !== wanted.kind) {
+      return false;
+    }
+    if (wanted.kind === "quest") {
+      return pin.questId === wanted.questId;
+    }
+    return wanted.kind === "amenity"
+      ? pin.amenity === wanted.amenity
+      : pin.nameEn === wanted.nameEn;
+  });
+
+/** The hall map with its pins; the main stage quest gets a quest pin. A map found short of pins (a run that stopped
+ * half way) gets the missing ones. */
 export async function ensureMap(s, quests) {
   const maps = (await s.call("GET", `${s.base}/maps`)).body.maps ?? [];
-  if (maps.some((m) => sameEn(m.nameEn, MAP.nameEn))) {
-    return;
-  }
   const { pins, ...name } = MAP;
-  const map = (await s.call("POST", `${s.base}/maps`, { body: name })).body;
   const stage = quests.get("Main stage");
-  const questPin =
-    stage === undefined ? [] : [{ kind: "quest", questId: stage.id, x: 500, y: 200 }];
-  for (const pin of [...pins, ...questPin]) {
-    await s.call("POST", `${s.base}/maps/${map.id}/pins`, { body: pin });
+  const wanted = [
+    ...pins,
+    ...(stage === undefined ? [] : [{ kind: "quest", questId: stage.id, x: 500, y: 200 }]),
+  ];
+  let map = maps.find((m) => sameEn(m.nameEn, MAP.nameEn));
+  const made = map === undefined;
+  if (made) {
+    map = (await s.call("POST", `${s.base}/maps`, { body: name })).body;
   }
-  s.log.push(`map ${MAP.nameEn} with ${pins.length + questPin.length} pins`);
+  let added = 0;
+  for (const pin of wanted) {
+    if (!hasPin(map.pins ?? [], pin)) {
+      await s.call("POST", `${s.base}/maps/${map.id}/pins`, { body: pin });
+      added += 1;
+    }
+  }
+  if (made) {
+    s.log.push(`map ${MAP.nameEn} with ${added} pins`);
+  } else if (added > 0) {
+    s.log.push(`map ${MAP.nameEn}: added ${added} missing pins`);
+  }
 }
 
-/** The sponsors, each tagged on its quest or reward. */
+/** The sponsors, each tagged on its quest or reward. A sponsor found without its tag (a run that stopped between the
+ * two) gets the tag. A tag whose quest or reward is missing is an error, not a silent gap. */
 export async function ensureSponsors(s, quests, rewards) {
   const sponsors = (await s.call("GET", `${s.base}/sponsors`)).body.sponsors ?? [];
   for (const { tag, ...sponsor } of SPONSORS) {
-    if (sponsors.some((x) => sameEn(x.nameEn, sponsor.nameEn))) {
-      continue;
+    let held = sponsors.find((x) => sameEn(x.nameEn, sponsor.nameEn));
+    const made = held === undefined;
+    if (made) {
+      held = (await s.call("POST", `${s.base}/sponsors`, { body: sponsor })).body;
     }
-    const made = (await s.call("POST", `${s.base}/sponsors`, { body: sponsor })).body;
     const target = (tag.kind === "reward" ? rewards : quests).get(tag.title);
-    if (target !== undefined) {
+    if (target === undefined) {
+      throw new Error(
+        `sponsor ${sponsor.nameEn}: the ${tag.kind} "${tag.title}" to tag is missing`,
+      );
+    }
+    const tagged = (held.tags ?? []).some((t) => t.kind === tag.kind && t.targetId === target.id);
+    if (!tagged) {
       await s.call("PUT", `${s.base}/sponsor-tags`, {
-        body: { kind: tag.kind, targetId: target.id, sponsorId: made.id },
+        body: { kind: tag.kind, targetId: target.id, sponsorId: held.id },
       });
     }
-    s.log.push(`sponsor ${sponsor.tier}: ${sponsor.nameEn}`);
+    if (made) {
+      s.log.push(`sponsor ${sponsor.tier}: ${sponsor.nameEn}`);
+    } else if (!tagged) {
+      s.log.push(`sponsor ${sponsor.nameEn}: tagged on ${tag.title}`);
+    }
   }
 }
 
@@ -126,6 +164,7 @@ async function wordPeriods(api, adminCookie, now) {
   const cadence = view.status?.word ?? {};
   return {
     periods,
+    cadence: cadence.cadence ?? "unknown",
     daily: (cadence.next?.cadence ?? cadence.cadence) === "daily",
   };
 }
@@ -133,21 +172,30 @@ async function wordPeriods(api, adminCookie, now) {
 const hasBoth = (period) => period?.words?.ar !== undefined && period?.words?.en !== undefined;
 
 /**
- * As a Questify admin: the daily word in both languages from tomorrow on. A period that has started cannot take a word
- * (409 `started`), so when today's has none the word's cadence turns daily (from the next Questify day; staging only)
- * and each coming day without a word gets one. Nothing changes when today's word is already there.
+ * As a Questify admin: the daily word in both languages for the next 6 days (tomorrow on: today's period has started
+ * and cannot take a word, 409 `started`). Nothing changes when today's word is already there. The word's cadence is a
+ * staging-wide setting, so it is changed only when `changeCadence` is true (the `--daily-word` flag): then, when it is
+ * not daily, it turns daily from the next Questify day and the log says what it was (to revert, see PHONE_DEMO.md).
+ * Without the flag a cadence that is not daily is left alone, and so are the words.
  */
-export async function ensureDailyWords(api, adminCookie, now, log) {
-  let { periods, daily } = await wordPeriods(api, adminCookie, now);
+export async function ensureDailyWords(api, adminCookie, now, log, { changeCadence = false } = {}) {
+  const found = await wordPeriods(api, adminCookie, now);
+  let { periods } = found;
   if (hasBoth(periods.find((period) => period.startsOn <= dayOf(now)))) {
     return;
   }
-  if (!daily) {
+  if (!found.daily) {
+    if (!changeCadence) {
+      log.push(
+        `daily word: cadence is ${found.cadence} and was left alone; run build --daily-word to turn it daily (staging-wide)`,
+      );
+      return;
+    }
     await api.call("PUT", "/v1/admin/daily/cadence", {
       cookie: adminCookie,
       body: { kind: "word", cadence: "daily" },
     });
-    log.push("daily word cadence: daily from tomorrow");
+    log.push(`daily word cadence: daily from tomorrow (was ${found.cadence})`);
     ({ periods } = await wordPeriods(api, adminCookie, now));
   }
   let set = 0;

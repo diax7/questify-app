@@ -3,9 +3,10 @@
 // English and Arabic. Open it in a browser and print, or show it on a laptop screen and scan from there.
 import { createRequire } from "node:module";
 
-// The web app's own QR encoder (uqr, already a dependency there); no new package.
+// The web app's own QR encoder (uqr, already a dependency there); no new package. Loaded on first use, so the commands
+// that print no sheet (signup, login, code, logout) run where the web app's packages are not installed.
 const require = createRequire(new URL("../../../apps/web/package.json", import.meta.url));
-const { renderSVG } = require("uqr");
+const renderSVG = (...args) => require("uqr").renderSVG(...args);
 
 const escape = (text) =>
   String(text ?? "").replace(

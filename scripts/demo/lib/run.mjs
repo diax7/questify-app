@@ -29,6 +29,9 @@ function scopeOf(api, cookie, organizerId) {
   };
 }
 
+/** The log lines of steps that did not run (the build went on without them): a person must look at each. */
+export const skippedOf = (log) => log.filter((line) => line.startsWith("SKIPPED"));
+
 /** One step that may be refused (a feature the platform keeps off): noted, and the build goes on. */
 async function tolerant(log, label, work) {
   try {
@@ -52,13 +55,15 @@ async function buildContent(s, event, now) {
   return { quests, rewards };
 }
 
-async function adminPart(api, adminCookie, eventId, now, log) {
+async function adminPart(api, adminCookie, eventId, now, log, dailyWord) {
   if (adminCookie === undefined) {
     log.push("no admin session: activate the event in the console (Events waiting for activation)");
     return;
   }
   await activateAsAdmin(api, adminCookie, eventId, log);
-  await tolerant(log, "daily words", () => ensureDailyWords(api, adminCookie, now, log));
+  await tolerant(log, "daily words", () =>
+    ensureDailyWords(api, adminCookie, now, log, { changeCadence: dailyWord }),
+  );
 }
 
 /**
@@ -71,6 +76,7 @@ export async function buildDemo({
   adminCookie,
   accept,
   reset = false,
+  dailyWord = false,
   now = Date.now(),
 }) {
   const organizerId = await ensureOrganizer(api, ownerCookie, accept);
@@ -79,7 +85,7 @@ export async function buildDemo({
   s.base = `/events/${event.id}`;
   await buildContent(s, event, now);
   await tolerant(s.log, "activation request", () => requestActivation(s));
-  await adminPart(api, adminCookie, event.id, now, s.log);
+  await adminPart(api, adminCookie, event.id, now, s.log, dailyWord);
   const codes = (await s.call("GET", `${s.base}/codes`)).body;
   return {
     organizerId,

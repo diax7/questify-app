@@ -1,20 +1,55 @@
 // Staff sign-up and sign-in for the demo script, in two steps so a person can type the emailed code in between:
 // `begin*` sends the code and keeps the challenge in the state file; `finish` takes the code and keeps the session.
-// The state file (mode 0600, outside the repository) holds the generated password, the challenge and the session
-// cookie; nothing here prints any of them.
+// The state file (mode 0600, outside the repository) holds the owner password only when the script generated it (a
+// DEMO_OWNER_PASSWORD from the environment and the admin's password are never written), the challenge and the session
+// cookies; nothing here prints any of them.
 import { randomBytes } from "node:crypto";
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname } from "node:path";
 
-/** Reads the state file, or an empty state. */
+/** Reads the state file, or an empty state; a file that is not a JSON object stops the run before anything changes. */
 export function loadState(file) {
-  return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : {};
+  if (!existsSync(file)) {
+    return {};
+  }
+  let state;
+  try {
+    state = JSON.parse(readFileSync(file, "utf8"));
+  } catch {
+    state = undefined;
+  }
+  if (state === null || typeof state !== "object" || Array.isArray(state)) {
+    throw new Error(
+      `state file unreadable: ${file} is not a JSON object. Fix it, or delete it and sign in again.`,
+    );
+  }
+  return state;
 }
 
+/** Writes the state file whole or not at all: a temporary file (mode 0600) beside it, then a rename over it. */
 export function saveState(file, state) {
   mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
-  writeFileSync(file, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 });
-  chmodSync(file, 0o600);
+  const temporary = `${file}.${process.pid}.tmp`;
+  try {
+    writeFileSync(temporary, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 });
+    chmodSync(temporary, 0o600);
+    renameSync(temporary, file);
+  } catch (error) {
+    try {
+      unlinkSync(temporary);
+    } catch {
+      // Nothing was written, or it is already gone.
+    }
+    throw error;
+  }
 }
 
 /** A long random password nobody types: the owner sets their own with "Forgot password?". */

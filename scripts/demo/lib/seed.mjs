@@ -40,12 +40,45 @@ export async function ensureOrganizer(api, cookie, accept) {
 
 const isOpen = (event) => !["ended", "archived"].includes(event.status);
 
+const refused = (error) => error.status === 409 || error.status === 422;
+
+/** Removes a draft demo event that was never launched (the end route refuses a draft: 409 `event_not_live`). */
+async function removeDraft(s, event, refusal) {
+  try {
+    await s.call("DELETE", `/events/${event.id}`, { expect: [204] });
+  } catch (error) {
+    if (refused(error)) {
+      throw stopped(event, error);
+    }
+    throw error;
+  }
+  s.log.push(`removed the unlaunched old demo event ${event.joinCode} (end answered ${refusal})`);
+}
+
+const stopped = (event, error) =>
+  new Error(
+    `--reset stopped: the old demo event ${event.joinCode} could not be ended or removed (${error.message}). Nothing new was built.`,
+  );
+
+/** Ends one open demo event, logging the real status. A refusal (409, 422) stops the reset, since the old event would
+ * stay open beside the new one; only a draft, which cannot be ended, is removed instead. */
 async function endEvent(s, event) {
-  await s.call("POST", `/events/${event.id}/end`, {
-    body: { confirm: true },
-    expect: [200, 201, 204, 409, 422],
-  });
-  s.log.push(`ended the old demo event ${event.joinCode}`);
+  let answer;
+  try {
+    answer = await s.call("POST", `/events/${event.id}/end`, {
+      body: { confirm: true },
+      expect: [200, 201, 204],
+    });
+  } catch (error) {
+    if (!refused(error)) {
+      throw error;
+    }
+    if (event.status === "draft") {
+      return removeDraft(s, event, error.status);
+    }
+    throw stopped(event, error);
+  }
+  s.log.push(`ended the old demo event ${event.joinCode} (answered ${answer.status})`);
 }
 
 /** The open demo event, or a new one; with `reset`, open ones are ended first. */
@@ -133,22 +166,47 @@ export async function ensureQuests(s, categoryIds) {
   return byTitle;
 }
 
+const textOf = (value) => `${value?.en ?? ""}|${value?.ar ?? ""}`;
+
+/** True when the shop is already as the demo wants it (pickup time, rules and the prize desk's place). */
+const shopMatches = (shop) =>
+  shop?.pickupMinutes === SHOP.pickupMinutes &&
+  textOf(shop.rules) === textOf(SHOP.rules) &&
+  textOf(shop.desk?.location) === textOf(SHOP.desk.location);
+
+/** Adds a digital reward's codes when fewer are loaded than the demo has (the API skips a code it already holds, so
+ * a rerun after a half-built reward tops it up). Answers how many were added. */
+async function topUpCodes(s, reward, codes) {
+  if ((reward.stock ?? 0) >= codes.length) {
+    return 0;
+  }
+  const added = await s.call("POST", `${s.base}/rewards/${reward.id}/codes`, { body: { codes } });
+  return added.body.added ?? 0;
+}
+
 /** The shop rewards, a digital one with its reward codes; answers them by English name. The shop's prize desk comes
- * first: an item or an experience needs one. */
+ * first: an item or an experience needs one. The shop is written only when it differs from the demo's, and a reward
+ * found with fewer codes than the demo has gets the rest. */
 export async function ensureRewards(s) {
-  await s.call("PUT", `${s.base}/shop`, { body: SHOP });
-  const existing = (await s.call("GET", `${s.base}/rewards`)).body.rewards ?? [];
-  const byName = new Map(existing.map((r) => [r.name?.en, r]));
+  const listed = (await s.call("GET", `${s.base}/rewards`)).body;
+  if (!shopMatches(listed.shop)) {
+    await s.call("PUT", `${s.base}/shop`, { body: SHOP });
+    s.log.push("shop settings");
+  }
+  const byName = new Map((listed.rewards ?? []).map((r) => [r.name?.en, r]));
   for (const { codes, ...reward } of REWARDS) {
-    if (byName.has(reward.name.en)) {
+    const found = byName.get(reward.name.en);
+    if (found !== undefined) {
+      const added = codes === undefined ? 0 : await topUpCodes(s, found, codes);
+      if (added > 0) {
+        s.log.push(`reward ${reward.name.en}: topped up ${added} codes`);
+      }
       continue;
     }
     const made = (await s.call("POST", `${s.base}/rewards`, { body: reward })).body.reward;
     byName.set(reward.name.en, made);
     if (codes !== undefined) {
-      await s.call("POST", `${s.base}/rewards/${made.id}/codes`, {
-        body: { codes },
-      });
+      await topUpCodes(s, made, codes);
     }
     s.log.push(
       `reward ${reward.kind}: ${reward.name.en}${codes ? ` with ${codes.length} codes` : ""}`,

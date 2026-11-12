@@ -37,17 +37,23 @@ async function send(url, init) {
   }
 }
 
+/** The detail keys an error may show: a field, a reason, a limit or a status; never a code, a token or a person's data. */
+const DETAIL_KEYS = ["field", "issue", "reason", "limit", "status"];
+/** A short plain word; any other text in a detail is left out. */
+const PLAIN = /^[\w.:-]{1,64}$/;
+const isPlain = (value) =>
+  (typeof value === "string" && PLAIN.test(value)) ||
+  typeof value === "number" ||
+  typeof value === "boolean";
+
 async function errorOf(method, path, response) {
   const body = await response.json().catch(() => ({}));
-  // The API's details name a field, a reason or a limit; never a code, a token or a person's data.
   const details = body?.details ?? {};
-  const field =
-    typeof details.field === "string"
-      ? details.field
-      : Object.keys(details).length > 0
-        ? JSON.stringify(details)
-        : undefined;
-  return new ApiError(method, path, response.status, body?.code, field);
+  const shown = DETAIL_KEYS.filter((key) => isPlain(details[key])).map(
+    (key) => `${key}=${details[key]}`,
+  );
+  const code = isPlain(body?.code) ? body.code : undefined;
+  return new ApiError(method, path, response.status, code, shown.join(", ") || undefined);
 }
 
 /**
