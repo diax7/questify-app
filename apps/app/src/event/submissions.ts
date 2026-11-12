@@ -202,15 +202,28 @@ export async function sendSubmission(
   );
 }
 
+/** One of the player's photos whose screen choice can change, and its number among their photos for the quest. */
+export type PhotoChoice = Readonly<{ own: OwnSubmission; number: number }>;
+
+const allowable = (own: OwnSubmission): boolean =>
+  own.status === "pending" || own.status === "approved";
+
 /**
- * The player's latest photo for a quest whose screen choice can still change (T-504b): a photo still there, waiting or
- * approved, and either allowed already (so it can be withdrawn) or with the wall running (so it can be allowed).
+ * The player's photos for a quest whose screen choice can change (T-504b, M6), newest first: every photo still there
+ * that is allowed now, so each can be withdrawn whichever send it was (a submission quest repeats), and the latest
+ * submission's photo while it is waiting or approved and the wall runs, so it can be allowed. Numbered 1 for the oldest
+ * photo of the quest, so two switches never read the same.
  */
-export function photoChoiceFor(questId: string, mine: MySubmissions): OwnSubmission | undefined {
+export function photoChoicesFor(questId: string, mine: MySubmissions): readonly PhotoChoice[] {
   const latest = mine.submissions.find((one) => one.questId === questId);
-  if (latest?.kind !== "photo" || latest.photoGone === true) return undefined;
-  if (latest.status !== "pending" && latest.status !== "approved") return undefined;
-  return latest.onScreen === true || mine.photoWall ? latest : undefined;
+  const photos = mine.submissions.filter((one) => one.questId === questId && one.kind === "photo");
+  return photos
+    .map((own, index) => ({ own, number: photos.length - index }))
+    .filter(
+      ({ own }) =>
+        own.photoGone !== true &&
+        (own.onScreen === true || (own === latest && mine.photoWall && allowable(own))),
+    );
 }
 
 /** The guidelines version in force, from the configuration's legal block; empty when it is not there. */

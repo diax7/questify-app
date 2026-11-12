@@ -41,8 +41,9 @@ export type SceneReader = Readonly<{
 type Kept = Readonly<{ until: number; answer: Promise<SceneAnswer> }>;
 
 /**
- * Reads a scene through the screen's own door (`screen_ranking`, `screen_community`, `screen_poll`, `screen_finale`, `screen_cheers`: each takes no
- * argument and reads only the calling device's event). Every screen of an event shows the same scene, so one answer per
+ * Reads a scene through the screen's own door (`screen_ranking`, `screen_community`, `screen_poll`, `screen_photos`,
+ * `screen_finale`, `screen_cheers`: each takes no argument and reads only the calling device's event); the photo scene's
+ * keys are signed before the answer is kept. Every screen of an event shows the same scene, so one answer per
  * event and scene is kept for 2 seconds and shared, concurrent callers included: the database sees at most one read
  * per event, scene and 2 seconds however many screens poll (the poll counts are an aggregate, never one per request,
  * T-306 note). A failed read is forgotten at once. The guard has already refused a revoked or foreign device, so the

@@ -2220,3 +2220,6 @@ A reported wall photo appears in the console's Reports queue as "Wall photo" wit
 quest (a reason and a note): it leaves the screen at the screen's next read (3 seconds) and the app's wall at its next
 read. **Republish** brings it back if it is still picked and allowed. To take a photo down for good, the event team
 rejects or removes the submission (the photo is deleted). This replaces the phase 1 manual procedure for wall photos.
+A hold on a photo that was let go since (rejected, removed or erased: the object is deleted) cannot be republished: the
+console's Republish answers 404 (`HD404`, "nothing to unpublish there"). That is harmless, since the photo no longer
+exists; the hold row stays as the record and needs no action.

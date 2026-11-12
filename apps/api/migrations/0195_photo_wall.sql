@@ -14,8 +14,10 @@
 -- is on their event's wall (RP404 otherwise); the snapshot keeps the quest's title, never the key. Questify's console
 -- reads the key of a reported photo through `admin_report_media_key` and signs it.
 --
--- Lock order (rules.md): `set_photo_wall` takes the event's submissions it names FOR SHARE in id order, then writes
--- `photo_wall` (its inserts key-share those submissions); `own_photo_on_screen` takes its submission FOR UPDATE, then
+-- Lock order (rules.md): `set_photo_wall` takes the transaction advisory lock `photo_wall:<event>` (two saves of one
+-- event queue, the later one replacing the earlier, never a 23505 on the delete-then-insert), then the event's
+-- submissions it names FOR SHARE in id order, then writes `photo_wall` (its inserts key-share those submissions); no
+-- other path takes that key; `own_photo_on_screen` takes its submission FOR UPDATE, then
 -- deletes its pick; the release trigger runs under the submission's own update. `hold_target('media')` takes the
 -- `media_object` row FOR UPDATE and never a submission, so no path holds an object row and then waits on a submission.
 --
@@ -331,6 +333,8 @@ BEGIN
      OR cardinality(picks) <> (SELECT count(DISTINCT p) FROM unnest(picks) p) THEN
     RAISE EXCEPTION 'at most 20 photos, each once' USING ERRCODE = 'PW422', DETAIL = 'picks';
   END IF;
+  -- One save of an event at a time: a second waits here, and its later statements see the first one's rows.
+  PERFORM pg_advisory_xact_lock(hashtextextended('photo_wall:' || ev.id, 0));
   PERFORM 1 FROM submission s WHERE s.id = ANY (picks) AND s.event_id = ev.id ORDER BY s.id FOR SHARE;
   IF EXISTS (SELECT 1 FROM unnest(picks) p
              WHERE NOT coalesce((SELECT photo_wall_ok(s, ev.id) FROM submission s

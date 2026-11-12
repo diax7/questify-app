@@ -312,6 +312,59 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the photo wall (database)", ()
       });
     });
 
+    it("two saves at once queue on the event's key: the later one wins, never a 23505", async () => {
+      const event = await newEvent();
+      const quest = await newQuest(event);
+      const first = await photo(event, quest);
+      const second = await photo(event, quest);
+      await pick(event, [first.submission]);
+      const a = await pool.connect();
+      const b = await pool.connect();
+      try {
+        const opened: { release?: () => void } = {};
+        const gate = new Promise<void>((resolve) => {
+          opened.release = resolve;
+        });
+        const held = withRequestContext(a, teamA(), async () => {
+          await a.query("SELECT set_photo_wall($1, $2, $3)", [
+            event,
+            [first.submission, second.submission],
+            randomUUID(),
+          ]);
+          await gate;
+        });
+        const pid = (await b.query<{ pid: number }>("SELECT pg_backend_pid() AS pid")).rows[0]?.pid;
+        const later = withRequestContext(b, teamA(), () =>
+          b.query("SELECT set_photo_wall($1, $2, $3)", [event, [second.submission], randomUUID()]),
+        ).then(
+          () => "saved",
+          (error: unknown) => `${(error as { code?: string }).code}`,
+        );
+        let waited = false;
+        for (let attempt = 0; attempt < 200 && !waited; attempt += 1) {
+          const rows = await owner(
+            "SELECT 1 FROM pg_stat_activity WHERE pid = $1 AND wait_event_type = 'Lock'",
+            [pid],
+          );
+          waited = rows.length === 1;
+          if (!waited) await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+        opened.release?.();
+        await held;
+        expect(waited).toBe(true);
+        expect(await later).toBe("saved");
+      } finally {
+        a.release();
+        b.release();
+      }
+      const picked = await query<{ submission_id: string }>(
+        teamA(),
+        "SELECT * FROM event_photo_wall($1)",
+        [event],
+      );
+      expect(picked.map((row) => row.submission_id)).toEqual([second.submission]);
+    });
+
     it("refuses a photo that is not eligible, repeated ids and more than 20 (PW422)", async () => {
       const event = await newEvent();
       const quest = await newQuest(event);

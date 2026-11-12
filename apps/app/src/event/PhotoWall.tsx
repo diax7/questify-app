@@ -6,6 +6,7 @@ import { AppText } from "#src/components/AppText.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { Sheet } from "#src/components/Sheet.tsx";
 import { fetchPhotoWall, type WallPhoto, type WallRead } from "#src/event/photo-wall-api.ts";
+import { usePlayer } from "#src/auth/player.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { BlockButton } from "#src/questify/BlockButton.tsx";
 import { ReportButton } from "#src/questify/ReportButton.tsx";
@@ -18,16 +19,24 @@ import { useTheme, useThemedStyles } from "#src/theme/theme.tsx";
 export function OnScreenSwitch({
   on,
   disabled,
+  label,
   onChange,
-}: Readonly<{ on: boolean; disabled: boolean; onChange: (on: boolean) => void }>) {
+}: Readonly<{
+  on: boolean;
+  disabled: boolean;
+  /** Names the photo when more than one switch shows; the plain wording otherwise. */
+  label?: string | undefined;
+  onChange: (on: boolean) => void;
+}>) {
   const { t } = useI18n();
   const { theme } = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const name = label ?? t("photoWall.switch");
   return (
     <View style={styles.row}>
-      <AppText style={styles.label}>{t("photoWall.switch")}</AppText>
+      <AppText style={styles.label}>{name}</AppText>
       <Switch
-        accessibilityLabel={t("photoWall.switch")}
+        accessibilityLabel={name}
         value={on}
         disabled={disabled}
         onValueChange={onChange}
@@ -37,8 +46,15 @@ export function OnScreenSwitch({
   );
 }
 
-/** One photo: the picture, whose it is, Report (the store's UGC report path) and Block. */
-function WallItem({ photo, onBlocked }: Readonly<{ photo: WallPhoto; onBlocked: () => void }>) {
+/**
+ * One photo: the picture, whose it is, Report (the store's UGC report path) and Block; neither on the reader's own photo.
+ * Every photo on the wall has a username (its player is active), so the null case is only an older or odd answer.
+ */
+function WallItem({
+  photo,
+  mine,
+  onBlocked,
+}: Readonly<{ photo: WallPhoto; mine: boolean; onBlocked: () => void }>) {
   const { t } = useI18n();
   const styles = useThemedStyles(makeStyles);
   const by = photo.username === null ? null : t("photoWall.photoBy", { name: photo.username });
@@ -51,8 +67,8 @@ function WallItem({ photo, onBlocked }: Readonly<{ photo: WallPhoto; onBlocked: 
         accessibilityLabel={by ?? t("photoWall.title")}
       />
       {by === null ? null : <AppText muted>{by}</AppText>}
-      <ReportButton subject={{ kind: "media", targetId: photo.mediaId }} />
-      {photo.username === null ? null : (
+      {mine ? null : <ReportButton subject={{ kind: "media", targetId: photo.mediaId }} />}
+      {mine || photo.username === null ? null : (
         <BlockButton username={photo.username} onChange={(blocked) => blocked && onBlocked()} />
       )}
     </View>
@@ -65,6 +81,8 @@ function WallBody({
   drop,
 }: Readonly<{ read: WallRead | undefined; reload: () => void; drop: (id: string) => void }>) {
   const { t } = useI18n();
+  const { state } = usePlayer();
+  const me = state.status === "signed_in" ? state.me?.username : undefined;
   if (read === undefined) return null;
   if (read.kind === "off") return <AppText>{t("photoWall.offApp")}</AppText>;
   if (read.kind === "failed") {
@@ -79,7 +97,12 @@ function WallBody({
   return (
     <>
       {read.photos.map((photo) => (
-        <WallItem key={photo.mediaId} photo={photo} onBlocked={() => drop(photo.username ?? "")} />
+        <WallItem
+          key={photo.mediaId}
+          photo={photo}
+          mine={me !== undefined && photo.username === me}
+          onBlocked={() => drop(photo.username ?? "")}
+        />
       ))}
     </>
   );

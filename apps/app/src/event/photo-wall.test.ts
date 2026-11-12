@@ -3,7 +3,7 @@ import type { AuthedResult } from "#src/api/session.ts";
 import { fetchPhotoWall, saveOnScreen, wallPhotosOf } from "#src/event/photo-wall-api.ts";
 import {
   mySubmissionsOf,
-  photoChoiceFor,
+  photoChoicesFor,
   sendSubmission,
   type OwnSubmission,
 } from "#src/event/submissions.ts";
@@ -102,12 +102,33 @@ describe("the photo wall in the app", () => {
   });
 
   it("offers the choice afterwards for a live photo: withdraw always, allow while the wall runs", () => {
-    expect(photoChoiceFor("q1", mine(own({ onScreen: true }), false))?.id).toBe("7");
-    expect(photoChoiceFor("q1", mine(own({}), false))).toBeUndefined();
-    expect(photoChoiceFor("q1", mine(own({}), true))?.id).toBe("7");
-    expect(photoChoiceFor("q1", mine(own({ kind: "text" }), true))).toBeUndefined();
-    expect(photoChoiceFor("q1", mine(own({ photoGone: true }), true))).toBeUndefined();
-    expect(photoChoiceFor("q1", mine(own({ status: "rejected" }), true))).toBeUndefined();
-    expect(photoChoiceFor("q2", mine(own({}), true))).toBeUndefined();
+    const ids = (questId: string, list: ReturnType<typeof mine>) =>
+      photoChoicesFor(questId, list).map((one) => one.own.id);
+    expect(ids("q1", mine(own({ onScreen: true }), false))).toEqual(["7"]);
+    expect(ids("q1", mine(own({}), false))).toEqual([]);
+    expect(ids("q1", mine(own({}), true))).toEqual(["7"]);
+    expect(ids("q1", mine(own({ kind: "text" }), true))).toEqual([]);
+    expect(ids("q1", mine(own({ photoGone: true }), true))).toEqual([]);
+    expect(ids("q1", mine(own({ status: "rejected" }), true))).toEqual([]);
+    expect(ids("q2", mine(own({}), true))).toEqual([]);
+  });
+
+  it("keeps an older allowed photo withdrawable after a newer send, numbered oldest first", () => {
+    const list = {
+      submissions: [
+        own({ id: "9" }),
+        own({ id: "8", kind: "text" }),
+        own({ id: "7", onScreen: true }),
+        own({ id: "6" }),
+        own({ id: "5", questId: "q2", onScreen: true }),
+      ],
+      pendingPoints: 0,
+      photoWall: false,
+    };
+    expect(photoChoicesFor("q1", list)).toEqual([{ own: list.submissions[2], number: 2 }]);
+    expect(photoChoicesFor("q1", { ...list, photoWall: true })).toEqual([
+      { own: list.submissions[0], number: 3 },
+      { own: list.submissions[2], number: 2 },
+    ]);
   });
 });

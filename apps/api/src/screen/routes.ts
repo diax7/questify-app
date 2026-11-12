@@ -68,7 +68,7 @@ const offeredHere = (plan: BigScreenPlan, storage: ObjectStore | undefined): Big
 /**
  * `GET /v1/device/screen/:scene` (T-504, FR-632 to FR-634): one scene's data for a paired, activated big screen's own
  * event. A station or kiosk, a pending, revoked or unactivated device is `device_unpaired`; 40 a minute per device (the
- * page asks every 3 seconds); never cached by a browser. The photo wall is not a scene yet. The finale's and the Cheers
+ * page asks every 3 seconds); never cached by a browser. The photo scene (T-504b) answers signed URLs, never keys. The finale's and the Cheers
  * answers also carry `serverNow`, so the countdown follows the server's clock and not the TV's (T-307b, T-509).
  */
 export function registerScreenRoutes(app: FastifyInstance, deps: ScreenDeps): void {

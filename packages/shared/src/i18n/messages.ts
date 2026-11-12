@@ -10697,6 +10697,10 @@ export const MESSAGES = {
     ar: "اعرض صورتي على الشاشة الكبيرة وجدار الصور في التطبيق",
     en: "Show my photo on the big screen and the app's photo wall",
   },
+  "photoWall.switchNumbered": {
+    ar: "اعرض صورتي رقم {number} على الشاشة الكبيرة وجدار الصور في التطبيق",
+    en: "Show my photo {number} on the big screen and the app's photo wall",
+  },
   "photoWall.saveFailed": {
     ar: "تعذّر حفظ اختيارك. حاول مرة أخرى.",
     en: "Couldn't save your choice. Try again.",

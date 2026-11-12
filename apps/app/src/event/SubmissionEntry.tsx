@@ -21,12 +21,13 @@ import type { Quest } from "#src/event/quests-api.ts";
 import {
   acceptGuidelines,
   fetchMySubmissions,
-  photoChoiceFor,
+  photoChoicesFor,
   sendKey,
   sendSubmission,
   sentLine,
   submissionStep,
   type MySubmissions,
+  type PhotoChoice,
   type SendAnswer,
   type SubmissionStep,
 } from "#src/event/submissions.ts";
@@ -214,24 +215,19 @@ function SubmissionBox({
   );
 }
 
-/**
- * The latest photo's screen choice after it was sent (T-504b, M6): the player can withdraw it at any time (it leaves
- * the wall at once) or allow it while the wall runs. A failed save says so and keeps the switch where it was.
- */
-function OwnPhotoChoice({
+/** One photo's screen choice after it was sent; a failed save says so and keeps the switch where it was. */
+function OwnPhotoSwitch({
   eventId,
-  questId,
-  mine,
+  choice,
+  numbered,
   onSaved,
-}: Readonly<{ eventId: string; questId: string; mine: MySubmissions; onSaved: () => void }>) {
+}: Readonly<{ eventId: string; choice: PhotoChoice; numbered: boolean; onSaved: () => void }>) {
   const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
-  const own = photoChoiceFor(questId, mine);
-  if (own === undefined) return null;
   const change = async (on: boolean) => {
     setBusy(true);
-    const saved = await saveOnScreen(api.session, eventId, own.id, on);
+    const saved = await saveOnScreen(api.session, eventId, choice.own.id, on);
     setBusy(false);
     setFailed(!saved);
     if (saved) onSaved();
@@ -239,11 +235,38 @@ function OwnPhotoChoice({
   return (
     <>
       <OnScreenSwitch
-        on={own.onScreen === true}
+        on={choice.own.onScreen === true}
         disabled={busy}
+        label={numbered ? t("photoWall.switchNumbered", { number: choice.number }) : undefined}
         onChange={(on) => void change(on)}
       />
       {failed ? <AppText accessibilityRole="alert">{t("photoWall.saveFailed")}</AppText> : null}
+    </>
+  );
+}
+
+/**
+ * The screen choices after a send (T-504b, M6): every photo of the quest the player allowed can be withdrawn at any time
+ * (it leaves the wall at once), and the latest one allowed while the wall runs. More than one switch names its photo.
+ */
+function OwnPhotoChoice({
+  eventId,
+  questId,
+  mine,
+  onSaved,
+}: Readonly<{ eventId: string; questId: string; mine: MySubmissions; onSaved: () => void }>) {
+  const choices = photoChoicesFor(questId, mine);
+  return (
+    <>
+      {choices.map((choice) => (
+        <OwnPhotoSwitch
+          key={choice.own.id}
+          eventId={eventId}
+          choice={choice}
+          numbered={choices.length > 1}
+          onSaved={onSaved}
+        />
+      ))}
     </>
   );
 }
