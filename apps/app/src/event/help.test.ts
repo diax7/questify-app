@@ -165,6 +165,11 @@ describe("sending", () => {
     });
     expect(sendAnswer(error(409, "too_many_open"))).toEqual({ kind: "too_many_open" });
     expect(sendAnswer(error(429, "too_many_tickets"))).toEqual({ kind: "too_many" });
+    expect(sendAnswer(error(422, "photo_unusable"))).toEqual({
+      kind: "refused",
+      message: { ar: "م", en: "m" },
+      photoUnusable: true,
+    });
     for (const code of ["unknown_player", "self_report", "already_reported", "too_many_lookups"]) {
       expect(sendAnswer(error(409, code))).toEqual({ kind: code });
     }

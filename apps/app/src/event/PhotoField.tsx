@@ -26,8 +26,11 @@ export type PhotoDraftState = Readonly<{
   uploading: boolean;
   pick: (source: "camera" | "library") => Promise<void>;
   clear: () => void;
-  /** Uploads the draft once (a retry keeps its key); answers its id, or why it could not. */
-  upload: (path: string) => Promise<UploadAnswer>;
+  /**
+   * Uploads the draft once (a retry keeps its key); answers its id, or why it could not. `fresh` forgets the id and the
+   * key first and uploads again, for a photo the server called unusable (its slot was swept before the send).
+   */
+  upload: (path: string, fresh?: boolean) => Promise<UploadAnswer>;
 }>;
 
 /** The photo a player is about to send (T-301b): taken or picked, previewed, changed or removed, uploaded once. */
@@ -41,19 +44,21 @@ export function usePhotoDraft(): PhotoDraftState {
     if (answer.kind === "picked")
       setDraft({ photo: answer.photo, key: randomUuid(), photoId: null });
   };
-  const upload = async (path: string): Promise<UploadAnswer> => {
+  const upload = async (path: string, fresh = false): Promise<UploadAnswer> => {
     if (draft === null) return { kind: "network" };
-    if (draft.photoId !== null) return { kind: "uploaded", photoId: draft.photoId };
+    const current = fresh ? { ...draft, key: randomUuid(), photoId: null } : draft;
+    if (current.photoId !== null) return { kind: "uploaded", photoId: current.photoId };
+    if (fresh) setDraft(current);
     setUploading(true);
     try {
-      const data = await photoBytes(draft.photo);
+      const data = await photoBytes(current.photo);
       const answer = await uploadPhoto(
         api.session,
         path,
-        { data, type: draft.photo.type },
-        draft.key,
+        { data, type: current.photo.type },
+        current.key,
       );
-      if (answer.kind === "uploaded") setDraft({ ...draft, photoId: answer.photoId });
+      if (answer.kind === "uploaded") setDraft({ ...current, photoId: answer.photoId });
       return answer;
     } catch {
       return { kind: "network" };

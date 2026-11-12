@@ -164,7 +164,8 @@ export type SendAnswer =
   | Readonly<{ kind: "too_many" }>
   /** A report's refusals (T-312): no such member here, oneself, reported already, too many names tried. */
   | Readonly<{ kind: "unknown_player" | "self_report" | "already_reported" | "too_many_lookups" }>
-  | Readonly<{ kind: "refused"; message: LocalizedText | null }>
+  /** `photoUnusable`: the uploaded photo can no longer be attached (swept or used), so a fresh upload may be sent. */
+  | Readonly<{ kind: "refused"; message: LocalizedText | null; photoUnusable?: true }>
   | Readonly<{ kind: "network" }>
   | Readonly<{ kind: "signed_out" }>;
 
@@ -189,6 +190,7 @@ function refusalAnswer(code: string, message: LocalizedText | null): SendAnswer 
   if (isNamedRefusal(code)) {
     return { kind: code };
   }
+  if (code === "photo_unusable") return { kind: "refused", message, photoUnusable: true };
   return code === "too_many_tickets" ? { kind: "too_many" } : { kind: "refused", message };
 }
 

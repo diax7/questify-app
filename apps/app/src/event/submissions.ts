@@ -103,7 +103,8 @@ export type SendAnswer =
     }>
   /** The guidelines in force must be accepted first (FR-1706). */
   | Readonly<{ kind: "guidelines" }>
-  | Readonly<{ kind: "refused"; message: LocalizedText | null }>
+  /** `photoUnusable`: the uploaded photo can no longer be attached (swept or used), so a fresh upload may be sent. */
+  | Readonly<{ kind: "refused"; message: LocalizedText | null; photoUnusable?: true }>
   | Readonly<{ kind: "network" }>
   | Readonly<{ kind: "signed_out" }>;
 
@@ -119,8 +120,9 @@ export function sendAnswer(answer: AuthedResult): SendAnswer {
     return { kind: answer.kind };
   }
   if (answer.kind === "error") {
-    return answer.code === "guidelines_required"
-      ? { kind: "guidelines" }
+    if (answer.code === "guidelines_required") return { kind: "guidelines" };
+    return answer.code === "photo_unusable"
+      ? { kind: "refused", message: answer.message, photoUnusable: true }
       : { kind: "refused", message: answer.message };
   }
   const body = answer.body;

@@ -1130,10 +1130,14 @@ with the ticket.
 
 ### media_object, media_delete (migration 0192, T-301b, ADR-828)
 **Built:** `media_object (id uuid, organizer_id, event_id, purpose submission|ticket, key unique, state
-reserved|stored|attached, bytes, width, height, uploaded_by_player → player, request_key, created_at, stored_at,
-attached_at)`, unique (uploader, request_key); `key` is CHECKed to equal `o/<organizer>/e/<event>/<purpose>/<id>.jpg`;
-event FK ON DELETE CASCADE. `media_delete (id, key unique, organizer_id, due_at, attempts, lease_until, last_code,
-created_at)` with no foreign key: a key outlives its row until the bucket confirms the delete. Every `media_object` row
+reserved|stored|attached, quest_id (a submission's quest, no FK; a replay for another quest is QK422), bytes, width,
+height, uploaded_by_player → player, request_key, created_at, stored_at, attached_at)`, unique (uploader, request_key);
+a slot still reserved after 20 minutes is given up and a fresh one handed to the same key, so no PUT starts near the
+sweep; `key` is CHECKed to equal `o/<organizer>/e/<event>/<purpose>/<id>.jpg`;
+event FK ON DELETE CASCADE. `media_delete (id, key unique, organizer_id, due_at, attempts, lease_until, claim, last_code,
+created_at)` with no foreign key: a key outlives its row until the bucket confirms the delete. A claim stamps its
+token; done and failed touch only rows that token still holds, and `media_stored` on a swept slot re-queues its key
+(due now, lease and token cleared), so an object written after the worker deleted it is deleted again. Every `media_object` row
 that goes queues its key (BEFORE DELETE trigger). Unattached rows are swept after 30 minutes; every row is purged 365
 days after its event ends (interim, Q-075). RLS forced, no grant: the doors are `media_reserve`, `media_stored`,
 `media_release` (the caller's own slot) and the system seat's `media_delete_claim`, `media_delete_done`,

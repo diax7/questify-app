@@ -135,6 +135,11 @@ describe("sendAnswer", () => {
       kind: "refused",
       message: { ar: "ع", en: "e" },
     });
+    expect(sendAnswer(error("photo_unusable"))).toEqual({
+      kind: "refused",
+      message: { ar: "ع", en: "e" },
+      photoUnusable: true,
+    });
   });
 
   it("passes network and sign-out through, and reads a malformed body as a network problem", () => {

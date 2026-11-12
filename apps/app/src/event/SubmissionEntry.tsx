@@ -205,13 +205,22 @@ function SubmissionBox({
   );
 }
 
-/** One send: the photo uploaded first when there is one, then the submission with its id and the text as its caption. */
+type Sent = { key: string; text: string };
+
+/** One key per text and photo: a retry repeats both, a change makes a new send. */
+const markerOf = (text: string, photoId: string | null) => `${text}\u0000${photoId ?? ""}`;
+
+/**
+ * One send: the photo uploaded first when there is one, then the submission with its id and the text as its caption. A
+ * photo the server calls unusable (its slot was swept while the player waited) is uploaded again once, with a new key,
+ * and sent under the same send key, which the refusal left unused.
+ */
 async function sendEntry(
   questId: string,
   text: string,
   photos: PhotoDraftState,
-  last: Readonly<{ key: string; text: string }> | undefined,
-): Promise<{ sent: { key: string; text: string }; answer: SendAnswer }> {
+  last: Readonly<Sent> | undefined,
+): Promise<{ sent: Sent; answer: SendAnswer }> {
   let photoId: string | null = null;
   if (photos.draft !== null) {
     const uploaded = await photos.upload(questPhotoPath(questId));
@@ -219,12 +228,17 @@ async function sendEntry(
       return { sent: last ?? { key: "", text: "" }, answer: uploaded };
     photoId = uploaded.photoId;
   }
-  // One key per text and photo: a retry repeats both, a change makes a new send.
-  const marker = `${text}\u0000${photoId ?? ""}`;
-  const key = sendKey(last, marker, randomUuid);
+  const key = sendKey(last, markerOf(text, photoId), randomUuid);
+  const answer = await sendSubmission(api.session, questId, text, key, photoId);
+  if (answer.kind !== "refused" || answer.photoUnusable !== true) {
+    return { sent: { key, text: markerOf(text, photoId) }, answer };
+  }
+  const again = await photos.upload(questPhotoPath(questId), true);
+  if (again.kind !== "uploaded")
+    return { sent: { key, text: markerOf(text, photoId) }, answer: again };
   return {
-    sent: { key, text: marker },
-    answer: await sendSubmission(api.session, questId, text, key, photoId),
+    sent: { key, text: markerOf(text, again.photoId) },
+    answer: await sendSubmission(api.session, questId, text, key, again.photoId),
   };
 }
 

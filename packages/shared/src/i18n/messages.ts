@@ -10657,6 +10657,7 @@ export const MESSAGES = {
   },
   "photo.updateApp": { ar: "حدّث التطبيق لإرسال الصور.", en: "Update the app to send photos." },
   "photo.gone": { ar: "حُذفت الصورة.", en: "The photo was deleted." },
+  "photo.unavailable": { ar: "الصورة غير متاحة الآن.", en: "The photo isn't available right now." },
   "photo.sent": { ar: "أُرسلت صورة.", en: "A photo was sent." },
   "photo.alt": { ar: "الصورة المرسلة", en: "The photo sent" },
   "photo.expired": {

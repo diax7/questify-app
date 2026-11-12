@@ -156,7 +156,10 @@ function ItemActions({
   );
 }
 
-/** What the player sent: a photo with its caption (T-301b), or the text; a deleted photo or erased words say so. */
+/**
+ * What the player sent: a photo with its caption (T-301b), or the text; a deleted photo or erased words say so. A photo
+ * with no link that is not marked gone (the bucket could not be signed) is only unavailable for now.
+ */
 function ItemBody({ language, item }: Readonly<{ language: Language; item: QueueItem }>) {
   const t = translatorFor(language);
   if (item.kind !== "photo") return <p dir="auto">{item.text ?? t("submissions.erased")}</p>;
@@ -165,7 +168,7 @@ function ItemBody({ language, item }: Readonly<{ language: Language; item: Queue
       {typeof item.photoUrl === "string" ? (
         <RemotePhoto src={item.photoUrl} alt={t("photo.alt")} expired={t("photo.expired")} />
       ) : (
-        <Muted>{t("photo.gone")}</Muted>
+        <Muted>{t(item.photoGone === true ? "photo.gone" : "photo.unavailable")}</Muted>
       )}
       {item.text === null ? null : <p dir="auto">{item.text}</p>}
     </>

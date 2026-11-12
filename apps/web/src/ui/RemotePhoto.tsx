@@ -3,12 +3,17 @@
 import { useState } from "react";
 import { Muted } from "#src/ui/Feedback.tsx";
 
+/** Keyed by `src`, so a newly signed link after an expired one is tried again. */
+export function RemotePhoto(props: Readonly<{ src: string; alt: string; expired: string }>) {
+  return <SignedImage key={props.src} {...props} />;
+}
+
 /**
  * A player's photo read straight from the private bucket through its 5-minute signed URL (T-301b): a plain `<img>`, not
  * `next/image`, which would fetch it through this origin. It sends no referrer, and the CSP's `img-src` names the
  * bucket's host (`MEDIA_HOST`). A link that ran out says so; the page's next read signs a new one.
  */
-export function RemotePhoto({
+function SignedImage({
   src,
   alt,
   expired,
@@ -20,7 +25,7 @@ export function RemotePhoto({
       src={src}
       alt={alt}
       referrerPolicy="no-referrer"
-      loading="lazy"
+      loading="eager"
       decoding="async"
       onError={() => setFailed(true)}
       style={{

@@ -32,7 +32,8 @@ export type MediaWorker = Readonly<{
   runOnce: () => Promise<MediaTotals>;
 }>;
 
-type Claimed = Readonly<{ id: string; key: string }>;
+/** `claim` is the claim's token: done and failed touch only rows this claim still holds. */
+type Claimed = Readonly<{ id: string; key: string; claim: string }>;
 
 const system = <T>(pool: Pool, work: (client: PoolClient) => Promise<T>): Promise<T> =>
   withConnection(pool, (client) => withRequestContext(client, {}, () => work(client)));
@@ -73,12 +74,13 @@ async function deleteRound(
     } catch (error) {
       failed += 1;
       await system(deps.pool, (client) =>
-        client.query("SELECT media_delete_failed($1, $2)", [row.id, codeOf(error)]),
+        client.query("SELECT media_delete_failed($1, $2, $3)", [row.id, codeOf(error), row.claim]),
       );
     }
   }
-  if (done.length > 0) {
-    await scalar(deps.pool, "SELECT media_delete_done($1::bigint[]) AS n", [done]);
+  const token = claimed[0]?.claim;
+  if (done.length > 0 && token !== undefined) {
+    await scalar(deps.pool, "SELECT media_delete_done($1::bigint[], $2) AS n", [done, token]);
   }
   return { deleted: done.length, failed, more: claimed.length === CLAIM_SIZE };
 }

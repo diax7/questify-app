@@ -246,6 +246,33 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("photo storage (database)", () 
       const ticketQuest = await newQuest(event);
       expect(await refusal(reserve(player, ticketQuest, randomUUID()))).toBe("none");
       expect(await refusal(reserveTicket(player, event, key))).toBe("QK422");
+      expect(await refusal(reserve(player, ticketQuest, key))).toBe("QK422");
+    });
+
+    it("gives up a slot still reserved after 20 minutes and hands a fresh one to the same key", async () => {
+      const event = await newEvent();
+      const quest = await newQuest(event);
+      const { player } = await member(event);
+      const key = randomUUID();
+      const stale = await reserve(player, quest, key);
+      await owner(
+        "UPDATE media_object SET created_at = now() - interval '21 minutes' WHERE id = $1",
+        [stale.id],
+      );
+      const fresh = await reserve(player, quest, key);
+      expect(fresh.id).not.toBe(stale.id);
+      expect(fresh.stored).toBe(false);
+      expect(await objectOf(stale.id)).toBeUndefined();
+      expect(await queued(stale.key)).toBe("1");
+      expect(await reserve(player, quest, key)).toEqual(fresh);
+      const storedKey = randomUUID();
+      const kept = await reserve(player, quest, storedKey);
+      await store(player, kept);
+      await owner(
+        "UPDATE media_object SET created_at = now() - interval '21 minutes' WHERE id = $1",
+        [kept.id],
+      );
+      expect(await reserve(player, quest, storedKey)).toEqual({ ...kept, stored: true });
     });
 
     it("refuses a stranger, another tenant's player, a text-only quest and a closed quest", async () => {
@@ -660,13 +687,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("photo storage (database)", () 
       await owner(
         "INSERT INTO media_delete (key, organizer_id) VALUES ('o/a/one.jpg', NULL), ('o/a/two.jpg', NULL)",
       );
-      const first = await query<{ id: string; key: string }>(
+      const first = await query<{ id: string; key: string; claim: string }>(
         SYSTEM,
         "SELECT * FROM media_delete_claim(10)",
       );
       expect(first.map((row) => row.key)).toEqual(["o/a/one.jpg", "o/a/two.jpg"]);
       expect(await query(SYSTEM, "SELECT * FROM media_delete_claim(10)")).toEqual([]);
-      await query(SYSTEM, "SELECT media_delete_failed($1, 'status_500')", [first[0]?.id]);
+      await query(SYSTEM, "SELECT media_delete_failed($1, 'status_500', $2)", [
+        first[0]?.id,
+        first[0]?.claim,
+      ]);
       const [later] = await owner<{ attempts: number; soon: boolean; code: string }>(
         `SELECT attempts, due_at > now() + interval '50 seconds' AS soon, last_code AS code
          FROM media_delete WHERE id = $1`,
@@ -674,7 +704,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("photo storage (database)", () 
       );
       expect(later).toEqual({ attempts: 1, soon: true, code: "status_500" });
       expect(
-        await query(SYSTEM, "SELECT media_delete_done($1::bigint[]) AS n", [[first[1]?.id]]),
+        await query(SYSTEM, "SELECT media_delete_done($1::bigint[], $2) AS n", [
+          [first[1]?.id],
+          randomUUID(),
+        ]),
+      ).toEqual([{ n: 0 }]);
+      expect(
+        await query(SYSTEM, "SELECT media_delete_done($1::bigint[], $2) AS n", [
+          [first[1]?.id],
+          first[1]?.claim,
+        ]),
       ).toEqual([{ n: 1 }]);
       await owner("UPDATE media_delete SET due_at = now() - interval '1 second' WHERE id = $1", [
         first[0]?.id,
@@ -684,12 +723,46 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("photo storage (database)", () 
       ]);
     });
 
+    it("keeps a key queued when its swept slot's upload is stored while the delete is leased", async () => {
+      const event = await newEvent();
+      const quest = await newQuest(event);
+      const { player } = await member(event);
+      const slot = await reserve(player, quest);
+      await query(SYSTEM, "SELECT media_sweep_uploads() AS n");
+      await owner(
+        "UPDATE media_object SET created_at = now() - interval '31 minutes' WHERE id = $1",
+        [slot.id],
+      );
+      await owner("DELETE FROM media_delete");
+      expect(await query(SYSTEM, "SELECT media_sweep_uploads() AS n")).toEqual([{ n: 1 }]);
+      const claimed = await query<{ id: string; key: string; claim: string }>(
+        SYSTEM,
+        "SELECT * FROM media_delete_claim(10)",
+      );
+      expect(claimed.map((row) => row.key)).toEqual([slot.key]);
+      expect(await store(player, slot)).toBe(false);
+      expect(
+        await query(SYSTEM, "SELECT media_delete_done($1::bigint[], $2) AS n", [
+          [claimed[0]?.id],
+          claimed[0]?.claim,
+        ]),
+      ).toEqual([{ n: 0 }]);
+      await query(SYSTEM, "SELECT media_delete_failed($1, 'status_500', $2)", [
+        claimed[0]?.id,
+        claimed[0]?.claim,
+      ]);
+      expect(await queued(slot.key)).toBe("1");
+      expect(await query(SYSTEM, "SELECT key FROM media_delete_claim(10)")).toEqual([
+        { key: slot.key },
+      ]);
+    });
+
     it("refuses every seat but the system's", async () => {
       for (const context of [teamA(), { playerId: ids.playerA }]) {
         for (const sql of [
           "SELECT * FROM media_delete_claim(1)",
-          "SELECT media_delete_done('{}')",
-          "SELECT media_delete_failed(1, 'x')",
+          "SELECT media_delete_done('{}', gen_random_uuid())",
+          "SELECT media_delete_failed(1, 'x', gen_random_uuid())",
           "SELECT media_sweep_uploads()",
           "SELECT media_purge_due(1)",
         ]) {

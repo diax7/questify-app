@@ -95,25 +95,43 @@ type FormProps = Readonly<{
   onOff: (why: SendingOff) => void;
 }>;
 
-/** An event request's photo, uploaded first when there is one (T-301b); its id, or why it could not be sent. */
+/**
+ * An event request's photo, uploaded first when there is one (T-301b); its id, or why it could not be sent. `fresh`
+ * uploads it again with a new key.
+ */
 async function photoFor(
   photos: PhotoDraftState,
   eventId: string,
+  fresh = false,
 ): Promise<Readonly<{ photoId?: string }> | SendAnswer> {
   if (photos.draft === null) return {};
-  const uploaded = await photos.upload(ticketPhotoPath(eventId));
+  const uploaded = await photos.upload(ticketPhotoPath(eventId), fresh);
   return uploaded.kind === "uploaded" ? { photoId: uploaded.photoId } : uploaded;
 }
 
-/** Sends an event card's request: its photo first, then the request with the photo's id. */
+/**
+ * Sends an event card's request: its photo first, then the request with the photo's id. A photo the server calls
+ * unusable (swept while the player waited) is uploaded again once and sent under the same key, which the refusal left
+ * unused.
+ */
 async function sendEventTicket(
   props: FormProps,
   photos: PhotoDraftState,
   request: Readonly<{ kind: string; text: string; username: string; key: string }>,
 ): Promise<SendAnswer> {
   const eventId = props.eventId ?? "";
-  const photo = await photoFor(photos, eventId);
+  const answer = await sendEventTicketOnce(props, request, await photoFor(photos, eventId));
+  if (answer.kind !== "refused" || answer.photoUnusable !== true) return answer;
+  return sendEventTicketOnce(props, request, await photoFor(photos, eventId, true));
+}
+
+async function sendEventTicketOnce(
+  props: FormProps,
+  request: Readonly<{ kind: string; text: string; username: string; key: string }>,
+  photo: Readonly<{ photoId?: string }> | SendAnswer,
+): Promise<SendAnswer> {
   if ("kind" in photo) return photo;
+  const eventId = props.eventId ?? "";
   return sendTicket(api.session, {
     eventId,
     kind: request.kind as EventTicketKind,
@@ -130,7 +148,8 @@ function useSend(props: FormProps, facts: DeviceFacts | null | undefined, photos
   const [busy, setBusy] = useState(false);
   const [last, setLast] = useState<{ key: string; text: string } | undefined>(undefined);
   const send = async (kind: string, text: string, username: string): Promise<SendAnswer> => {
-    const signature = `${kind}:${username}:${text}:${photos.draft?.key ?? ""}`;
+    // The photo by its picked file, not its upload key: a fresh upload after `photo_unusable` is the same send.
+    const signature = `${kind}:${username}:${text}:${photos.draft?.photo.uri ?? ""}`;
     const key = sendKey(last, signature, randomUuid);
     setBusy(true);
     const answer =
