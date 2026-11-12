@@ -9,15 +9,18 @@ import { storageSettings } from "#src/storage/config";
  * own keys under `o/contract/…` only. What it proves: SigV4 with this region string, path-style (or virtual-host) URLs,
  * presigned reads, a private bucket (unsigned reads and lists refused), an 8 MB body, and deletes.
  */
-const settings = process.env["S3_CONTRACT"] === "1" ? storageSettings(process.env, "test") : undefined;
+const settings =
+  process.env["S3_CONTRACT"] === "1" ? storageSettings(process.env, "test") : undefined;
+const key = (name: string) => `o/contract/e/${randomUUID()}/submission/${name}.jpg`;
 
 describe.skipIf(settings === undefined)("the photo bucket's contract (S3_CONTRACT=1)", () => {
   const store = createObjectStore(settings ?? ({} as never));
-  const key = (name: string) => `o/contract/e/${randomUUID()}/submission/${name}.jpg`;
+
   const base = () => (settings?.urlStyle === "virtual" ? "" : `/${settings?.bucket}`);
   const unsigned = (path: string) => {
     const origin = new URL(settings?.endpoint ?? "http://invalid");
-    const host = settings?.urlStyle === "virtual" ? `${settings.bucket}.${origin.host}` : origin.host;
+    const host =
+      settings?.urlStyle === "virtual" ? `${settings.bucket}.${origin.host}` : origin.host;
     return fetch(`${origin.protocol}//${host}${base()}${path}`, { redirect: "error" });
   };
 
