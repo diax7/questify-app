@@ -27,6 +27,7 @@ const PLAYER_NAME_READS: Readonly<Record<string, string>> = {
   event_results: MASKED,
   public_player_profile: MASKED,
   xp_board_json: MASKED,
+  member_photo_wall: `${MASKED}: a blocked player's photos leave the reader's wall, and the wall names usernames only (ADR-830)`,
   create_player: OWN,
   rename_player: OWN,
   username_next_change: OWN,

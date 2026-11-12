@@ -1194,6 +1194,8 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; written by quiz_next and quiz_answer, read by the player through member_quiz (test/db/vote-quiz)",
   submission:
     "no right for the API role at all; written by submit_quest and the review definers, read by the player through own_submissions and by the event's team through event_submissions and operator_submissions (test/db/submissions)",
+  photo_wall:
+    "no right and no policy for the API role at all; written by set_photo_wall for the event's own team (award_event_of) with eligible photos of that event only (a composite key to submission (id, event_id), B1) and cleared by own_photo_on_screen and the release trigger; read by the event's screen (screen_photos: screen_event), its members (member_photo_wall: session_member) and its team (event_photo_wall, event_wall_candidates) (test/db/photo-wall)",
   media_object:
     "no right and no policy for the API role at all; written by media_reserve for the calling player's own active enrollment (its key built from the row's own organizer and event, held by a CHECK), media_stored and media_release for that player's own slot, attached by submit_quest and open_ticket to the caller's own submission or ticket only (photo_to_attach: same player, event and purpose), deleted by the sweep, the purge and the holders' triggers; its key is read only by the seat-checked readers event_submissions, operator_submissions, event_tickets, operator_ticket and console_ticket (test/db/media; the photo case below crosses organizers, events in one organizer, and players). Organizer images (0194): written by media_image_reserve, _stored and _release for the calling staff member's own slot in an event of their organizer and scope (award_event_of), named by media_images_use inside the caller's event only, read by event_image_key (an active member of that event) and team_image_key (award_event_of), swept by media_sweep_images on the system seat (test/db/organizer-images; the organizer image case below)",
   media_delete:
@@ -2786,6 +2788,32 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     expect(own.rows.map((row) => row.photo_key)).toEqual([
       expect.stringMatching(`^o/${f.orgA}/e/${otherA}/`),
     ]);
+  });
+
+  it("keeps the photo wall inside its event: no candidates, no pick, no wall of another tenant (ADR-830)", async () => {
+    for (const seat of ["organizer", "staff"] as const) {
+      expect(
+        await refusal(asA(seat, "SELECT * FROM event_wall_candidates($1, NULL, 10)", [f.eventB])),
+        seat,
+      ).toBe("AN404");
+      expect(await refusal(asA(seat, "SELECT * FROM event_photo_wall($1)", [f.eventB])), seat).toBe(
+        "AN404",
+      );
+      expect(
+        await refusal(asA(seat, "SELECT set_photo_wall($1, '{}', gen_random_uuid())", [f.eventB])),
+        seat,
+      ).toBe("AN404");
+    }
+    expect(await refusal(asA("player", "SELECT * FROM member_photo_wall($1)", [f.eventB]))).toBe(
+      "AM403",
+    );
+    const on = await asA<{ on: boolean }>("player", "SELECT member_photo_wall_on($1) AS on", [
+      f.eventB,
+    ]);
+    expect(on.rows).toEqual([{ on: false }]);
+    expect(
+      await refusal(asA("player", "SELECT own_photo_on_screen($1, 1, false)", [f.eventB])),
+    ).toBe("PW404");
   });
 
   it("keeps organizer images inside the caller's tenant, event and scope: no key, no naming (ADR-829)", async () => {

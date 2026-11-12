@@ -99,11 +99,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the photo wall (database)", ()
         "INSERT INTO event_entitlement (event_id, organizer_id, feature) VALUES ($1, $2, 'bigScreen')",
         [id, org],
       );
-      await query(
-        org === ids.orgA ? teamA() : teamB(),
-        "SELECT set_big_screen($1, $2, $3)",
-        [id, options.scenes ?? ["ranking", "photo"], randomUUID()],
-      );
+      await query(org === ids.orgA ? teamA() : teamB(), "SELECT set_big_screen($1, $2, $3)", [
+        id,
+        options.scenes ?? ["ranking", "photo"],
+        randomUUID(),
+      ]);
     }
     return id;
   };
@@ -161,7 +161,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the photo wall (database)", ()
     const [sent] = await query<{ submission_id: string }>({ playerId: player }, sql, values);
     return sent?.submission_id ?? "";
   };
-  const review = (event: string, submission: string, decision: "approve" | "reject", seat = teamA()) =>
+  const review = (
+    event: string,
+    submission: string,
+    decision: "approve" | "reject",
+    seat = teamA(),
+  ) =>
     query(seat, "SELECT * FROM staff_review_submission($1, $2, $3, $4, $5, $6)", [
       event,
       submission,
@@ -194,7 +199,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the photo wall (database)", ()
       pending.code,
       kind,
     ]);
-    const quest = kind === "station" ? await newQuest(event) : null;
+    const quest =
+      kind === "station"
+        ? ((
+            await owner<{ id: string }>(
+              `INSERT INTO quest (event_id, category_id, type, title_en, points, verification)
+               SELECT $1, c.id, 'scan_qr', 'Gate', 10, ARRAY['screen_qr'] FROM category c WHERE c.event_id = $1
+               LIMIT 1 RETURNING id`,
+              [event],
+            )
+          )[0]?.id ?? null)
+        : null;
     const [claimed] = await query<{ id: string }>(
       seat,
       "SELECT team_claim_device($1, $2, $3, $4, 'Hall TV', $5) AS id",
@@ -223,7 +238,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the photo wall (database)", ()
   describe("consent at the send", () => {
     it("stores the player's choice, false from an older API's five-argument call and for text", async () => {
       const event = await newEvent();
-      const quest = await newQuest(event, ["photo", "text"]);
+      const quest = await newQuest(event, ["text", "photo"]);
       const yes = await photo(event, quest, { onScreen: true, approve: false });
       const no = await photo(event, quest, { onScreen: false, approve: false });
       const older = await member(event);
@@ -251,7 +266,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the photo wall (database)", ()
       const sent = await send(words.player, quest, null, false);
       expect(
         await refusal(owner("UPDATE submission SET on_screen = true WHERE id = $1", [sent])),
-      ).toBe("23514");
+      ).toMatch(/^23514/);
     });
   });
 
@@ -267,7 +282,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the photo wall (database)", ()
         "SELECT * FROM event_wall_candidates($1, NULL, 50)",
         [event],
       );
-      expect(candidates.map((row) => row.submission_id)).toEqual([second.submission, first.submission]);
+      expect(candidates.map((row) => row.submission_id)).toEqual([
+        second.submission,
+        first.submission,
+      ]);
       expect(candidates[0]?.photo_key).toBe(second.key);
       expect(candidates.map((row) => row.submission_id)).not.toContain(waiting.submission);
       expect((await pick(event, [second.submission, first.submission]))[0]?.["n"]).toBe(2);
@@ -325,7 +343,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the photo wall (database)", ()
             [event, ids.orgA, theirs.submission],
           ),
         ),
-      ).toBe("23503");
+      ).toMatch(/^23503/);
       await pick(event, [mine.submission]);
       expect(await onScreen(await device(event))).toEqual([mine.media]);
     });
@@ -353,7 +371,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the photo wall (database)", ()
       const viewer = await member(event);
       return { event, quest, screen, viewer };
     };
-    const shownAfter = async (change: (wall: Awaited<ReturnType<typeof wallOf>>, one: Photo) => Promise<unknown>) => {
+    const shownAfter = async (
+      change: (wall: Awaited<ReturnType<typeof wallOf>>, one: Photo) => Promise<unknown>,
+    ) => {
       const wall = await wallOf();
       const one = await photo(wall.event, wall.quest);
       await pick(wall.event, [one.submission]);
@@ -399,7 +419,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the photo wall (database)", ()
 
     it("erased account", async () => {
       const seen = await shownAfter((_wall, one) =>
-        owner("UPDATE submission SET erased_at = now(), body = NULL WHERE id = $1", [one.submission]),
+        owner("UPDATE submission SET erased_at = now(), body = NULL WHERE id = $1", [
+          one.submission,
+        ]),
       );
       expect(seen).toEqual({ screen: [], app: [] });
     });
@@ -464,7 +486,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the photo wall (database)", ()
     it("is the player's own photo submission of that event only", async () => {
       const event = await newEvent();
       const other = await newEvent();
-      const quest = await newQuest(event, ["photo", "text"]);
+      const quest = await newQuest(event, ["text", "photo"]);
       const one = await photo(event, quest, { approve: false });
       const stranger = await member(event);
       expect(await refusal(consent(stranger.player, event, one.submission, false))).toBe("PW404");
@@ -473,8 +495,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the photo wall (database)", ()
       expect(await refusal(consent(stranger.player, event, text, true))).toBe("PW422:not_photo");
       expect((await consent(one.player, event, one.submission, false))[0]?.["r"]).toBe(false);
       expect(
-        (await owner<{ on_screen: boolean }>("SELECT on_screen FROM submission WHERE id = $1", [one.submission]))[0]
-          ?.on_screen,
+        (
+          await owner<{ on_screen: boolean }>("SELECT on_screen FROM submission WHERE id = $1", [
+            one.submission,
+          ])
+        )[0]?.on_screen,
       ).toBe(false);
     });
   });
@@ -489,7 +514,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the photo wall (database)", ()
       await pick(event, [a.submission, b.submission]);
       const before = await appWall(viewer.player, event);
       expect(before.map((row) => row.media_id)).toEqual([a.media, b.media]);
-      expect(Object.keys(before[0] ?? {}).toSorted()).toEqual(["media_id", "photo_key", "username"]);
+      expect(Object.keys(before[0] ?? {}).toSorted()).toEqual([
+        "media_id",
+        "photo_key",
+        "username",
+      ]);
       await owner("INSERT INTO player_block (blocker_id, blocked_id) VALUES ($1, $2)", [
         viewer.player,
         a.player,
@@ -509,12 +538,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the photo wall (database)", ()
       const outsider = await member(await newEvent());
       expect(await refusal(appWall(outsider.player, event))).toBe("AM403");
       expect(
-        (await query<{ on: boolean }>({ playerId: inside.player }, "SELECT member_photo_wall_on($1) AS on", [event]))[0]
-          ?.on,
+        (
+          await query<{ on: boolean }>(
+            { playerId: inside.player },
+            "SELECT member_photo_wall_on($1) AS on",
+            [event],
+          )
+        )[0]?.on,
       ).toBe(false);
       expect(
-        (await query<{ on: boolean }>({ playerId: outsider.player }, "SELECT member_photo_wall_on($1) AS on", [event]))[0]
-          ?.on,
+        (
+          await query<{ on: boolean }>(
+            { playerId: outsider.player },
+            "SELECT member_photo_wall_on($1) AS on",
+            [event],
+          )
+        )[0]?.on,
       ).toBe(false);
     });
   });
@@ -530,7 +569,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the photo wall (database)", ()
       expect(await onScreen(await device(foreign, "screen", teamB()))).toEqual([theirs.media]);
       expect(await onScreen(await device(event))).toEqual([mine.media]);
       expect(await refusal(screenWall(await device(event, "station")))).toBe("DV401");
-      expect(await refusal(query({ playerId: mine.player }, "SELECT screen_photos()"))).not.toBe("none");
+      expect(await refusal(query({ playerId: mine.player }, "SELECT screen_photos()"))).not.toBe(
+        "none",
+      );
       await query(teamA(), "SELECT set_big_screen($1, $2, $3)", [event, ["ranking"], randomUUID()]);
       expect(await screenWall(await device(event))).toEqual({ shut: null, photos: [] });
     });
@@ -546,7 +587,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the photo wall (database)", ()
       expect(json?.r.offered).toContain("photo");
       expect(
         await refusal(
-          query(teamA(), "SELECT set_big_screen($1, $2, $3)", [event, ["photo", "photo"], randomUUID()]),
+          query(teamA(), "SELECT set_big_screen($1, $2, $3)", [
+            event,
+            ["photo", "photo"],
+            randomUUID(),
+          ]),
         ),
       ).toBe("BS422:scenes");
     });
@@ -596,9 +641,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the photo wall (database)", ()
       const one = await photo(event, await newQuest(event));
       const viewer = await member(event);
       await pick(event, [one.submission]);
-      await query({ playerId: viewer.player }, "SELECT report_content('media', $1, NULL, NULL, 'spam', NULL)", [
-        one.media,
-      ]);
+      await query(
+        { playerId: viewer.player },
+        "SELECT report_content('media', $1, NULL, NULL, 'spam', NULL)",
+        [one.media],
+      );
       expect(
         await refusal(
           query(admin(), "SELECT admin_report_resolve('media', $1, 'unpublished', $2)", [

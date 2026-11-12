@@ -313,6 +313,63 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     expect(held).toEqual(doors.map((proname) => ({ proname, grantee: "questify_app" })));
   });
 
+  it("keeps the photo wall closed: its doors for the API's role alone, the table without a grant (ADR-830)", async () => {
+    const doors = [
+      "admin_report_media_key",
+      "event_photo_wall",
+      "event_wall_candidates",
+      "member_photo_wall",
+      "member_photo_wall_on",
+      "own_photo_on_screen",
+      "screen_photos",
+      "set_photo_wall",
+    ];
+    const internals = [
+      "photo_on_member_wall",
+      "photo_wall_forget",
+      "photo_wall_live",
+      "photo_wall_ok",
+    ];
+    const all = [...doors, ...internals];
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      definer: boolean;
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider, prosecdef AS definer
+        FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND proname IN (${all.map((name) => `'${name}'`).join(", ")})`,
+    );
+    expect(functions.map((row) => row.proname).toSorted()).toEqual(all.toSorted());
+    for (const row of functions) {
+      expect(row.app, row.proname).toBe(doors.includes(row.proname));
+      expect(row.outsider, row.proname).toBe(false);
+      expect(row.definer, row.proname).toBe(
+        doors.includes(row.proname) || row.proname === "photo_wall_forget",
+      );
+    }
+    const grants = await rows<{ privilege_type: string }>(
+      "SELECT privilege_type FROM information_schema.role_table_grants WHERE table_name = 'photo_wall' AND grantee IN ('questify_app', 'questify_outsider', 'PUBLIC')",
+    );
+    expect(grants).toEqual([]);
+    for (const sql of [
+      "SELECT public.screen_photos()",
+      "SELECT * FROM public.member_photo_wall(gen_random_uuid())",
+      "SELECT public.member_photo_wall_on(gen_random_uuid())",
+      "SELECT public.own_photo_on_screen(gen_random_uuid(), 1, false)",
+      "SELECT * FROM public.event_wall_candidates(gen_random_uuid(), NULL, 1)",
+      "SELECT * FROM public.event_photo_wall(gen_random_uuid())",
+      "SELECT public.set_photo_wall(gen_random_uuid(), '{}', gen_random_uuid())",
+      "SELECT public.admin_report_media_key(gen_random_uuid())",
+      "SELECT * FROM public.submit_quest(gen_random_uuid(), NULL, '1.0', 'k', gen_random_uuid(), true)",
+      "SELECT count(*) FROM public.photo_wall",
+    ]) {
+      await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+    }
+  });
+
   it("keeps organizer images closed: their doors for the API's role alone, the helpers internal (ADR-829)", async () => {
     const doors = [
       "event_image_key",

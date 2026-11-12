@@ -283,7 +283,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("big screen (database)", () => 
       const event = await newEvent();
       expect(await plan(event)).toEqual({
         scenes: ["ranking", "community", "poll"],
-        offered: ["ranking", "community", "poll"],
+        offered: ["ranking", "community", "poll", "photo"],
         enabled: true,
       });
       expect((await save(event, ["poll", "ranking"])).scenes).toEqual(["poll", "ranking"]);
@@ -327,13 +327,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("big screen (database)", () => 
       await setFeature(event, "ranking", false);
       expect(await plan(event)).toEqual({
         scenes: ["poll"],
-        offered: ["community", "poll"],
+        offered: ["community", "poll", "photo"],
         enabled: true,
       });
       expect(await refusal(save(event, ["ranking"]))).toBe("BS422:ranking_off");
       expect((await save(event, ["poll", "community"])).scenes).toEqual(["poll", "community"]);
       await setFeature(event, "ranking", true);
-      expect((await plan(event)).offered).toEqual(["ranking", "community", "poll"]);
+      expect((await plan(event)).offered).toEqual(["ranking", "community", "poll", "photo"]);
     });
 
     it("does not offer the ranking while the platform's ranking switch is off", async () => {
@@ -343,7 +343,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("big screen (database)", () => 
          ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
       );
       try {
-        expect((await plan(event)).offered).toEqual(["community", "poll"]);
+        expect((await plan(event)).offered).toEqual(["community", "poll", "photo"]);
         expect(await refusal(save(event, ["ranking"]))).toBe("BS422:ranking_off");
       } finally {
         await owner("DELETE FROM platform_setting WHERE key = 'features'");

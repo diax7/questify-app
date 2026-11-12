@@ -591,6 +591,13 @@ export const CATALOG: Readonly<Record<string, CatalogEntry>> = {
     rows: `${E("enrollment_id")} AND body IS NOT NULL`,
     why: "body cleared, a reviewer's reason kept only when the system wrote it; reviews the player made keep the id",
   },
+  photo_wall: {
+    links: ["submission_id"],
+    export: "events[].submissions",
+    erasure: "delete",
+    rows: "submission_id IN (SELECT s.id FROM submission s JOIN enrollment n ON n.id = s.enrollment_id WHERE n.player_id = $1)",
+    why: "the team's pick of a photo: an erasure lets the photo go and the release trigger deletes the pick (0195)",
+  },
   survey_response: {
     links: ["enrollment_id", "completion_id"],
     personal: ["answers"],
