@@ -62,6 +62,8 @@ export const PLAY_DOORS: Readonly<Record<string, Door>> = {
   "POST /v1/quests/:questId/quiz/next": ofQuest,
   "POST /v1/quests/:questId/quiz/answer": ofQuest,
   "POST /v1/quests/:questId/submit": ofQuest,
+  // The photo a submission will carry (T-301b): held with the submit, so maintenance stores no upload it would refuse.
+  "POST /v1/quests/:questId/photo": ofQuest,
   "POST /v1/quests/:questId/game-rounds": ofQuest,
   "POST /v1/game-rounds/:roundId/result": (request) => param(request, "roundId", "game_round"),
   "POST /v1/steps/:stepId/stamp": (request) => param(request, "stepId", "step"),

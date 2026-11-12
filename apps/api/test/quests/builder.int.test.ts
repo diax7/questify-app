@@ -129,6 +129,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the quest builder (T-103)", ()
     it("shows a new event's General category with no quests", async () => {
       const s = await newEvent();
       expect(await s.builder()).toEqual({
+        photos: false,
         focusQuestId: null,
         categories: [
           {

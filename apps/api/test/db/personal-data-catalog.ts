@@ -585,7 +585,7 @@ export const CATALOG: Readonly<Record<string, CatalogEntry>> = {
     rows: ASSIGNMENTS("assignment_id"),
   },
   submission: {
-    links: ["enrollment_id", "reviewed_by_operator", "completion_id"],
+    links: ["enrollment_id", "reviewed_by_operator", "completion_id", "photo"],
     export: "events[].submissions",
     erasure: "clear",
     rows: `${E("enrollment_id")} AND body IS NOT NULL`,
@@ -598,8 +598,24 @@ export const CATALOG: Readonly<Record<string, CatalogEntry>> = {
     erasure: "delete",
     rows: E("enrollment_id"),
   },
+  media_object: {
+    links: ["uploaded_by_player"],
+    export: {
+      excluded:
+        "a photo's row holds no image, only its key and size; the photo's place in the download is Q-765",
+    },
+    erasure: "keep",
+    rows: P("uploaded_by_player"),
+    why: "no image and no text: an attached photo goes with its submission or ticket at erasure (triggers, 0193), an unattached upload within 30 minutes (the sweep), and the bucket object after the worker's next run",
+  },
   ticket: {
-    links: ["player_id", "enrollment_id", "reported_enrollment_id", "answered_by_operator"],
+    links: [
+      "player_id",
+      "enrollment_id",
+      "reported_enrollment_id",
+      "answered_by_operator",
+      "photo",
+    ],
     export: "tickets",
     erasure: "delete",
     rows: P("player_id"),
@@ -687,6 +703,7 @@ export const NOT_PLAYER: Readonly<Record<string, string>> = {
   "audit_log.before": "codes and ids only by rule; the audit assertion scans it after an erasure",
   "audit_log.event_id": ORG,
   "audit_log.organizer_id": ORG,
+  "media_delete.organizer_id": ORG,
   "audit_log.request_id": OPAQUE,
   "audit_log.support_grant_id": OPAQUE,
   "bulk_award.staff_user_id": ADMIN,

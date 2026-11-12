@@ -105,6 +105,8 @@ const NOT_COPIED = new Set([
   "submission",
   "survey_response",
   "ticket",
+  // players' photos (T-301b): uploads and their keys belong to the source event's players
+  "media_object",
   // Questify's moderation of the source event (T-705b): reports about it and its held items stay with it
   "content_hold",
   "content_report",

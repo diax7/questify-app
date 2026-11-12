@@ -1,5 +1,28 @@
 # Blueprint State — Questify
 
+## T-301b phase 1, photo storage and photo submissions (migrations 0192, 0193) — 2026-11-12
+
+- **Built (tier A; plan `docs/plans/2026-11-12-photo-storage.md`, CTO plan review 84 with its section 10, as-built
+  notes and hand mutants in its section 11; code review pending; not yet run on a phone).** 0192: `media_object` (key
+  CHECKed to its own organizer, event, purpose and id) and `media_delete` (queued by a delete trigger), the upload doors
+  (5 unused uploads per player and event in 30 minutes) and the media worker's system-seat doors. 0193: `accepts` text,
+  photo or either (fixed once submitted), photo submissions and ticket photos attached under a lock, deletion by
+  construction (rejection, removal, erasure, wipe, ticket purge, event delete, 30-minute sweep, 365-day purge), readers
+  with keys (three converted to PL/pgSQL), `member_event_quests` with `submission_accepts`. API `src/storage`: SigV4
+  client on aws4fetch's signer, sharp re-encoder, worker every 30 s, two photo doors, 5-minute signed URLs; Home and the
+  builder say `photos`. App: camera and system picker (expo-image-picker), quest sheet, Get help, operator review.
+  Dashboard: builder accepts, queue, Help desk, console ticket; CSP `MEDIA_HOST`; forwarder 8 MB on the photo paths.
+  `ops/cranl/staging.json` declares `questify-media-staging` with its region and a bucket budget. ADR-828 (ADR-183
+  carried out, ADR-185 HEIC refused, ADR-186 interim purge), Q-764 to Q-766; Q-149 resolved. New dependencies: sharp,
+  aws4fetch, expo-image-picker (reasons in TECH_STACK). Hand mutants: 13 of 14 killed, one equivalent. Full API suite
+  once: 7 list-style failures (catalogs, column lists), all fixed and those files rerun green. Docker image built
+  locally with a sharp smoke step. Mutation globs: `apps/api/src/storage/*.ts`, `apps/api/src/submissions/submissions.ts`,
+  `apps/api/src/tickets/tickets.ts`. CI minutes: not yet pushed.
+- **Next:** the code review; on staging set `SECRET_API_S3_ENDPOINT`, `SECRET_API_S3_ACCESS_KEY_ID`,
+  `SECRET_API_S3_SECRET_ACCESS_KEY`, `SECRET_WEB_MEDIA_HOST`, run `pnpm infra apply` for staging, check the bucket's
+  region and privacy in CranL, then the contract test (RUNBOOK "Photo storage"); phase 2 (organizer images) as one
+  tier B batch.
+
 ## Security audit hardening, the admin re-check sweep (migration 0191) — 2026-11-11
 
 - **Built (tier A; plan `docs/plans/2026-11-11-admin-recheck-sweep.md`, plan review 84 with the decisions of its
