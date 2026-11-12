@@ -546,11 +546,19 @@ const ROUTES: Readonly<Record<string, string>> = {
   "POST /v1/operator/events/:eventId/devices/:deviceId/revoke":
     "an operator of that event only, for a device they paired; any other answers 404 (DN404 in revoke_device) (test/devices/routes, test/db/devices)",
   "GET /v1/device/screen/:scene":
-    "a paired, activated big screen's own event only (screen_ranking, screen_community, screen_poll and screen_finale take no event; a station, kiosk, pending or revoked device is device_unpaired); per device at most 40 a minute (test/screen/routes, test/db/big-screen)",
+    "a paired, activated big screen's own event only (screen_ranking, screen_community, screen_poll, screen_photos and screen_finale take no event; a station, kiosk, pending or revoked device is device_unpaired); per device at most 40 a minute (test/screen/routes, test/db/big-screen)",
   "GET /v1/organizers/:organizerId/events/:eventId/big-screen":
     "members inside their event limit; another organizer's event answers 404 (AN404 in event_big_screen) (test/screen/routes, test/db/big-screen)",
   "PUT /v1/organizers/:organizerId/events/:eventId/big-screen":
     "members inside their event limit, with an Idempotency-Key; another organizer's event answers 404 (AN404 in set_big_screen); never while the add-on is off (BS403) (test/screen/routes, test/db/big-screen)",
+  "GET /v1/organizers/:organizerId/events/:eventId/photo-wall":
+    "members inside their event limit (event_photo_wall and event_wall_candidates: award_event_of); another organizer's event or one outside the scope answers 404; each photo a 120-second URL, never a key or a name (test/screen/photo-wall, test/db/photo-wall)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/photo-wall":
+    "members inside their event limit, with an Idempotency-Key (set_photo_wall: award_event_of); only eligible photos of that event (a composite key to submission (id, event_id)); never while the add-on is off (BS403) (test/screen/photo-wall, test/db/photo-wall)",
+  "GET /v1/events/:eventId/photo-wall":
+    "the calling player's own active enrollment in that event (member_photo_wall: session_member), only while the wall runs; a blocked player's photos left out; usernames only (test/screen/photo-wall, test/db/photo-wall)",
+  "PUT /v1/events/:eventId/submissions/:submissionId/on-screen":
+    "the calling player's own photo submission of that event only (own_photo_on_screen); any other id is 404 (test/screen/photo-wall, test/db/photo-wall)",
   "GET /v1/organizers/:organizerId/events/:eventId/finale":
     "members inside their event limit; another organizer's event answers 404 (AN404 in event_finale) (test/screen/routes, test/db/finale)",
   "PUT /v1/organizers/:organizerId/events/:eventId/finale":
@@ -1234,6 +1242,7 @@ const PLAYER_READS: readonly string[] = [
   "/v1/events/:eventId/home",
   "/v1/events/:eventId/live",
   "/v1/events/:eventId/images/:imageId",
+  "/v1/events/:eventId/photo-wall",
   "/v1/events/:eventId/maps",
   "/v1/events/:eventId/quests",
   "/v1/events/:eventId/ranking",

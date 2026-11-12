@@ -24,6 +24,7 @@ import { registerMemberMapRoutes } from "#src/maps/routes";
 import { registerMemberCheerRoutes } from "#src/cheers/routes";
 import { registerMemberRatingRoutes } from "#src/ratings/routes";
 import { registerMemberSponsorRoutes } from "#src/sponsors/routes";
+import { memberWallOn } from "#src/screen/photo-wall";
 
 const eventParams = z.object({ eventId: z.uuid() });
 const activityQuery = z.strictObject({
@@ -107,7 +108,10 @@ export function registerHomeRoutes(app: FastifyInstance, deps: HomeDeps): void {
     if (home === null) {
       throw notEnrolled();
     }
-    return { ...home, photos: deps.photos === true };
+    const photos = deps.photos === true;
+    // T-504b: Home offers the event's photo wall while it runs (the read is skipped without a bucket).
+    const photoWall = await memberWallOn(deps.pool, photos, playerIdOf(request), eventId);
+    return { ...home, photos, photoWall };
   });
 
   // FR-410: the player's own points record in this event, newest first, page by page.

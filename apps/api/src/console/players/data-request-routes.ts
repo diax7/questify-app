@@ -1,3 +1,4 @@
+import type { ObjectStore } from "#src/storage/client";
 import { isCaseReference, isDataRequestReason } from "@questify/shared";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
@@ -33,6 +34,8 @@ export type ConsoleDataRequestDeps = ConsolePlayerDeps &
   Readonly<{
     /** An erased player's remembered answers are dropped with the account, as the self-deletion does. */
     idempotencyStore: IdempotencyStore;
+    /** The photo bucket: a reported wall photo's report page shows it through a short signed URL (T-504b). */
+    storage?: ObjectStore | undefined;
   }>;
 
 const playerParams = z.object({ playerId: z.uuid() });

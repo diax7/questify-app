@@ -20,6 +20,7 @@ import type { OrganizerContext } from "#src/organizers/store";
 import { teamSeat } from "#src/organizers/store";
 import type { ObjectStore } from "#src/storage/client";
 import { signedPhoto } from "#src/storage/signed";
+import { wallOn } from "#src/screen/photo-wall";
 
 /** The pool, and the photo bucket when this server has one (T-301b): queue rows with a photo get a short signed URL. */
 export type SubmissionDeps = Readonly<{ pool: Pool; storage?: ObjectStore | undefined }>;
@@ -190,17 +191,22 @@ export function sendSubmission(
     questId: string;
     text: string | null;
     photoId: string | null;
+    onScreen: boolean;
     idempotencyKey: string;
   }>,
 ): Promise<Done<Sent>> {
   return run(deps, { playerId: request.playerId }, async (client) => {
-    const { rows } = await client.query<SentRow>("SELECT * FROM submit_quest($1, $2, $3, $4, $5)", [
-      request.questId,
-      request.text,
-      await guidelinesVersion(client),
-      request.idempotencyKey,
-      request.photoId,
-    ]);
+    const { rows } = await client.query<SentRow>(
+      "SELECT * FROM submit_quest($1, $2, $3, $4, $5, $6)",
+      [
+        request.questId,
+        request.text,
+        await guidelinesVersion(client),
+        request.idempotencyKey,
+        request.photoId,
+        request.onScreen,
+      ],
+    );
     const row = rows[0] as SentRow;
     const boost = row.completion_id === null ? null : await boostApplied(client, row.completion_id);
     return {
@@ -228,6 +234,8 @@ export type OwnSubmission = Readonly<{
   text: string | null;
   /** The photo was deleted (a rejection, a removal, the retention purge): the history says so. */
   photoGone: boolean;
+  /** The player allows this photo on the big screen and the event's photo wall (T-504b); false for text. */
+  onScreen: boolean;
   /** The reviewer's words, or a code when the system closed it (`left_event`). */
   reason: string | null;
   reasonSystem: boolean;
@@ -250,6 +258,7 @@ type OwnRow = {
   reviewed_at: Date | null;
   kind: SubmissionKind;
   photo_gone: boolean;
+  on_screen: boolean;
 };
 
 /** The points all of the calling player's pending submissions in an event will pay (FR-409). */
@@ -275,6 +284,7 @@ export async function readOwnSubmissions(
     kind: row.kind,
     text: row.body,
     photoGone: row.photo_gone,
+    onScreen: row.on_screen,
     reason: row.reason,
     reasonSystem: row.reason_system,
     resubmit: row.resubmit,
@@ -288,11 +298,13 @@ export function ownSubmissions(
   deps: SubmissionDeps,
   playerId: string,
   eventId: string,
-): Promise<Readonly<{ submissions: OwnSubmission[]; pendingPoints: number }>> {
+): Promise<Readonly<{ submissions: OwnSubmission[]; pendingPoints: number; photoWall: boolean }>> {
   return withConnection(deps.pool, (client) =>
     withRequestContext(client, { playerId }, async () => ({
       submissions: await readOwnSubmissions(client, eventId),
       pendingPoints: await readPendingPoints(client, eventId),
+      // T-504b: the send form offers "show on screen" only while the event's wall runs (never without a bucket).
+      photoWall: await wallOn(deps, client, eventId),
     })),
   );
 }

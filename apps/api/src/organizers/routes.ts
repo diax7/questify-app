@@ -421,7 +421,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       registerStreakTeamRoutes(scope, { pool: deps.pool });
       registerNfcTeamRoutes(scope, { pool: deps.pool });
       registerDeviceTeamRoutes(scope, deps.devices);
-      registerScreenTeamRoutes(scope, { pool: deps.pool });
+      registerScreenTeamRoutes(scope, { pool: deps.pool, storage: deps.storage });
       registerCheersTeamRoutes(scope, { pool: deps.pool });
       registerPushDefaultsTeamRoutes(scope, { pool: deps.pool });
       registerFlagRoutes(scope, { pool: deps.pool });

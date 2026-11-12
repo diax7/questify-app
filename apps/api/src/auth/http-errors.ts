@@ -2792,3 +2792,17 @@ export const acceptsLocked = make(
   "لا يمكن تغيير نوع المشاركة بعد وصول مشاركات.",
   "What this quest accepts can't change once submissions arrive.",
 );
+/** A photo wall pick of more than 20, a repeat, or a photo that cannot go on screen now (migration 0195, PW422). */
+export const invalidPhotoWall = make(
+  422,
+  "invalid_photo_wall",
+  "اختر 20 صورة على الأكثر من الصور المعتمدة التي سمح أصحابها بعرضها.",
+  "Pick up to 20 approved photos their owners allowed on screen.",
+);
+/** Only a photo submission goes on screen (migration 0195, PW422 `not_photo`). */
+export const photoOnly = make(
+  422,
+  "photo_only",
+  "تُعرض الصور فقط على الشاشة.",
+  "Only photos go on screen.",
+);

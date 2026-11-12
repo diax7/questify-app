@@ -119,7 +119,7 @@ export function outcomesFor(kind: ReportKind): readonly ReportOutcome[] {
   if (kind === "username") {
     return ["username_changed", "player_banned", "dismissed"];
   }
-  if (kind === "quest" || kind === "reward" || kind === "announcement") {
+  if (kind === "quest" || kind === "reward" || kind === "announcement" || kind === "media") {
     return ["dismissed"];
   }
   return ["event_suspended", "dismissed"];

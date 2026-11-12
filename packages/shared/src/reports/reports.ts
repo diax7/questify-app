@@ -16,6 +16,7 @@ export const REPORT_KINDS = [
   "sponsor",
   "event",
   "username",
+  "media",
 ] as const;
 export type ReportKind = (typeof REPORT_KINDS)[number];
 
@@ -46,8 +47,11 @@ export const reportRequestSchema = z.strictObject({
 });
 export type ReportRequest = z.infer<typeof reportRequestSchema>;
 
-/** The three kinds Questify can unpublish in v1 (ADR-434); the rest are handled by suspending the event. */
-export const HOLD_KINDS = ["quest", "reward", "announcement"] as const;
+/**
+ * The kinds Questify can unpublish (ADR-434): a quest, a reward, an announcement, and a photo on an event's wall
+ * (`media`, T-504b, ADR-830); the rest are handled by suspending the event.
+ */
+export const HOLD_KINDS = ["quest", "reward", "announcement", "media"] as const;
 export type HoldKind = (typeof HOLD_KINDS)[number];
 
 /** Why Questify unpublished something; the organizer sees the code's words and the admin's note. */
@@ -142,6 +146,8 @@ export const reportDetailSchema = z.strictObject({
   event: queueEventSchema.extend({ suspended: z.boolean() }).nullable(),
   hold: liveHoldSchema.nullable(),
   reports: z.array(reportEntrySchema).max(200),
+  /** A reported wall photo (`media`): a 5-minute signed read, null when it is gone or there is no bucket. */
+  photo: z.strictObject({ url: z.string(), expiresAt: instant }).nullable().optional(),
 });
 export type ReportDetail = z.infer<typeof reportDetailSchema>;
 

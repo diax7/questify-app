@@ -19,6 +19,8 @@ import {
   outcomeNotTaken,
 } from "#src/auth/http-errors";
 import { door, type Admin } from "#src/console/doors";
+import type { ObjectStore } from "#src/storage/client";
+import { signedPhoto } from "#src/storage/signed";
 import type { HttpError } from "#src/http-error";
 
 /** The refusals of the moderation doors (migration 0121) that `door` does not already know. */
@@ -80,13 +82,30 @@ export async function readTarget(
   admin: Admin,
   target: Readonly<{ kind: ReportKind; targetId: string }>,
   requestId: string,
+  storage?: ObjectStore,
 ): Promise<ReportDetail> {
   const raw = await moderation<unknown>(pool, admin, "SELECT console_report($1, $2, $3) AS r", [
     target.kind,
     target.targetId,
     requestId,
   ]);
-  return reportDetailSchema.parse(raw);
+  const detail = reportDetailSchema.parse(raw);
+  if (target.kind !== "media") return detail;
+  // A reported wall photo (T-504b): its key is read by the console's own door and signed here, never sent.
+  const key = await moderation<string | null>(
+    pool,
+    admin,
+    "SELECT admin_report_media_key($1) AS r",
+    [target.targetId],
+  );
+  const signed = await signedPhoto(storage, key);
+  return {
+    ...detail,
+    photo:
+      signed.photoUrl === null || signed.photoExpiresAt === null
+        ? null
+        : { url: signed.photoUrl, expiresAt: signed.photoExpiresAt.toISOString() },
+  };
 }
 
 /** Closes every open report of a target with one outcome; answers how many closed. */

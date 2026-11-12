@@ -1,8 +1,10 @@
 import type { Pool } from "pg";
 import { inDevice } from "#src/devices/errors";
+import { signedScene } from "#src/screen/photo-wall";
+import type { ObjectStore } from "#src/storage/client";
 
-/** The scenes the team picks and orders (FR-631); photo wall and cheers come with their own tasks. */
-export const SCENES = ["ranking", "community", "poll"] as const;
+/** The scenes the team picks and orders (FR-631); the photo wall is T-504b (migration 0195). */
+export const SCENES = ["ranking", "community", "poll", "photo"] as const;
 export type Scene = (typeof SCENES)[number];
 /**
  * What a screen can read: the picked scenes, the finale a set finale adds by itself (T-307b) and the Cheers scene a live
@@ -15,6 +17,7 @@ const FUNCTIONS: Readonly<Record<ScreenScene, string>> = {
   ranking: "screen_ranking",
   community: "screen_community",
   poll: "screen_poll",
+  photo: "screen_photos",
   finale: "screen_finale",
   cheers: "screen_cheers",
 };
@@ -46,7 +49,7 @@ type Kept = Readonly<{ until: number; answer: Promise<SceneAnswer> }>;
  * cache never answers one.
  */
 export function createSceneReader(
-  deps: Readonly<{ pool: Pool }>,
+  deps: Readonly<{ pool: Pool; storage?: ObjectStore | undefined }>,
   now: () => number = Date.now,
 ): SceneReader {
   const kept = new Map<string, Kept>();
@@ -64,7 +67,9 @@ export function createSceneReader(
         const { rows } = await client.query<{ answer: SceneAnswer }>(
           `SELECT ${FUNCTIONS[scene]}() AS answer`,
         );
-        return (rows[0] as { answer: SceneAnswer }).answer;
+        const read = (rows[0] as { answer: SceneAnswer }).answer;
+        // The photo scene's keys never leave the API: each is signed for 120 s from the minute's start (M2).
+        return scene === "photo" ? signedScene(deps.storage, read, now) : read;
       });
       kept.set(key, { until: now() + SCENE_CACHE_MS, answer });
       answer.catch(() => {

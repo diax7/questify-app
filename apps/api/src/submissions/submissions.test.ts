@@ -108,6 +108,7 @@ describe("sending", () => {
       questId: "q1",
       text: "Hello",
       photoId: null,
+      onScreen: false,
       idempotencyKey: "k1",
     });
     expect(sent).toEqual({
@@ -129,7 +130,7 @@ describe("sending", () => {
       },
     });
     expect(pool.statements.map((statement) => statement.values)).toEqual([
-      ["q1", "Hello", "7", "k1", null],
+      ["q1", "Hello", "7", "k1", null, false],
     ]);
   });
 
@@ -174,6 +175,7 @@ describe("sending", () => {
       questId: "q1",
       text: "Hello",
       photoId: null,
+      onScreen: false,
       idempotencyKey: "k1",
     });
     expect(sent).toMatchObject({

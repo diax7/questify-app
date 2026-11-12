@@ -69,6 +69,8 @@ const sendBody = z
       .max(SUBMISSION_TEXT_MAX * 4)
       .optional(),
     photoId: z.uuid().optional(),
+    // T-504b: the player allows this photo on the big screen and the event's photo wall; absent (an older app) is no.
+    onScreen: z.boolean().optional(),
   })
   .refine((body) => body.text !== undefined || body.photoId !== undefined);
 const reviewBody = z.union([
@@ -174,6 +176,7 @@ export function registerSubmissionPlayerRoutes(
         questId,
         text: body.text ?? null,
         photoId: body.photoId ?? null,
+        onScreen: body.onScreen === true,
         idempotencyKey: keyOf(request),
       }),
     );

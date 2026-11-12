@@ -13,6 +13,7 @@ import {
   unpublish,
 } from "#src/console/moderation/doors";
 import type { ConsolePlayerDeps } from "#src/console/players/routes";
+import type { ObjectStore } from "#src/storage/client";
 import { throttled } from "#src/console/throttle";
 import type { DeviceLimit } from "#src/devices/limits";
 
@@ -54,7 +55,7 @@ const republishBody = z.strictObject(holdTarget);
  */
 export function registerConsoleModerationRoutes(
   scope: FastifyInstance,
-  deps: ConsolePlayerDeps,
+  deps: ConsolePlayerDeps & Readonly<{ storage?: ObjectStore | undefined }>,
 ): void {
   scope.get("/reports", read, async (request, reply) => {
     const query = parse(queueQuery, request.query);
@@ -70,7 +71,7 @@ export function registerConsoleModerationRoutes(
   scope.get("/reports/:kind/:targetId", read, async (request, reply) => {
     const target = parse(targetParams, request.params);
     const who = await throttled(deps, request, reply, CONSOLE_REPORTS_READ_LIMIT);
-    return readTarget(deps.pool, who, target, request.id);
+    return readTarget(deps.pool, who, target, request.id, deps.storage);
   });
 
   scope.post("/reports/:kind/:targetId/resolve", change, async (request, reply) => {

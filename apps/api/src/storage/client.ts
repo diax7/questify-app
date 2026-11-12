@@ -10,8 +10,16 @@ export type ObjectStore = Readonly<{
   put: (key: string, body: Buffer, contentType?: StoredType) => Promise<void>;
   /** A delete of an object that is already gone (404) is done. */
   delete: (key: string) => Promise<void>;
-  /** A GET URL on the bucket's host that works for `ttlSeconds` (at most 300), served as `contentType`. */
-  signGet: (key: string, ttlSeconds: number, contentType?: StoredType) => Promise<SignedUrl>;
+  /**
+   * A GET URL on the bucket's host that works for `ttlSeconds` (at most 300) from `at` (now by default), served as
+   * `contentType`. One key signed at one `at` is one URL, so a reader that floors `at` hands out a stable URL.
+   */
+  signGet: (
+    key: string,
+    ttlSeconds: number,
+    contentType?: StoredType,
+    at?: Date,
+  ) => Promise<SignedUrl>;
 }>;
 
 export type SignedUrl = Readonly<{ url: string; expiresAt: Date }>;
@@ -166,11 +174,11 @@ export function createObjectStore(
         undefined,
         (status) => status === 204 || status === 200 || status === 404,
       ),
-    signGet: async (key, ttlSeconds, contentType = "image/jpeg") => {
+    signGet: async (key, ttlSeconds, contentType = "image/jpeg", from) => {
       if (!Number.isInteger(ttlSeconds) || ttlSeconds < 1 || ttlSeconds > MAX_SIGNED_SECONDS) {
         throw new RangeError(`A signed read lasts 1 to at most ${MAX_SIGNED_SECONDS} seconds.`);
       }
-      const at = now();
+      const at = from ?? now();
       const url = objectUrl(settings, key);
       url.searchParams.set("X-Amz-Expires", String(ttlSeconds));
       url.searchParams.set("response-content-type", contentType);

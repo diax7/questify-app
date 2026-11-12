@@ -30,6 +30,7 @@ import { kioskScan, type KioskDeps } from "#src/devices/kiosk";
 import { playerLiveCode, type LiveCodeDeps } from "#src/devices/live-code";
 import { organizerContextOf } from "#src/organizers/context";
 import { registerScreenRoutes } from "#src/screen/routes";
+import type { ObjectStore } from "#src/storage/client";
 
 const KINDS = ["station", "kiosk", "screen"] as const;
 const kind = z.enum(KINDS);
@@ -102,7 +103,7 @@ const teamOf = (request: FastifyRequest): Extract<Actor, { type: "team" }> => {
  */
 export function registerDeviceRoutes(
   app: FastifyInstance,
-  deps: DeviceDeps & Readonly<{ kiosk: KioskDeps }>,
+  deps: DeviceDeps & Readonly<{ kiosk: KioskDeps; storage?: ObjectStore | undefined }>,
 ): void {
   app.post(
     "/v1/device/pairing",

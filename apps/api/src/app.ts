@@ -32,6 +32,7 @@ import { registerHomeRoutes } from "#src/home/routes";
 import { createFirstBonusCache, type FirstBonusCache } from "#src/quests/first-bonus";
 import { registerOperatorAwardRoutes } from "#src/awards/routes";
 import type { ObjectStore } from "#src/storage/client";
+import { registerPhotoWallPlayerRoutes } from "#src/screen/routes";
 import { registerImageReadRoutes } from "#src/storage/read-routes";
 import { registerPhotoRoutes } from "#src/storage/routes";
 import { startMediaWorker } from "#src/storage/worker";
@@ -372,7 +373,12 @@ function registerConsole(app: FastifyInstance, options: AppOptions, shared: Cons
     invitations: shared.invitations,
     translations: shared.translations,
     organizers: { pool, keys: shared.keys, suspended: shared.suspended },
-    players: { pool, keys: shared.keys, idempotencyStore: options.idempotencyStore },
+    players: {
+      pool,
+      keys: shared.keys,
+      idempotencyStore: options.idempotencyStore,
+      storage: options.storage,
+    },
     ownerEmail: {
       ...shared.emailChange,
       log: (event, fields) => app.log.error({ event, ...fields }),
@@ -584,6 +590,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   const liveKey = createLiveCodeKey(config.qrSecret);
   registerDeviceRoutes(app, {
     ...deviceDeps,
+    storage: options.storage,
     kiosk: {
       pool: options.pool,
       liveKey,
@@ -695,6 +702,7 @@ function registerPlayDoors(app: FastifyInstance, config: AppConfig, deps: PlayDo
   registerTicketRoutes(app, { pool, settings, keys, storage });
   registerPhotoRoutes(app, { pool, storage });
   registerImageReadRoutes(app, { pool, storage });
+  registerPhotoWallPlayerRoutes(app, { pool, storage });
   registerPlayRoutes(app, { pool, ranking, settings, firstBonus });
   registerMeetRoutes(app, { pool, ranking, settings, keys });
   registerGameRoutes(app, { pool, ranking, keys });
