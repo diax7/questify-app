@@ -12,6 +12,7 @@ import {
 import { useState } from "react";
 import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
 import { SponsorTags, type SponsorWrites } from "#src/components/SponsorTags.tsx";
+import { ImageField } from "#src/components/ImageField.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import {
   LISTED_NAMES,
@@ -134,6 +135,22 @@ function SponsorForm({
             />
           </Field>
         </FieldGroup>
+        <ImageField
+          language={language}
+          purpose="logo"
+          label={t("image.logo")}
+          value={draft.logo}
+          disabled={busy}
+          onChange={(logo) => change({ ...draft, logo })}
+        />
+        <ImageField
+          language={language}
+          purpose="banner"
+          label={t("image.banner")}
+          value={draft.banner}
+          disabled={busy}
+          onChange={(banner) => change({ ...draft, banner })}
+        />
         <Toolbar align="end">
           <Button variant="quiet" disabled={busy} onClick={cancel}>
             {t("common.cancel")}

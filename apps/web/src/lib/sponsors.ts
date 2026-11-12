@@ -19,6 +19,9 @@ export type SponsorDraft = {
   nameEn: string;
   tier: SponsorTier;
   booth: string;
+  /** The logo and the strip banner image ids (T-507b), null for none. */
+  logo: string | null;
+  banner: string | null;
 };
 
 export const blankSponsor = (): SponsorDraft => ({
@@ -27,6 +30,8 @@ export const blankSponsor = (): SponsorDraft => ({
   nameEn: "",
   tier: "gold",
   booth: "",
+  logo: null,
+  banner: null,
 });
 
 /** A saved sponsor as the form shows it. */
@@ -36,6 +41,8 @@ export const draftOf = (sponsor: TeamSponsor): SponsorDraft => ({
   nameEn: sponsor.nameEn ?? "",
   tier: sponsor.tier,
   booth: sponsor.booth ?? "",
+  logo: sponsor.logo ?? null,
+  banner: sponsor.banner ?? null,
 });
 
 const textOrNull = (text: string): string | null => (text.trim() === "" ? null : text.trim());
@@ -46,6 +53,8 @@ export const sponsorPayload = (draft: SponsorDraft): SponsorBody => ({
   nameEn: textOrNull(draft.nameEn),
   tier: draft.tier,
   booth: textOrNull(draft.booth),
+  logo: draft.logo,
+  banner: draft.banner,
 });
 
 const ISSUE_KEYS: Readonly<Record<string, MessageKey>> = {

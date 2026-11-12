@@ -1,6 +1,8 @@
 "use client";
 
 import type { Language } from "@questify/shared";
+import { ImageField } from "#src/components/ImageField.tsx";
+import { withImage } from "#src/lib/home-content-editor.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { Field, FieldGroup, Input } from "#src/ui/Field.tsx";
@@ -22,7 +24,7 @@ export type TypeFieldProps = Readonly<{
 export const str = (value: unknown): string => (typeof value === "string" ? value : "");
 
 export type Text = Readonly<{ ar?: string; en?: string }>;
-export type Item = Readonly<{ id: string; text: Text }>;
+export type Item = Readonly<{ id: string; text: Text; image?: string }>;
 
 export const newId = () => crypto.randomUUID();
 export const newItem = (): Item => ({ id: newId(), text: {} });
@@ -71,19 +73,24 @@ export function TextPair({
   );
 }
 
-/** A list of options (a vote's, or one quiz question's choices): at least 2, each in both languages. */
+/**
+ * A list of options (a vote's, or one quiz question's choices): at least 2, each in both languages; a vote's may each
+ * carry an organizer icon (`images`, ADR-190), shown where this server stores images.
+ */
 export function OptionList({
   language,
   items,
   most,
   disabled,
   change,
+  images = false,
 }: Readonly<{
   language: Language;
   items: readonly Item[];
   most: number;
   disabled: boolean;
   change: (items: readonly Item[]) => void;
+  images?: boolean;
 }>) {
   const t = translatorFor(language);
   const edit = (id: string, text: Text) =>
@@ -102,6 +109,18 @@ export function OptionList({
             disabled={disabled}
             change={(text) => edit(item.id, text)}
           />
+          {images ? (
+            <ImageField
+              language={language}
+              purpose="icon"
+              label={t("image.option", { n: index + 1 })}
+              value={item.image ?? null}
+              disabled={disabled}
+              onChange={(image) =>
+                change(items.map((one) => (one.id === item.id ? withImage(one, image) : one)))
+              }
+            />
+          ) : null}
           {items.length > 2 ? (
             <Button
               variant="quiet"

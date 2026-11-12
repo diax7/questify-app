@@ -66,12 +66,24 @@ export function emptyPart(kind: PageBlockKind): PageBlock {
       return { kind, text: EMPTY_TEXT };
     case "list":
       return { kind, items: EMPTY_TEXT };
+    case "image":
+      // An image part waits for its picture: the save refuses it until one is chosen.
+      return { kind, image: "", alt: EMPTY_TEXT };
     default:
       return { kind, label: EMPTY_TEXT, url: "" };
   }
 }
 
 export const canAddPart = (page: CustomPage): boolean => page.blocks.length < PAGE_BLOCKS_MAX;
+
+/** A slide, a text card or the featured item with this organizer image, or with none (the key left out, T-610b). */
+export function withImage<T extends Readonly<{ image?: string }>>(
+  item: T,
+  image: string | null,
+): T {
+  const { image: _old, ...rest } = item;
+  return (image === null ? rest : { ...rest, image }) as T;
+}
 
 export const newTextCard = (id: string): TextCard => ({
   id,

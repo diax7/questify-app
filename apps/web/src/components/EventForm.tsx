@@ -640,6 +640,8 @@ function EventFeatures({
         organizerId={organizerId}
         eventId={event.id}
         initial={event.branding?.accent ?? null}
+        initialLogo={event.branding?.logo ?? null}
+        initialBanner={event.branding?.banner ?? null}
       />
       <Section title={t("events.section.features")}>
         {failed ? (

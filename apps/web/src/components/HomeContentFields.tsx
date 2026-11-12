@@ -34,6 +34,7 @@ type TextField = Extract<
   | "layout.field.question"
   | "layout.field.answer"
   | "layout.field.items"
+  | "layout.part.imageAlt"
 >;
 
 /** The section a block's editor sits in, under its list: the block's name and a button to close it. */

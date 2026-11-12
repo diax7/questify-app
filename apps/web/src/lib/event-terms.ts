@@ -21,14 +21,27 @@ export async function fetchEventTerms(request: EventTermsRequest): Promise<Event
   return (await fetchEventFrame(request)).terms;
 }
 
-/** What the event's frame shows: its words, and Questify's suspension of it with the reason (T-701, Q-372). */
-export type EventFrame = Readonly<{ terms: EventTerms; suspension: Suspension | null }>;
+/**
+ * What the event's frame shows: its words, Questify's suspension of it with the reason (T-701, Q-372), and whether
+ * this server stores images, so the event pages show their image fields (ADR-829).
+ */
+export type EventFrame = Readonly<{
+  terms: EventTerms;
+  suspension: Suspension | null;
+  photos: boolean;
+}>;
 
-const PLAIN_FRAME: EventFrame = { terms: DEFAULT_TERMS, suspension: null };
+const PLAIN_FRAME: EventFrame = { terms: DEFAULT_TERMS, suspension: null, photos: false };
 
 function frameOf(body: unknown): EventFrame {
-  const event = (body as { event?: { terms?: unknown; suspension?: unknown } } | undefined)?.event;
-  return { terms: readEventTerms(event?.terms), suspension: readSuspension(event?.suspension) };
+  const event = (
+    body as { event?: { terms?: unknown; suspension?: unknown; photos?: unknown } } | undefined
+  )?.event;
+  return {
+    terms: readEventTerms(event?.terms),
+    suspension: readSuspension(event?.suspension),
+    photos: event?.photos === true,
+  };
 }
 
 /** The event's words and suspension in one read, falling back to the defaults and no banner as above. */

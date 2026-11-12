@@ -145,6 +145,7 @@ export function MapEditor({
       <MapBoard
         label={t("maps.page.board", { name: mapName(map, language) })}
         pins={map.pins}
+        image={map.image ?? null}
         labelOf={labelOf}
         selectedId={edit?.id ?? null}
         draft={

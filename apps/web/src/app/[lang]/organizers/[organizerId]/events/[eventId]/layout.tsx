@@ -1,6 +1,7 @@
 import { cookies, headers } from "next/headers";
 import type { ReactNode } from "react";
 import { OrganizerShell } from "#src/components/OrganizerShell.tsx";
+import { ImageScope } from "#src/components/ImageField.tsx";
 import { TermsScope } from "#src/components/TermsScope.tsx";
 import { webConfig } from "#src/lib/config.ts";
 import { fetchEventFrame } from "#src/lib/event-terms.ts";
@@ -34,7 +35,9 @@ export default async function EventLayout({ children, params }: Props) {
   return (
     <TermsScope terms={frame.terms}>
       <OrganizerShell page={page} event={{ id: eventId, suspension: frame.suspension }}>
-        {children}
+        <ImageScope organizerId={organizerId} eventId={eventId} photos={frame.photos}>
+          {children}
+        </ImageScope>
       </OrganizerShell>
     </TermsScope>
   );

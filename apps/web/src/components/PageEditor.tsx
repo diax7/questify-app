@@ -12,6 +12,7 @@ import {
 } from "@questify/shared";
 import { EntryList, type EntryNames } from "#src/components/EntryList.tsx";
 import { TextPair } from "#src/components/HomeContentFields.tsx";
+import { ImageField, useImagesOn } from "#src/components/ImageField.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { emptyPage, emptyPart } from "#src/lib/home-content-editor.ts";
 import { Button } from "#src/ui/Button.tsx";
@@ -67,6 +68,25 @@ function PartEditor({
           onChange={(items) => onChange({ ...value, items })}
         />
       );
+    case "image":
+      return (
+        <>
+          <ImageField
+            language={language}
+            purpose="picture"
+            label={t("layout.part.image")}
+            value={value.image === "" ? null : value.image}
+            onChange={(image) => onChange({ ...value, image: image ?? "" })}
+          />
+          <TextPair
+            language={language}
+            field="layout.part.imageAlt"
+            value={value.alt}
+            max={INFO_LIMITS.imageAlt}
+            onChange={(alt) => onChange({ ...value, alt })}
+          />
+        </>
+      );
     default:
       return (
         <>
@@ -98,9 +118,12 @@ function AddParts({
   onChange,
 }: Readonly<{ language: Language; page: CustomPage; onChange: (next: CustomPage) => void }>) {
   const t = useTranslator(language);
+  // An image part only where this server stores images (ADR-829).
+  const imagesOn = useImagesOn();
+  const kinds = PAGE_BLOCK_KINDS.filter((kind) => kind !== "image" || imagesOn);
   return (
     <>
-      {PAGE_BLOCK_KINDS.map((kind) => (
+      {kinds.map((kind) => (
         <Button
           key={kind}
           variant="secondary"
@@ -115,7 +138,7 @@ function AddParts({
 
 /**
  * The editor of the one extra page (FR-1835): a title and up to twelve parts, each a heading, a paragraph, a list or a link, in
- * the order they are shown. Pictures wait for the photo storage (T-613b). With no page there is a button to add one; with a
+ * the order they are shown, and a picture where this server stores images (T-613b). With no page there is a button to add one; with a
  * page there is a button to remove it, which asks first.
  */
 export function PageEditor({

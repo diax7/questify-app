@@ -23,9 +23,10 @@ import {
   type EditorContext,
   type PickOption,
 } from "#src/components/HomeContentFields.tsx";
+import { ImageField } from "#src/components/ImageField.tsx";
 import { PageEditor } from "#src/components/PageEditor.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
-import { emptyLink } from "#src/lib/home-content-editor.ts";
+import { emptyLink, withImage } from "#src/lib/home-content-editor.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { Field, Input, Select } from "#src/ui/Field.tsx";
 
@@ -96,7 +97,14 @@ function FeaturedEditor({ value, onChange, context }: EditorProps<HomeContent["f
         <Field label={t("layout.field.item")}>
           <Select
             value={value.id}
-            onChange={(event) => onChange({ kind: value.kind, id: event.target.value })}
+            onChange={(event) =>
+              onChange(
+                withImage<NonNullable<HomeContent["featured"]>>(
+                  { kind: value.kind, id: event.target.value },
+                  value.image ?? null,
+                ),
+              )
+            }
           >
             <option value="">{t("layout.choose")}</option>
             {options.map((option) => (
@@ -107,11 +115,21 @@ function FeaturedEditor({ value, onChange, context }: EditorProps<HomeContent["f
           </Select>
         </Field>
       )}
+      {value === null ? null : (
+        <ImageField
+          language={context.language}
+          purpose="picture"
+          label={t("image.card")}
+          value={value.image ?? null}
+          onChange={(image) => onChange(withImage(value, image))}
+        />
+      )}
     </>
   );
 }
 
 function TextCardEditor({ value, onChange, context }: EditorProps<TextCard>) {
+  const t = useTranslator(context.language);
   return (
     <>
       <TextPair
@@ -128,6 +146,13 @@ function TextCardEditor({ value, onChange, context }: EditorProps<TextCard>) {
         max={CONTENT_LIMITS.cardBody}
         multiline
         onChange={(body) => onChange({ ...value, body })}
+      />
+      <ImageField
+        language={context.language}
+        purpose="picture"
+        label={t("image.card")}
+        value={value.image ?? null}
+        onChange={(image) => onChange(withImage(value, image))}
       />
     </>
   );

@@ -190,6 +190,8 @@ function pageOf(content: HomeContent, language: Language): PreviewPage | null {
       : page.blocks.flatMap((block) => {
           if (block.kind === "link") return [pickText(block.label, language)];
           if (block.kind === "list") return listItems(pickText(block.items, language));
+          // The preview is words only: a picture shows as its description.
+          if (block.kind === "image") return [pickText(block.alt, language)];
           return [pickText(block.text, language)];
         });
   return title === "" || nonEmpty(lines).length === 0 ? null : { title, lines: nonEmpty(lines) };

@@ -13,8 +13,9 @@ import {
   type ActionKind,
   type PickOption,
 } from "#src/components/HomeContentFields.tsx";
+import { ImageField } from "#src/components/ImageField.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
-import { emptySlide } from "#src/lib/home-content-editor.ts";
+import { emptySlide, withImage } from "#src/lib/home-content-editor.ts";
 import { Button } from "#src/ui/Button.tsx";
 
 const SLIDE_NAMES: EntryNames = {
@@ -36,6 +37,7 @@ function SlideEditor({
   kinds: readonly ActionKind[] | undefined;
   onChange: (next: BannerSlide) => void;
 }>) {
+  const t = useTranslator(language);
   return (
     <>
       <TextPair
@@ -59,6 +61,13 @@ function SlideEditor({
         quests={quests}
         kinds={kinds}
         onChange={(action) => onChange({ ...value, action })}
+      />
+      <ImageField
+        language={language}
+        purpose="banner"
+        label={t("image.slide")}
+        value={value.image ?? null}
+        onChange={(image) => onChange(withImage(value, image))}
       />
     </>
   );

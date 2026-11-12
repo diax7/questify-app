@@ -218,6 +218,7 @@ function VoteFields({ language, config, disabled, change, sent = false }: TypeFi
       <OptionList
         language={language}
         items={itemsOf(config["options"], 2)}
+        images
         most={10}
         disabled={disabled}
         change={(options) => change({ ...config, options })}

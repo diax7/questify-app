@@ -1,7 +1,8 @@
 "use client";
 
-import { MAP_LIMITS, type TeamMapPin } from "@questify/shared";
+import { MAP_LIMITS, type SizedImage, type TeamMapPin } from "@questify/shared";
 import type { MouseEvent } from "react";
+import { useTeamImageSrc } from "#src/components/ImageField.tsx";
 import { PIN_GLYPH } from "#src/lib/maps.ts";
 import styles from "#src/components/maps.module.css";
 
@@ -28,6 +29,7 @@ function placeOf(event: MouseEvent<HTMLButtonElement>): { x: number; y: number }
 export function MapBoard({
   label,
   pins,
+  image = null,
   labelOf,
   selectedId,
   draft,
@@ -36,14 +38,25 @@ export function MapBoard({
 }: Readonly<{
   label: string;
   pins: readonly TeamMapPin[];
+  /** The map's picture (T-506b): the board takes its aspect from it, and the pins keep their thousandths. */
+  image?: SizedImage | null;
   labelOf: (pin: TeamMapPin) => string;
   selectedId: string | null;
   draft: Readonly<{ x: number; y: number }> | null;
   onPlace: (place: { x: number; y: number }) => void;
   onSelect: (pin: TeamMapPin) => void;
 }>) {
+  const src = useTeamImageSrc(image?.id);
+  const picture =
+    image === null || src === null
+      ? undefined
+      : {
+          aspectRatio: `${image.width} / ${image.height}`,
+          backgroundImage: `url("${src}")`,
+          backgroundSize: "100% 100%",
+        };
   return (
-    <div className={styles.board} role="group" aria-label={label}>
+    <div className={styles.board} role="group" aria-label={label} style={picture}>
       <button
         type="button"
         className={styles.surface}

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
 import { ExplainThis } from "#src/components/ExplainThis.tsx";
 import { MapEditor, type MapWrites } from "#src/components/MapEditor.tsx";
+import { ImageField } from "#src/components/ImageField.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { mapName, pinnedQuestIds } from "#src/lib/maps.ts";
 import { mapFailure, useMaps, type MapsProps } from "#src/lib/use-maps.ts";
@@ -15,7 +16,13 @@ import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Row, Rows, Section, Stack, Toolbar } from "#src/ui/Section.tsx";
 import { infoTip } from "#src/ui/info.tsx";
 
-type NameEdit = Readonly<{ id: string | null; nameAr: string; nameEn: string }>;
+/** A map being added or renamed, with its picture (T-506b), null for the plain board. */
+type NameEdit = Readonly<{
+  id: string | null;
+  nameAr: string;
+  nameEn: string;
+  image: string | null;
+}>;
 
 /** The panel's writes: each runs one request and says what happened, or why not. */
 function useMapWrites(props: MapsProps) {
@@ -94,6 +101,14 @@ function NameForm({
             />
           </Field>
         </FieldGroup>
+        <ImageField
+          language={language}
+          purpose="map"
+          label={t("image.map")}
+          value={edit.image}
+          disabled={busy}
+          onChange={(image) => change({ ...edit, image })}
+        />
         <Toolbar align="end">
           <Button variant="quiet" disabled={busy} onClick={cancel}>
             {t("common.cancel")}
@@ -257,7 +272,7 @@ function useMapActions(
   }>,
 ) {
   const saveName = (edit: NameEdit) => {
-    const body = { nameAr: edit.nameAr, nameEn: edit.nameEn };
+    const body = { nameAr: edit.nameAr, nameEn: edit.nameEn, image: edit.image };
     const path = edit.id === null ? "" : `/${edit.id}`;
     void writes
       .run(edit.id === null ? "POST" : "PUT", path, body, () => t("maps.page.saved"))
@@ -336,7 +351,12 @@ function MapsContent({
         opened={{
           select: state.setSelectedId,
           rename: (map) =>
-            state.setNameEdit({ id: map.id, nameAr: map.nameAr ?? "", nameEn: map.nameEn ?? "" }),
+            state.setNameEdit({
+              id: map.id,
+              nameAr: map.nameAr ?? "",
+              nameEn: map.nameEn ?? "",
+              image: map.image?.id ?? null,
+            }),
           remove: state.setRemoving,
         }}
       />
@@ -376,7 +396,7 @@ export function MapsPanel(props: MapsProps) {
               <Button
                 variant="primary"
                 disabled={maps === null || model.busy}
-                onClick={() => setNameEdit({ id: null, nameAr: "", nameEn: "" })}
+                onClick={() => setNameEdit({ id: null, nameAr: "", nameEn: "", image: null })}
               >
                 {t("maps.page.add")}
               </Button>
