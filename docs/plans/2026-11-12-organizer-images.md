@@ -269,3 +269,59 @@ in the API, the dashboard (`ImageField`, `ImageScope` from the event's frame) an
   unchanged for older readers.
 - The dashboard's previews and the live poll card draw no pictures (FOLLOWUPS); the event banner shows at the top of
   Home, the logo in the event pill.
+
+## 9. As built (Part B, T-504b photo wall, 2026-11-12) and hand mutants
+
+**The Part B plan** is section 4 with section 7's decisions (which win), both above and unchanged.
+
+**Built:** migration 0195 (`submission.on_screen` with its CHECK, the unique `(id, event_id)` key, `photo_wall` with the
+composite key to it, `photo_wall_ok`, the release trigger `submission_wall_forget`, `submit_quest` with six arguments and
+the five-argument wrapper storing false, `own_photo_on_screen`, `own_submissions` with `on_screen`, the team's
+`event_wall_candidates`, `event_photo_wall` and `set_photo_wall`, `screen_photos`, `member_photo_wall`,
+`member_photo_wall_on`, the `photo` scene (`big_screen_scenes_ok` up to four, offered by `big_screen_json`), the `media`
+hold and report kind through `hold_target`, `report_event`, `report_snapshot`, `report_target_seen`, `report_content` and
+`admin_report_resolve`, `admin_report_media_key`, and `data_export_event_play` with `onScreen`); the API
+(`src/screen/photo-wall.ts`, the photo scene signed in the scene reader, the picker and the player routes,
+`stableWallUrl`, `photoWall` on Home and on the player's submissions, the console's reported photo); the web (the
+`PhotoScene`, the `PhotoWallPanel` picker on the Big screen page, the console report's photo); the app
+(`OnScreenSwitch` at the send and afterwards, `PhotoWallEntry` on Home with Report and Block). ADR-830; Q-766 reopened.
+
+**Deviations from sections 4 and 7:**
+- The consent door is `PUT /v1/events/{e}/submissions/{id}/on-screen` (event-scoped, so the suspension wall needs no new
+  derived param) and `own_photo_on_screen(event, submission, allowed)` takes the event; another event's id is PW404.
+- `admin_unpublish`, `admin_republish` and `console_report` are not restated: their only kind rule is `hold_target`'s,
+  and `console_report` reads the snapshot, event and hold through the restated helpers. `admin_report_media_key(media)`
+  takes the media id (it answers a key only for a photo someone reported).
+- The cap is one: 20 picks, and the screen and the app show at most 20 (section 4's 50 dropped, section 7 (8)).
+- Without a bucket the dashboard is not offered the photo scene (`offered` drops it) and the scene answers
+  `{shut: null, photos: []}`; Home's and the send form's `photoWall` are false and read nothing.
+- The dashboard's queue does not show an "allowed on screen" badge yet (it needs `queue_rows` restated; FOLLOWUPS); the
+  picker lists only allowed photos.
+- Section 7 M2: the screen keeps a photo's first loaded URL while its id stays in the answer (`keptPhotos`); the
+  member read is `no-store`, each URL lasts 60 to 120 seconds (signed from the minute's start).
+
+**Hand mutants** (`.scratch`-style runner: each edit alone, its suite, then restored):
+
+| Mutant | File | Result | Test |
+|---|---|---|---|
+| drop `on_screen` from `photo_wall_ok` | 0195 | killed | `test/db/photo-wall` "refuses a photo that is not eligible" |
+| drop the `media` hold check | 0195 | killed | "the photo held by Questify, back after a republish" |
+| drop the quest hold check | 0195 | killed | "the quest held by Questify" |
+| drop the active enrollment and player check | 0195 | killed | "banned player", "left the event" |
+| drop `blocked_by_me` | 0195 | killed | "hides a photo of a player the reader blocked" |
+| `screen_photos` without `screen_event` | 0195 | killed | "reads its own event only" and the rule cases |
+| `set_photo_wall` without its eligibility check | 0195 | killed | "pending is never eligible", "ties a pick to its event" |
+| `own_photo_on_screen` without the ownership check (M6) | 0195 | killed | "is the player's own photo submission of that event only" |
+| a withdrawal keeps the pick | 0195 | killed | "not allowed: the player withdrew" |
+| `member_photo_wall` without `photo_wall_live` | 0195 | killed | "refuses while the photo scene is not running" |
+| a `media` report without the on-wall rule | 0195 | killed | "reports a photo on the reader's wall ... RP404 once it is off" |
+| the scene answer keeps `key` (M3) | `screen/photo-wall.ts` | killed | `photo-wall.test` "drops each key" |
+| wall URLs signed from now, not the minute (M2) | `storage/signed.ts` | killed | `photo-wall.test` "one URL within a minute" |
+| drop the event match in `photo_wall_ok` alone (B1) | 0195 | survived (equivalent: every caller also matches the event, `set_photo_wall`'s lookup and the readers' `w.event_id`) | - |
+| drop the event match in `set_photo_wall`'s lookup alone | 0195 | survived (equivalent: `photo_wall_ok` refuses it) | - |
+| drop both event matches (B1) | 0195 | killed | "ties a pick to its event" |
+
+14 of 16 killed; the two survivors each stand in for the other (defence in depth), and dropping both is killed.
+
+**Mutation targets for `mutation.yml`:** `apps/api/src/screen/*.ts`, `apps/api/src/storage/signed.ts`,
+`apps/api/src/storage/read-routes.ts`. The SQL is held by the database tests above.

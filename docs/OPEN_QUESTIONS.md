@@ -3178,7 +3178,12 @@ how long may it work?
 
 ## Q-766 - Photos from players aged 13 to 17 (ADR-828, with Q-042)
 
-**Status:** open; recommended: allowed, as text is, since only the event team sees them and they are deleted on
+**Status:** reopened 2026-11-12 with a new premise (T-504b, ADR-830): a player's photo can now be shown on the event's
+big screen and on the photo wall in the app to every member of the event, not only to the event team. Interim rule:
+the player's own per-photo choice (ADR-084), off by default, and the team's pick; no full name is ever shown, the app
+names the username only. To ask Dhia and counsel: may a player aged 13 to 17 allow their photo on screen at all, or only
+with a guardian's consent, or never (the switch hidden for them)?
+**Earlier status:** open; recommended: allowed, as text is, since only the event team sees them and they are deleted on
 rejection, erasure and after 365 days; counsel to confirm with Q-042.
 **Question:** does a photo from a minor need anything more (a guardian's consent, a shorter retention, or none at all
 for quests that show faces)?

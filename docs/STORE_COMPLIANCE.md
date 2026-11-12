@@ -88,6 +88,12 @@ making physical threats, or bullying do not belong on the App Store". "It is you
 to remove content that violates this guideline, your terms of service, or your community
 standards." [verified 2026-10-16]
 
+**The photo wall (T-504b, ADR-830):** players' photos shown to other players (the big screen and the photo wall in the
+app) are UGC: each is pre-moderated (approved by the event team, picked, allowed by its owner), each photo in the app has
+Report (to Questify's queue, with unpublish) and Block, and the community guidelines are accepted before the first
+submission. Re-check the age-rating "social" answer (1.14) before the next submission: players can now see other
+players' photos.
+
 Related:
 
 - **1.4.5:** "Apps should not urge customers to participate in activities (like bets, challenges,

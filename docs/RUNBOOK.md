@@ -2214,3 +2214,9 @@ The log store must keep `player.deleted` lines at least as long as the oldest ba
 - **Moderation addresses:** console, Reports, Moderation addresses: the urgent-report alert address and the ban appeal
   address; empty means `MAIL_FROM`. The digest goes at most every 10 minutes and 100 times a day; past that only the
   console's urgent count shows new urgent reports.
+
+### Holding a photo on the wall (T-504b, ADR-830)
+A reported wall photo appears in the console's Reports queue as "Wall photo" with its picture. **Unpublish** it like a
+quest (a reason and a note): it leaves the screen at the screen's next read (3 seconds) and the app's wall at its next
+read. **Republish** brings it back if it is still picked and allowed. To take a photo down for good, the event team
+rejects or removes the submission (the photo is deleted). This replaces the phase 1 manual procedure for wall photos.

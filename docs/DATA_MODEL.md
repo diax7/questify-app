@@ -1286,6 +1286,15 @@ event delete cascading). `quest_verification_known` takes `screen_qr` on scan qu
 `device_claim_check`, `make_device`, `device_json`, `revoke_devices_of`. `app_device_id()` reads `app.device_id`, set only
 by the API's device guard. Devices are kept by the rehearsal wipe.
 
+### photo_wall, submission.on_screen (migration 0195, T-504b, ADR-830)
+**Built:** `submission.on_screen boolean NOT NULL DEFAULT false` (CHECK: a photo only) and the unique key
+`submission (id, event_id)`. `photo_wall (submission_id primary key, event_id, organizer_id, position 1..20, picked_by →
+staff_user SET NULL, picked_at)`, unique `(event_id, position)`, `(submission_id, event_id)` → `submission` CASCADE,
+`(event_id, organizer_id)` → `event` CASCADE. Row-level security forced, no grant; written by `set_photo_wall`, cleared
+by `own_photo_on_screen` (off) and the trigger `submission_wall_forget` (the photo let go). `photo_wall_ok` is checked at
+every read. `content_hold.kind` and `content_report.target_kind` take `media` (the `media_object` id). The data export's
+submissions carry `onScreen`. `big_screen.scenes` may hold `photo` (up to four scenes).
+
 ### big_screen (migration 0083, T-504, ADR-365)
 **Built:** `big_screen (event_id primary key, organizer_id, scenes text[], updated_at, updated_by → staff_user SET NULL)`, `(event_id,
 organizer_id)` → `event` CASCADE; `scenes` is the picked scenes in display order (`big_screen_scenes_ok`: only `ranking`,

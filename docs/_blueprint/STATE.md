@@ -1,5 +1,18 @@
 # Blueprint State — Questify
 
+## Photo phase 2 part B, T-504b photo wall (migration 0195) — 2026-11-12
+
+- **Built (tier A; plan `docs/plans/2026-11-12-organizer-images.md` sections 4 and 7, as built in section 9; code review
+  and mutation owed; not run on a TV or a phone).** 0195: per-photo consent (`on_screen`, off by default, withdraw at
+  any time), the team's pick of up to 20 tied to its event, `photo_wall_ok` at every read, the screen's `photo` scene
+  (no names, keys signed as stable 120 s URLs), the app's photo wall on Home with Report and Block, `media` holds and
+  reports in the console. Off and harmless without a bucket. ADR-830 (amends ADR-054, ADR-068), Q-766 reopened.
+  Hand mutants: 14 of 16 killed, two equivalent.
+- **Tests:** see the worker's report (full API suite once into `wall-full.log`); touched suites, security, catalog,
+  web and app units, types, lint, format, function limits green. CI minutes: not yet pushed.
+- **Next:** the code review; mutation (`apps/api/src/screen/*.ts`, `storage/signed.ts`, `storage/read-routes.ts`);
+  Q-766 to Dhia and counsel; a look on a TV and both phones; the age-rating answer re-check.
+
 ## Photo phase 2 part A, organizer images (migration 0194) — 2026-11-12
 
 - **Built (tier B; plan `docs/plans/2026-11-12-organizer-images.md` sections 2, 3 and its as-built section 8; code

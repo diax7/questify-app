@@ -9207,3 +9207,31 @@ nothing is left behind once nothing names it.
 image already deleted (the read answers 404 and the art falls back). The app asks for JSON instead of following the 302,
 so no redirect carries its token to the bucket (plan section 5's fallback, taken first). The dashboard previews and
 the screen poll draw no pictures yet (FOLLOWUPS).
+
+## ADR-830 - The photo wall: per-photo consent, a pick tied to its event, one rule at every read, and an in-app wall with Report and Block (amends ADR-054 and ADR-068)
+
+**Status:** Proposed (T-504b, 2026-11-12; plan `docs/plans/2026-11-12-organizer-images.md` sections 4, 7 and 9).
+Amends ADR-054 (the photo wall scene) and ADR-068 (safety); builds on ADR-828 and ADR-829. Q-766 reopened.
+**Decision:**
+- **Consent is per photo and off by default** (ADR-084): `submission.on_screen`, set at the send (`onScreen`) or later
+  through `PUT /v1/events/{e}/submissions/{id}/on-screen`. The switch names both places the photo can appear: the big
+  screen and the event's photo wall in the app. An older app sends nothing, which is no. Withdrawing deletes the pick
+  at once; allowing again shows nothing until the team picks it again.
+- **The team picks up to 20 photos in order** (`photo_wall`, a composite key to `submission (id, event_id)`), only from
+  approved photos their owners allowed. `set_photo_wall` replaces the pick and is audited `photo_wall.update` (ids only).
+- **One rule at every read** (`photo_wall_ok`): this event, approved, a photo still there, allowed, not erased, its
+  player and enrollment active, neither the photo (`media` hold, new) nor its quest held. A rejection, removal or
+  erasure deletes the pick; a ban or a hold only hides it.
+- **The screen** reads `screen_photos` (its own event only, keys signed by the API and dropped) and shows no name at all.
+- **In the app (amends ADR-054):** the event's members see the same photos while the photo scene runs (not while the
+  screen is shut), without the players they blocked, each with its owner's username, **Report** (a `media` report,
+  only while the photo is on the reader's wall) and **Block**. This is the UGC report path STORE_COMPLIANCE 1.2 asks for;
+  the age-rating "social" answer is re-checked with it (STORE_COMPLIANCE 1.14).
+- **Moderation (amends ADR-068):** Questify's console unpublishes a wall photo like a quest (`content_hold` kind
+  `media`), sees it through a 5-minute signed URL, and republishes it.
+- **Links:** every wall URL is signed for 120 seconds from the start of the current minute, so reads within a minute
+  answer the same URL; a signed URL cannot be revoked, so a withdrawn photo can stay loadable for up to two minutes on a
+  device that already has its link (the screen drops it at its next read).
+- **No bucket, no wall:** the scene is not offered and answers an empty list; Home's `photoWall` is false.
+**Why:** the room watches together (ADR-054), but a photo of a person on a public screen needs that person's choice,
+the team's pick, and a way to take it down quickly.

@@ -520,6 +520,13 @@ T-501d); every helper and trigger function is granted to nobody (outsider suite,
 | 10 | Leaked signing keys (wallet certificate, push keys, `QR_SECRET`, `REWARD_CODE_SECRET`) | Information disclosure | Keys only in the secret store, access limited and logged; expiry alerts; rotation procedure written before launch (`QR_SECRET`: RUNBOOK; `REWARD_CODE_SECRET`: RUNBOOK "Rotating `REWARD_CODE_SECRET`", a re-seal that keeps every code readable, T-810f). A reward code reaches only the player who redeemed it: never a log, an audit row, an error body or the dashboard; the in-memory idempotency cache holds the reserve answer for its replay, so a shared or persistent cache must exclude it |
 | 11 | A script injected into the web origin (XSS) acts as the signed-in player (T-803 P2) | Elevation of privilege | The origin also serves the dashboard, the kiosk pages and organizer content. The player cookie is HttpOnly, so a script cannot read or carry away the tokens, but it can act as the player through the cookie for as long as the page is open, including a contact change (pathway row 13 sends the code only to the new contact), which is a lasting account takeover. **Ship gate:** no production `/play` and no cookie issuance until P3's `/play` content-security policy is in; the forwarder's cookie steps stay behind `PLAYER_WEB_SESSION`, off by default. **P3 (2026-11-10):** the `/play` CSP is in (ADR-822: `script-src 'self' 'wasm-unsafe-eval'`, no inline script, `connect-src 'self'`, `frame-ancestors 'none'`; camera and location for `/play` only); the switch is on in `ops/cranl/staging.json` and not in production, where Dhia turns it on. A step-up code for a contact change from a `web` family is Q-758 |
 
+### The photo wall (T-504b, ADR-830)
+A player's photo reaches other people only through `photo_wall_ok`: approved, allowed by its owner, picked by the
+event's team, of that event (checked twice: the pick's composite key and the rule), owner active, not held. The screen
+reads its own event only (`screen_event`, a device seat, never a player); members read it only while the scene runs,
+without players they blocked. No reader gets a key: the API signs 120-second URLs from the minute's start and drops the
+key. No full name is ever shown (Q-766). A withdrawn photo's already-issued link can load for up to two minutes.
+
 ### Photo storage (T-301b, ADR-828)
 
 | Wall | Where it holds |
