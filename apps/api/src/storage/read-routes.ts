@@ -62,7 +62,10 @@ async function redirect(
     IMAGE_URL_SECONDS,
     key.endsWith(".png") ? "image/png" : "image/jpeg",
   );
-  reply.header("cache-control", IMAGE_CACHE).header("referrer-policy", "no-referrer");
+  reply
+    .header("cache-control", IMAGE_CACHE)
+    .header("vary", "accept")
+    .header("referrer-policy", "no-referrer");
   // The app asks for JSON (its client always does): it then loads the URL itself, so no redirect can carry its token
   // on to the bucket (plan section 5). A browser's <img> asks for an image and follows the 302.
   if (wantsJson(request)) {
