@@ -1396,7 +1396,7 @@ JavaScript-only change (from `apps/app`, committed tree):
 EXPO_TOKEN="$(cat /home/deploy/.config/questify/expo-token)" \
 EXPO_PUBLIC_API_URL=https://questify-api-staging-3ez01s.cranl.net \
 EXPO_PUBLIC_QUEST_CODE_ORIGIN=https://questify.nafes.com \
-  $EAS update --channel demo --platform all --message "<what changed>" --non-interactive
+  $EAS update --channel demo --environment preview --platform all --message "<what changed>" --non-interactive
 ```
 
 The `EXPO_PUBLIC_*` values must be given here: `eas update` bundles on this machine and does **not** read a build
