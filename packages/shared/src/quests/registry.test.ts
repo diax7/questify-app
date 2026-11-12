@@ -8,6 +8,7 @@ import {
   isLivePoll,
   isQuestType,
   parseQuestConfig,
+  SUBMISSION_ACCEPTS,
   unavailableSubmissionKind,
 } from "#src/quests/registry";
 
@@ -61,13 +62,21 @@ describe("submission quests", () => {
     });
   });
 
-  it("refuse photo and video, and name which one was asked for", () => {
-    expect(parseQuestConfig("submission", { accepts: ["photo"] })).toBeUndefined();
+  it("accept text, a photo or either, and refuse video and anything else (T-301b)", () => {
+    for (const accepts of SUBMISSION_ACCEPTS) {
+      expect(parseQuestConfig("submission", { accepts })).toMatchObject({ accepts });
+    }
+    expect(parseQuestConfig("submission", { accepts: ["photo", "text"] })).toBeUndefined();
     expect(parseQuestConfig("submission", { accepts: ["text", "video"] })).toBeUndefined();
     expect(parseQuestConfig("submission", { accepts: [] })).toBeUndefined();
+  });
+
+  it("name the kind this server cannot take: video always, a photo without a bucket", () => {
     expect(unavailableSubmissionKind({ accepts: ["text", "video"] })).toBe("video");
+    expect(unavailableSubmissionKind({ accepts: ["text", "video"] }, true)).toBe("video");
     expect(unavailableSubmissionKind({ accepts: ["photo", "video"] })).toBe("video");
     expect(unavailableSubmissionKind({ accepts: ["photo"] })).toBe("photo");
+    expect(unavailableSubmissionKind({ accepts: ["text", "photo"] }, true)).toBeUndefined();
     expect(unavailableSubmissionKind({ accepts: ["text"] })).toBeUndefined();
     expect(unavailableSubmissionKind({ accepts: "photo" })).toBeUndefined();
     expect(unavailableSubmissionKind(null)).toBeUndefined();

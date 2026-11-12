@@ -84,9 +84,12 @@ import type { Ranking } from "#src/ranking/ranking";
 import { ORGANIZER_PREFIX } from "#src/route-access";
 import { registerFeatureRequestTeamRoutes } from "#src/settings/feature-request-routes";
 import type { SettingsService } from "#src/settings/service";
+import type { ObjectStore } from "#src/storage/client";
 
 export type OrganizerRoutesDeps = Readonly<{
   pool: Pool;
+  /** The photo bucket (T-301b): the review queue and the Help desk sign their photos; the builder offers photo quests. */
+  storage: ObjectStore | undefined;
   sessions: Sessions;
   team: Team;
   events: Events;
@@ -377,6 +380,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
         pool: deps.pool,
         ...deps.questCodes,
         settings: deps.settings,
+        photos: deps.storage !== undefined,
       });
       registerRewardBuilderRoutes(scope, { pool: deps.pool, codeKey: deps.rewardCodeKey });
       registerChangeSetRoutes(scope, {
@@ -394,8 +398,12 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       registerReadinessTeamRoutes(scope, { pool: deps.pool });
       registerModerationRoutes(scope, { pool: deps.pool });
       registerAwardRoutes(scope, { pool: deps.pool });
-      registerSubmissionTeamRoutes(scope, { pool: deps.pool, ranking: deps.ranking });
-      registerTicketTeamRoutes(scope, { pool: deps.pool });
+      registerSubmissionTeamRoutes(scope, {
+        pool: deps.pool,
+        ranking: deps.ranking,
+        storage: deps.storage,
+      });
+      registerTicketTeamRoutes(scope, { pool: deps.pool, storage: deps.storage });
       registerPlayTeamRoutes(scope, { pool: deps.pool });
       registerCommunityTeamRoutes(scope, { pool: deps.pool });
       registerSouvenirRoutes(scope, { pool: deps.pool });

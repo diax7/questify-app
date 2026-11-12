@@ -1,5 +1,6 @@
 import type { TicketKind } from "@questify/shared";
 import type { RequestContext } from "#src/db/context";
+import { signedPhoto, type SignedPhoto } from "#src/storage/signed";
 import {
   answeredOf,
   run,
@@ -201,7 +202,8 @@ export type ConsoleTicket = Shared &
     returned: Readonly<{ at: Date; note: string }> | null;
     /** The admin who answered (an email); the player and the team only ever see "The Questify team". */
     answeredBy: string | null;
-  }>;
+  }> &
+  SignedPhoto;
 
 type DetailRow = Omit<QueueRow, "preview"> & {
   body: string;
@@ -211,6 +213,7 @@ type DetailRow = Omit<QueueRow, "preview"> & {
   returned_at: Date | null;
   return_note: string | null;
   answered_by: string | null;
+  photo_key: string | null;
 };
 
 /** One ticket of the queue (HT404 for anything else); the read is audited with the event's ids. */
@@ -237,6 +240,7 @@ export function consoleTicket(
       returned:
         row.returned_at === null ? null : { at: row.returned_at, note: row.return_note ?? "" },
       answeredBy: row.answered_by,
+      ...(await signedPhoto(deps.storage, row.photo_key)),
     };
   });
 }

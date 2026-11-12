@@ -82,14 +82,17 @@ const headerValue = (value: string | string[] | undefined): string | undefined =
 
 /**
  * What a key promises to repeat: the method, the real path (not the route's pattern, so the same key on two quests'
- * `/v1/quests/:questId/complete` is two different requests) and the body.
+ * `/v1/quests/:questId/complete` is two different requests) and the body. A raw body (a photo upload, T-301b) is
+ * hashed as its bytes: as JSON a Buffer would become an array several times its size.
  */
-const bodyHash = (request: FastifyRequest): string =>
-  createHash("sha256")
-    .update(
-      `${request.method} ${request.url.split("?")[0]}\n${JSON.stringify(request.body ?? null)}`,
-    )
-    .digest("hex");
+const bodyHash = (request: FastifyRequest): string => {
+  const hash = createHash("sha256").update(`${request.method} ${request.url.split("?")[0]}\n`);
+  return (
+    Buffer.isBuffer(request.body)
+      ? hash.update("bytes:").update(request.body)
+      : hash.update(JSON.stringify(request.body ?? null))
+  ).digest("hex");
+};
 
 const principal = (request: FastifyRequest): string => request.principalId ?? "anonymous";
 

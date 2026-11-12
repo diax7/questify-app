@@ -1,7 +1,8 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
-import { PLACE_RADIUS } from "@questify/shared";
+import { PLACE_RADIUS, unavailableSubmissionKind } from "@questify/shared";
 import {
+  acceptsLocked,
   categoryInUse,
   categoryNotEmpty,
   hasCompletions,
@@ -269,8 +270,9 @@ export function answer<T>(
   }
 }
 
-/** The live points edits' refusals that carry nothing (T-604). */
+/** The live points edits' refusals that carry nothing (T-604), and a submission quest's fixed `accepts` (T-301b). */
 const LIVE_EDIT_ERRORS = {
+  accepts_locked: acceptsLocked,
   apply_required: applyRequired,
   points_choice_required: pointsChoiceRequired,
   key_required: pastKeyRequired,
@@ -375,6 +377,7 @@ function registerQuestRoutes(scope: FastifyInstance, deps: BuilderDeps & SwitchD
     if (body.type === "location" && !(await locationQuestsOn(deps.settings))) {
       throw platformFeatureOff();
     }
+    refusePhotosOff(deps, body.config);
     const result = await createQuest(
       deps,
       organizerContextOf(request),
@@ -388,6 +391,7 @@ function registerQuestRoutes(scope: FastifyInstance, deps: BuilderDeps & SwitchD
   scope.patch("/events/:eventId/quests/:questId", member, async (request) => {
     const { eventId, questId } = parse(questParams, request.params);
     const body = parse(questPatch, request.body);
+    refusePhotosOff(deps, body.config);
     const key = request.headers["idempotency-key"];
     const given = typeof key === "string" && key.length > 0 ? key : undefined;
     if (given !== undefined && !isIdempotencyKey(given)) {
@@ -438,13 +442,29 @@ function registerQuestRoutes(scope: FastifyInstance, deps: BuilderDeps & SwitchD
  * The quest builder's routes (FR-1004–1008, FR-226–229), inside the organizer scope. Categories and quests are always
  * read under the event in the path, so an id from another event is "not found".
  */
-type SwitchDeps = Readonly<{ settings: Pick<SettingsService, "forEvent"> }>;
+type SwitchDeps = Readonly<{
+  settings: Pick<SettingsService, "forEvent">;
+  /** Whether this server has a photo bucket (T-301b): without one, a photo submission quest is refused. */
+  photos?: boolean;
+}>;
+
+/**
+ * A config that asks for photos on a server with no bucket (T-301b); video is refused by `mergeQuest`. Only a config
+ * the request sends is checked, so a photo quest made earlier keeps its other edits.
+ */
+function refusePhotosOff(deps: SwitchDeps, config: unknown): void {
+  if (unavailableSubmissionKind(config, deps.photos === true) === "photo") {
+    throw submissionKindUnavailable({ asked: "photo" });
+  }
+}
 
 export function registerBuilderRoutes(scope: FastifyInstance, deps: CodeDeps & SwitchDeps): void {
   scope.get("/events/:eventId/quests", member, async (request) => {
     const { eventId } = parse(eventParams, request.params);
     const result = await readBuilder(deps, organizerContextOf(request), eventId);
     return answer(result, (builder) => ({
+      // The dashboard offers photo submission quests only when this server can store photos (T-301b).
+      photos: deps.photos === true,
       focusQuestId: builder.focusQuestId,
       categories: builder.categories.map((category) => ({
         ...categoryView(category),

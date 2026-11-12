@@ -50,6 +50,7 @@ export function testConfig(
     msegatPromoSender: undefined,
     redisUrl: undefined,
     push: { apns: undefined, fcm: undefined },
+    storage: undefined,
   };
 }
 
@@ -166,7 +167,13 @@ export async function startApp(
   extra: Partial<
     Pick<
       AppOptions,
-      "settings" | "translations" | "rankingStore" | "idempotencyStore" | "promoSmsSender" | "push"
+      | "settings"
+      | "translations"
+      | "rankingStore"
+      | "idempotencyStore"
+      | "promoSmsSender"
+      | "push"
+      | "storage"
     >
   > & { rewardCodes?: AppConfig["rewardCodes"] } = {},
 ): Promise<TestApp> {

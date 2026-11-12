@@ -2698,3 +2698,75 @@ export const noContact = make(
   "لا تتوفر هذه الوسيلة في حسابك. اختر الوسيلة الأخرى.",
   "Your account has no contact of that kind. Choose the other one.",
 );
+
+// ================================================================ photos (T-301b)
+/** The server has no photo bucket set up: photo quests and ticket photos are off. */
+export const photosOff = make(
+  503,
+  "photos_off",
+  "إرسال الصور غير متاح الآن.",
+  "Photos aren't available right now.",
+);
+/** The bucket did not take or confirm the photo in time: nothing was attached; send it again. */
+export const storageUnavailable = make(
+  503,
+  "storage_unavailable",
+  "تعذّر حفظ الصورة. حاول مرة أخرى.",
+  "We couldn't save the photo. Try again.",
+);
+/** The bytes are not a JPEG, PNG or WebP (HEIC among them), whatever the request said they were. */
+export const photoType = make(
+  415,
+  "photo_type",
+  "أرسل صورة بصيغة JPEG أو PNG أو WebP.",
+  "Send a JPEG, PNG or WebP photo.",
+);
+/** The photo could not be decoded: truncated, damaged, or larger than 32 million pixels. */
+export const photoUnreadable = make(
+  422,
+  "photo_unreadable",
+  "تعذّرت قراءة الصورة. التقط صورة أخرى أو اختر غيرها.",
+  "We couldn't read this photo. Take or pick another one.",
+);
+/** The upload is over 8 MB. */
+export const photoTooLarge = make(
+  413,
+  "photo_too_large",
+  "حجم الصورة أكبر من 8 ميغابايت.",
+  "The photo is larger than 8 MB.",
+);
+/** Five photos sent in 30 minutes are still waiting to be used: try again after `Retry-After`. */
+export const tooManyPhotos = make(
+  429,
+  "too_many_photos",
+  "أرسلت صورًا كثيرة. حاول بعد قليل.",
+  "You've sent many photos. Try again shortly.",
+);
+/** The photo id is not the caller's stored, unused upload for this event (or it expired after 30 minutes). */
+export const photoUnusable = make(
+  422,
+  "photo_unusable",
+  "انتهت صلاحية الصورة. التقطها أو اخترها من جديد.",
+  "This photo has expired. Take or pick it again.",
+);
+/** A photo-only quest was sent text alone. */
+export const photoRequired = make(
+  422,
+  "photo_required",
+  "هذه المهمة تحتاج إلى صورة.",
+  "This quest needs a photo.",
+);
+/** A photo was sent for a quest that takes text only. */
+export const photoNotAccepted = make(
+  422,
+  "photo_not_accepted",
+  "هذه المهمة لا تقبل الصور.",
+  "This quest doesn't take photos.",
+);
+/** What a submission quest accepts cannot change once it has a submission (migration 0193). */
+export const acceptsLocked = make(
+  409,
+  "accepts_locked",
+  "لا يمكن تغيير نوع المشاركة بعد وصول مشاركات.",
+  "What this quest accepts can't change once submissions arrive.",
+);

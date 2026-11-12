@@ -246,6 +246,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the help desk over HTTP", () =
           preview: "The QR is missing",
           marked: false,
           ticketKind: "problem",
+          hasPhoto: false,
         },
       ],
       nextCursor: null,

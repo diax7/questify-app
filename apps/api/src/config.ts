@@ -5,6 +5,7 @@ import {
   type ServiceAccountKey,
 } from "#src/auth/google-token";
 import type { RewardCodeSecret, RewardCodeSettings } from "#src/rewards/codes";
+import { storageSettings, type StorageSettings } from "#src/storage/config";
 
 export type AuthConfig = Readonly<{
   /** Key material for code hashes and throttle keys; at least 32 characters. */
@@ -72,6 +73,11 @@ export type AppConfig = Readonly<{
    * stay in the in-app center.
    */
   push: PushSettings;
+  /**
+   * The private photo bucket (T-301b, ADR-183): all five S3 variables or none. Without it photo quests and ticket photos
+   * are off.
+   */
+  storage: StorageSettings | undefined;
 }>;
 
 /** The APNs token-based key (`.p8`) and the app it sends for. */
@@ -272,6 +278,7 @@ export function loadConfig(env: Env): AppConfig {
     msegatPromoSender: msegatPromoSender(env),
     redisUrl: redisUrl(env, nodeEnv),
     push: { apns: apns(env), fcm: fcm(env) },
+    storage: storageSettings(env, nodeEnv),
   };
 }
 

@@ -22,6 +22,7 @@ import {
   notFound,
   notOperator,
   outsideOperatorQuests,
+  photoUnusable,
   selfAnswer,
   ticketAlreadyClosed,
   ticketAlreadyReported,
@@ -87,6 +88,8 @@ const sendBody = z
     questId: z.uuid().optional(),
     reportedUsername: z.string().min(USERNAME_MIN).max(USERNAME_MAX).optional(),
     text: textField,
+    // An upload from the ticket photo door (T-301b, FR-337); the database checks it is the sender's own.
+    photoId: z.uuid().optional(),
   })
   .refine((body) => body.kind === "report_player" || body.reportedUsername === undefined)
   .refine((body) => body.kind !== "report_player" || body.questId === undefined);
@@ -229,6 +232,7 @@ const refuseTicket = refusalThrower<TicketRefusal, [reply: FastifyReply]>({
   not_open: () => ticketNotOpen(),
   moved: () => ticketMoved(),
   not_escalated: () => ticketNotEscalated(),
+  photo_unusable: () => photoUnusable(),
 });
 
 /** One HTTP answer per refusal (API.md, Help desk); logged by its reason only, never the text. */
@@ -317,6 +321,7 @@ async function sendEventTicket(deps: Deps, request: FastifyRequest, reply: Fasti
     questId: body.questId ?? null,
     reportedUsername: body.reportedUsername ?? null,
     text: body.text,
+    photoId: body.photoId ?? null,
     idempotencyKey: keyOf(request),
   });
   // Only a name not in the event keeps its place in the count.
@@ -452,6 +457,8 @@ function registerTicketOperatorRoutes(app: FastifyInstance, deps: Deps): void {
   app.get("/v1/operator/events/:eventId/tickets/:ticketId", player, async (request, reply) => {
     const { eventId, ticketId } = parse(ticketParams, request.params);
     await hold(deps, TICKET_LIMITS.operatorReads, request, reply);
+    // A ticket's photo comes as a signed URL: never kept by a cache.
+    reply.header("cache-control", "no-store");
     return {
       ticket: valueOf(
         request,

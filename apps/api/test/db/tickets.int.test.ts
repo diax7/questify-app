@@ -950,6 +950,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("help desk tickets (database)",
         { ref: "enrollment", action: "c" },
         { ref: "enrollment", action: "n" },
         { ref: "event", action: "c" },
+        // The photo (0193): NO ACTION, never RESTRICT; the ticket's delete trigger deletes the object row after it.
+        { ref: "media_object", action: "a" },
         { ref: "player", action: "a" },
         { ref: "player", action: "c" },
         { ref: "quest", action: "n" },
@@ -1218,6 +1220,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("help desk tickets (database)",
         "event_tickets",
         "mark_tickets_seen",
         "open_platform_ticket",
+        // With a photo (0193) and the six-argument door kept for a deploy.
+        "open_ticket",
         "open_ticket",
         "operator_answer_ticket",
         "operator_inbox",
@@ -1229,7 +1233,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("help desk tickets (database)",
         "staff_answer_ticket",
         "staff_escalate_ticket",
       ]);
-      expect(rows).toHaveLength(27);
+      expect(rows).toHaveLength(28);
     });
   });
 });

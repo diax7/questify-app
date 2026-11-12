@@ -1,7 +1,7 @@
 {
   "apps/api/src/app.ts": {
     "buildApp": {
-      "lines": [192]
+      "lines": [179]
     }
   },
   "apps/api/src/audit/entry.ts": {

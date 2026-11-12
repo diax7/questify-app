@@ -107,6 +107,7 @@ describe("sending", () => {
       playerId: PLAYER,
       questId: "q1",
       text: "Hello",
+      photoId: null,
       idempotencyKey: "k1",
     });
     expect(sent).toEqual({
@@ -128,7 +129,7 @@ describe("sending", () => {
       },
     });
     expect(pool.statements.map((statement) => statement.values)).toEqual([
-      ["q1", "Hello", "7", "k1"],
+      ["q1", "Hello", "7", "k1", null],
     ]);
   });
 
@@ -172,6 +173,7 @@ describe("sending", () => {
       playerId: PLAYER,
       questId: "q1",
       text: "Hello",
+      photoId: null,
       idempotencyKey: "k1",
     });
     expect(sent).toMatchObject({
@@ -222,6 +224,9 @@ describe("the queue, removal and seen marks", () => {
         created_at: AT,
         reviewed_at: null,
         seen_at: null,
+        kind: "text",
+        photo_key: null,
+        photo_gone: false,
       },
     ]);
     const queue = await staffQueue(pool.deps, STAFF, { ...PAGE, filter: "pending" });
@@ -235,7 +240,11 @@ describe("the queue, removal and seen marks", () => {
           enrollmentId: "e1",
           username: "sara",
           avatar: "fox",
+          kind: "text",
           text: "Hello",
+          photoUrl: null,
+          photoExpiresAt: null,
+          photoGone: false,
           points: 150,
           status: "pending",
           auto: false,

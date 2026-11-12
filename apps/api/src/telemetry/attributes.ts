@@ -14,6 +14,7 @@ export const TICKS = [
   "team_alerts",
   "ranking_repair",
   "push_worker",
+  "media",
 ] as const;
 export type Tick = (typeof TICKS)[number];
 

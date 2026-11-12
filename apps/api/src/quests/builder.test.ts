@@ -61,11 +61,15 @@ describe("mergeQuest", () => {
 
   it("checks the submission kinds available only on a submission quest", () => {
     const base = { categoryId: "c", title: { en: "Show us" }, points: 5 };
-    const config = { accepts: ["photo"] };
+    const config = { accepts: ["text", "video"] };
     expect(mergeQuest(undefined, "submission", { ...base, config }, ZONE)).toEqual({
       kind: "submission_kind_unavailable",
-      asked: "photo",
+      asked: "video",
     });
+    // Photos pass here (T-301b): the routes refuse them on a server with no bucket.
+    expect(
+      mergeQuest(undefined, "submission", { ...base, config: { accepts: ["photo"] } }, ZONE),
+    ).toMatchObject({ config: { accepts: ["photo"], autoApprove: false, resubmit: false } });
     expect(mergeQuest(undefined, "challenge", { ...base, config }, ZONE)).toEqual({
       kind: "invalid",
       field: "config",

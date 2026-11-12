@@ -313,6 +313,73 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     expect(held).toEqual(doors.map((proname) => ({ proname, grantee: "questify_app" })));
   });
 
+  it("keeps the photo storage closed: eight doors for the API's role alone, two tables with no grant (T-301b)", async () => {
+    const doors = [
+      "media_delete_claim",
+      "media_delete_done",
+      "media_delete_failed",
+      "media_purge_due",
+      "media_release",
+      "media_reserve",
+      "media_stored",
+      "media_sweep_uploads",
+    ];
+    const internals = [
+      "clean_caption",
+      "media_object_forget",
+      "media_seat",
+      "media_system",
+      "photo_holder_forget",
+      "photo_to_attach",
+      "quest_accepts_fixed",
+      "submission_kind_allowed",
+      "submission_photo_release",
+    ];
+    const names = [...doors, ...internals].map((name) => `'${name}'`).join(", ");
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      definer: boolean;
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider, prosecdef AS definer
+        FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND proname IN (${names})`,
+    );
+    expect(functions.map((row) => row.proname).toSorted()).toEqual(
+      [...doors, ...internals].toSorted(),
+    );
+    for (const row of functions) {
+      expect(row.app, row.proname).toBe(doors.includes(row.proname));
+      expect(row.outsider, row.proname).toBe(false);
+      if (doors.includes(row.proname)) expect(row.definer, row.proname).toBe(true);
+    }
+    for (const sql of [
+      "SELECT * FROM public.media_reserve('submission', NULL, gen_random_uuid(), 'k')",
+      "SELECT public.media_stored(gen_random_uuid(), 'k', 1, 1, 1)",
+      "SELECT public.media_release(gen_random_uuid())",
+      "SELECT * FROM public.media_delete_claim(1)",
+      "SELECT public.media_delete_done('{}')",
+      "SELECT public.media_delete_failed(1, 'x')",
+      "SELECT public.media_sweep_uploads()",
+      "SELECT public.media_purge_due(1)",
+      "SELECT * FROM public.submit_quest(gen_random_uuid(), NULL, '1.0', 'k', gen_random_uuid())",
+      "SELECT * FROM public.open_ticket(gen_random_uuid(), 'question', NULL, NULL, 'x', 'k', gen_random_uuid())",
+      "SELECT * FROM public.media_object",
+      "SELECT * FROM public.media_delete",
+      "INSERT INTO public.media_delete (key) VALUES ('o/x.jpg')",
+    ]) {
+      await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+    }
+    expect(
+      await rows(
+        `SELECT table_name, grantee FROM information_schema.role_table_grants
+         WHERE table_name IN ('media_object', 'media_delete') AND grantee <> 'postgres'`,
+      ),
+    ).toEqual([]);
+  });
+
   it("keeps the tier revoke closed: two doors for the API's role alone, the marks with no grant (T-709c)", async () => {
     const doors = ["admin_restore_tiers", "admin_revoke_tiers"];
     const internals = [

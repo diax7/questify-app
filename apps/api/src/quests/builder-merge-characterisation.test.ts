@@ -119,7 +119,8 @@ function oldMergeQuest(
   timeZone: string,
   now: Date = new Date(),
 ) {
-  const asked = type === "submission" ? unavailableSubmissionKind(input.config) : undefined;
+  // T-301b's one meant change: photos are the routes' check (they know the bucket); mergeQuest refuses video only.
+  const asked = type === "submission" ? unavailableSubmissionKind(input.config, true) : undefined;
   if (asked !== undefined) {
     return { kind: "submission_kind_unavailable", asked };
   }
@@ -581,8 +582,8 @@ describe("mergeQuest refusal order", () => {
     [
       "the submission kind over the title",
       "submission",
-      { config: { accepts: ["photo"] } },
-      { kind: "submission_kind_unavailable", asked: "photo" },
+      { config: { accepts: ["text", "video"] } },
+      { kind: "submission_kind_unavailable", asked: "video" },
     ],
     ["the title over the points", "enter_code", {}, { kind: "invalid", field: "title" }],
     [

@@ -128,8 +128,9 @@ export const QUEST_TYPES = {
     }),
   },
   /**
-   * The player sends text; the team reviews it, or it is approved at once (T-301, ADR-184). Photos are T-301b and
-   * video is never in v1 (FR-1006): `accepts` holds text only, and `unavailableSubmissionKind` names what was asked for.
+   * The player sends text, a photo, or either (`accepts`, T-301b, FR-204); the team reviews it, or it is approved at once
+   * (T-301, ADR-184). Video is never in v1 (FR-1006), and photos need the server's bucket: `unavailableSubmissionKind`
+   * names what was asked for that this server cannot take.
    */
   submission: {
     label: "quests.type.submission",
@@ -137,7 +138,13 @@ export const QUEST_TYPES = {
     usesQuestQr: false,
     verifications: [],
     config: z.strictObject({
-      accepts: z.tuple([z.literal("text")]).default(["text"]),
+      accepts: z
+        .union([
+          z.tuple([z.literal("text")]),
+          z.tuple([z.literal("photo")]),
+          z.tuple([z.literal("text"), z.literal("photo")]),
+        ])
+        .default(["text"]),
       autoApprove: z.boolean().default(false),
       resubmit: z.boolean().default(false),
     }),
@@ -312,11 +319,17 @@ export const QUIZ_GRACE_SECONDS = 2;
 /** The longest text a player may send for a submission quest (Q-150). */
 export const SUBMISSION_TEXT_MAX = 1000;
 
+/** What a submission quest may accept (T-301b): text, a photo, or either. */
+export const SUBMISSION_ACCEPTS = [["text"], ["photo"], ["text", "photo"]] as const;
+
 /**
- * The submission kind a config asks for that this version cannot take (FR-1006): `video` (never in v1) or `photo`
- * (T-301b); undefined when it asks for neither.
+ * The submission kind a config asks for that this server cannot take: `video` (never in v1, FR-1006), or `photo` when
+ * the server has no photo bucket (T-301b); undefined otherwise.
  */
-export function unavailableSubmissionKind(config: unknown): "photo" | "video" | undefined {
+export function unavailableSubmissionKind(
+  config: unknown,
+  photos = false,
+): "photo" | "video" | undefined {
   const accepts =
     typeof config === "object" && config !== null
       ? (config as { accepts?: unknown }).accepts
@@ -327,7 +340,7 @@ export function unavailableSubmissionKind(config: unknown): "photo" | "video" | 
   if (accepts.includes("video")) {
     return "video";
   }
-  return accepts.includes("photo") ? "photo" : undefined;
+  return !photos && accepts.includes("photo") ? "photo" : undefined;
 }
 
 export type QuestType = keyof typeof QUEST_TYPES;

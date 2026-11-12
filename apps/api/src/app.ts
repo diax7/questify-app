@@ -30,6 +30,9 @@ import { createSuspendedSet } from "#src/events/suspended-set";
 import { registerHomeRoutes } from "#src/home/routes";
 import { createFirstBonusCache, type FirstBonusCache } from "#src/quests/first-bonus";
 import { registerOperatorAwardRoutes } from "#src/awards/routes";
+import type { ObjectStore } from "#src/storage/client";
+import { registerPhotoRoutes } from "#src/storage/routes";
+import { startMediaWorker } from "#src/storage/worker";
 import { registerSubmissionPlayerRoutes } from "#src/submissions/routes";
 import { registerTicketRoutes } from "#src/tickets/routes";
 import { registerGameRoutes, registerMeetRoutes, registerPlayRoutes } from "#src/plays/routes";
@@ -151,6 +154,13 @@ export type AppOptions = Readonly<{
    * T-501b). Off when not given (tests call the doors); the fan-out and settle run whenever it is on, providers or not.
    */
   push?: Readonly<{ pool: Pool; providers: readonly PushProvider[] }>;
+  /**
+   * The private photo bucket (T-301b), built from the S3 settings. Without it the photo doors answer 503 `photos_off`,
+   * the builder refuses photo quests, and no URL is signed.
+   */
+  storage?: ObjectStore;
+  /** How often the media worker sweeps, purges and deletes (T-301b); off when not given (tests call `runOnce`). */
+  mediaIntervalMs?: number;
 }>;
 
 declare module "fastify" {
@@ -269,6 +279,7 @@ function startTicks(
   }>,
 ): void {
   const stops = startAlertTicks(app, options, deps.emailChange);
+  startMedia(app, options);
   if (options.lifecycleIntervalMs !== undefined) {
     const tick = startLifecycleTick({
       pool: options.pool,
@@ -354,7 +365,7 @@ function registerConsole(app: FastifyInstance, options: AppOptions, shared: Cons
     settings: shared.settings,
     sessions: shared.sessions,
     dashboardOrigin: config.auth.dashboardOrigin,
-    tickets: { pool, keys: shared.keys },
+    tickets: { pool, keys: shared.keys, storage: options.storage },
     questify: { pool },
     invitations: shared.invitations,
     translations: shared.translations,
@@ -430,22 +441,8 @@ function operatorDepsOf(options: AppOptions, keys: AuthKeys) {
 }
 
 /** Builds the API server. Nothing listens until the caller starts it. */
-export function buildApp(options: AppOptions): FastifyInstance {
-  const { config } = options;
-  const app = createServer(options);
-
-  registerConventions(app, {
-    minAppVersion: config.minAppVersion,
-    idempotencyStore: options.idempotencyStore,
-  });
-
-  const signInDeps = {
-    pool: options.pool,
-    keys: createAuthKeys(config.auth.secret, config.auth),
-    email: options.emailSender,
-    gate: createVerifyGate(AUTH_LIMITS.verifyGate),
-    securityAlertEmail: config.auth.securityAlertEmail,
-  };
+/** The after-answer work (given, or made here), drained for up to 5 s when the server closes. */
+function drainedDeferred(app: FastifyInstance, options: AppOptions): Deferred {
   const deferred =
     options.deferred ??
     createDeferred((error) => {
@@ -462,6 +459,26 @@ export function buildApp(options: AppOptions): FastifyInstance {
       app.log.warn({ event: "deferred.dropped", count: deferred.pending() });
     }
   });
+  return deferred;
+}
+
+export function buildApp(options: AppOptions): FastifyInstance {
+  const { config } = options;
+  const app = createServer(options);
+
+  registerConventions(app, {
+    minAppVersion: config.minAppVersion,
+    idempotencyStore: options.idempotencyStore,
+  });
+
+  const signInDeps = {
+    pool: options.pool,
+    keys: createAuthKeys(config.auth.secret, config.auth),
+    email: options.emailSender,
+    gate: createVerifyGate(AUTH_LIMITS.verifyGate),
+    securityAlertEmail: config.auth.securityAlertEmail,
+  };
+  const deferred = drainedDeferred(app, options);
   const passwordDeps = {
     ...signInDeps,
     breachCheck: options.breachCheck,
@@ -536,6 +553,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     ranking,
     firstBonus,
     codeKeys: { codeKey: questCodeKey, stepKey: stepCodeKey, revealKey: revealCodeKey },
+    storage: options.storage,
   });
   const deviceClaims = {
     pool: options.pool,
@@ -615,6 +633,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     invitations,
     suspended,
     dashboardOrigin: config.auth.dashboardOrigin,
+    storage: options.storage,
   });
   registerPublicLinkRoutes(app, { pool: options.pool, keys: signInDeps.keys });
 
@@ -629,6 +648,18 @@ export function buildApp(options: AppOptions): FastifyInstance {
   return app;
 }
 
+/** The media worker (T-301b), when this server has a bucket and an interval. */
+function startMedia(app: FastifyInstance, options: AppOptions): void {
+  if (options.storage === undefined || options.mediaIntervalMs === undefined) return;
+  const worker = startMediaWorker({
+    pool: options.pool,
+    store: options.storage,
+    intervalMs: options.mediaIntervalMs,
+    log: (level, fields) => app.log[level](fields),
+  });
+  app.addHook("onClose", worker.stop);
+}
+
 type PlayDoorDeps = Readonly<{
   pool: Pool;
   keys: AuthKeys;
@@ -636,6 +667,7 @@ type PlayDoorDeps = Readonly<{
   ranking: Ranking;
   firstBonus: FirstBonusCache;
   codeKeys: Readonly<{ codeKey: QuestCodeKey; stepKey: StepCodeKey; revealKey: RevealCodeKey }>;
+  storage: ObjectStore | undefined;
 }>;
 
 /**
@@ -643,10 +675,11 @@ type PlayDoorDeps = Readonly<{
  * the App Review demo's code picker (T-710b) and NFC taps.
  */
 function registerPlayDoors(app: FastifyInstance, config: AppConfig, deps: PlayDoorDeps): void {
-  const { pool, keys, settings, ranking, firstBonus } = deps;
+  const { pool, keys, settings, ranking, firstBonus, storage } = deps;
   registerOperatorAwardRoutes(app, { pool, keys });
-  registerSubmissionPlayerRoutes(app, { pool, ranking });
-  registerTicketRoutes(app, { pool, settings, keys });
+  registerSubmissionPlayerRoutes(app, { pool, ranking, storage });
+  registerTicketRoutes(app, { pool, settings, keys, storage });
+  registerPhotoRoutes(app, { pool, storage });
   registerPlayRoutes(app, { pool, ranking, settings, firstBonus });
   registerMeetRoutes(app, { pool, ranking, settings, keys });
   registerGameRoutes(app, { pool, ranking, keys });

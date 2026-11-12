@@ -1,0 +1,146 @@
+import type { Pool, PoolClient } from "pg";
+import { withConnection } from "#src/db/connection";
+import { withRequestContext } from "#src/db/context";
+import type { ObjectStore } from "#src/storage/client";
+import { StorageError } from "#src/storage/client";
+import { trackRun } from "#src/telemetry/runs";
+
+/** Keys claimed per round, and rounds per run: at most 500 deletes a run, the rest waits for the next. */
+const CLAIM_SIZE = 50;
+const ROUNDS_PER_RUN = 10;
+const PURGE_BATCH = 500;
+const JITTER = 0.2;
+
+export type MediaWorkerDeps = Readonly<{
+  pool: Pool;
+  store: ObjectStore;
+  intervalMs: number;
+  log: (level: "info" | "error", fields: Record<string, unknown>) => void;
+  random?: () => number;
+}>;
+
+export type MediaTotals = Readonly<{
+  swept: number;
+  purged: number;
+  deleted: number;
+  failed: number;
+}>;
+
+export type MediaWorker = Readonly<{
+  stop: () => Promise<void>;
+  /** One run now (for tests). */
+  runOnce: () => Promise<MediaTotals>;
+}>;
+
+type Claimed = Readonly<{ id: string; key: string }>;
+
+const system = <T>(pool: Pool, work: (client: PoolClient) => Promise<T>): Promise<T> =>
+  withConnection(pool, (client) => withRequestContext(client, {}, () => work(client)));
+
+const scalar = (pool: Pool, sql: string, values: unknown[] = []): Promise<number> =>
+  system(pool, async (client) => {
+    const { rows } = await client.query<{ n: number }>(sql, values);
+    return rows[0]?.n ?? 0;
+  });
+
+/** The failure's short code for the queue row: the status, `timeout` or `network`; never a key or a message. */
+const codeOf = (error: unknown): string =>
+  error instanceof StorageError
+    ? error.code === "status"
+      ? `status_${error.status ?? 0}`
+      : error.code
+    : "error";
+
+/**
+ * Deletes one round of claimed keys. The claim is its own transaction and has committed before the first delete, so a
+ * key is leased to this worker alone while the bucket is called, and no transaction stays open across an outside call.
+ */
+async function deleteRound(
+  deps: MediaWorkerDeps,
+): Promise<{ deleted: number; failed: number; more: boolean }> {
+  const claimed = await system(deps.pool, async (client) => {
+    const { rows } = await client.query<Claimed>("SELECT * FROM media_delete_claim($1)", [
+      CLAIM_SIZE,
+    ]);
+    return rows;
+  });
+  const done: string[] = [];
+  let failed = 0;
+  for (const row of claimed) {
+    try {
+      await deps.store.delete(row.key);
+      done.push(row.id);
+    } catch (error) {
+      failed += 1;
+      await system(deps.pool, (client) =>
+        client.query("SELECT media_delete_failed($1, $2)", [row.id, codeOf(error)]),
+      );
+    }
+  }
+  if (done.length > 0) {
+    await scalar(deps.pool, "SELECT media_delete_done($1::bigint[]) AS n", [done]);
+  }
+  return { deleted: done.length, failed, more: claimed.length === CLAIM_SIZE };
+}
+
+/**
+ * The media worker (T-301b): every run sweeps uploads never attached after 30 minutes, purges what is due (365 days
+ * after an event ends, Q-075), and deletes the queued keys from the bucket. A 404 is a delete done; a failure keeps the
+ * row and backs off (1 minute to 1 hour). Logs carry counts and codes, never a key.
+ */
+export function startMediaWorker(deps: MediaWorkerDeps): MediaWorker {
+  const random = deps.random ?? Math.random;
+  let timer: NodeJS.Timeout | undefined;
+  let running: Promise<unknown> | undefined;
+  let stopped = false;
+  const halted = () => stopped;
+
+  const run = async (): Promise<MediaTotals> => {
+    const swept = await scalar(deps.pool, "SELECT media_sweep_uploads() AS n");
+    const purged = await scalar(deps.pool, "SELECT media_purge_due($1) AS n", [PURGE_BATCH]);
+    let deleted = 0;
+    let failed = 0;
+    for (let round = 0; round < ROUNDS_PER_RUN && !halted(); round += 1) {
+      const result = await deleteRound(deps);
+      deleted += result.deleted;
+      failed += result.failed;
+      if (!result.more) break;
+    }
+    return { swept, purged, deleted, failed };
+  };
+
+  const guarded = async (): Promise<void> => {
+    try {
+      const totals = await run();
+      if (totals.deleted + totals.failed + totals.swept + totals.purged > 0) {
+        deps.log(totals.failed > 0 ? "error" : "info", { event: "media.run", ...totals });
+      }
+    } catch (error) {
+      deps.log("error", {
+        event: "media.run_failed",
+        code: (error as { code?: unknown }).code ?? null,
+      });
+    }
+  };
+
+  const schedule = (): void => {
+    const wait = Math.round(deps.intervalMs * (1 - JITTER + 2 * JITTER * random()));
+    timer = setTimeout(() => {
+      running = trackRun("media", guarded).finally(() => {
+        running = undefined;
+        if (!stopped) schedule();
+      });
+    }, wait);
+    timer.unref();
+  };
+
+  schedule();
+  return {
+    stop: async () => {
+      stopped = true;
+      clearTimeout(timer);
+      await running;
+    },
+    runOnce: run,
+  };
+}

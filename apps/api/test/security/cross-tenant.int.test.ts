@@ -4,6 +4,7 @@ import { withRequestContext, type RequestContext } from "#src/db/context";
 import { createStaff } from "#test/support/auth-app";
 import {
   TEST_DATABASE_URL,
+  addMember,
   createTestDatabase,
   seedTwoTenants,
   type TestDatabase,
@@ -1193,6 +1194,10 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; written by quiz_next and quiz_answer, read by the player through member_quiz (test/db/vote-quiz)",
   submission:
     "no right for the API role at all; written by submit_quest and the review definers, read by the player through own_submissions and by the event's team through event_submissions and operator_submissions (test/db/submissions)",
+  media_object:
+    "no right and no policy for the API role at all; written by media_reserve for the calling player's own active enrollment (its key built from the row's own organizer and event, held by a CHECK), media_stored and media_release for that player's own slot, attached by submit_quest and open_ticket to the caller's own submission or ticket only (photo_to_attach: same player, event and purpose), deleted by the sweep, the purge and the holders' triggers; its key is read only by the seat-checked readers event_submissions, operator_submissions, event_tickets, operator_ticket and console_ticket (test/db/media; the photo case below crosses organizers, events in one organizer, and players)",
+  media_delete:
+    "no right and no policy for the API role at all; written only by media_object's delete trigger and media_stored (a swept slot's own key shape), read and cleared only by the media worker's system-seat doors (media_delete_claim, _done, _failed refuse any player, staff or device seat; test/db/media)",
   ticket:
     "no right and no policy for the API role at all; written by open_ticket for the calling player's own active enrollment, by the answer doors inside the caller's event (award_event_of, help_operator) and by the sweep, erasure and the rehearsal wipe; read by its sender through own_tickets, by the event's team through event_tickets and by an operator of the event through operator_ticket and operator_inbox (test/db/tickets, which also crosses organizers, events and players); T-312 adds open_platform_ticket (the caller's own, no event), staff_escalate_ticket inside the caller's event (award_event_of), and Questify's queue for an active platform admin only (app_admin_id re-read), exactly the rows with queue = 'questify' (test/db/tickets-center crosses organizers A and B and the admin who is also a member)",
   community_goal:
@@ -2632,6 +2637,155 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
         ),
       ).toBe("42501");
     }
+  });
+
+  it("keeps photos inside the caller's tenant, event scope and player: no row, no key, no attach (T-301b)", async () => {
+    const owner = async (sql: string, values: unknown[]) =>
+      (await db.owner.query<{ id: string }>(sql, values)).rows[0]?.id ?? "";
+    const photoQuest = (event: string) =>
+      owner(
+        `INSERT INTO quest (event_id, category_id, type, title_en, points, type_config)
+         SELECT $1, id, 'submission', 'Show us', 10, '{"accepts": ["photo"]}' FROM category WHERE event_id = $1 LIMIT 1
+         RETURNING id`,
+        [event],
+      );
+    /** A stored, attached photo of `player` with its pending submission and an open ticket holding another one. */
+    const photosOf = async (org: string, event: string, player: string) => {
+      if ((await owner("SELECT id FROM category WHERE event_id = $1 LIMIT 1", [event])) === "") {
+        await owner(
+          "INSERT INTO category (event_id, name_en) VALUES ($1, 'General') RETURNING id",
+          [event],
+        );
+      }
+      const quest = await photoQuest(event);
+      const enrollment = await owner(
+        "SELECT id FROM enrollment WHERE event_id = $1 AND player_id = $2",
+        [event, player],
+      );
+      const object = (purpose: string) =>
+        owner(
+          `INSERT INTO media_object (id, organizer_id, event_id, purpose, key, uploaded_by_player, request_key, state,
+                                     bytes, width, height, stored_at, attached_at)
+           SELECT i, $1::uuid, $2::uuid, $3::text, 'o/' || $1::text || '/e/' || $2::text || '/' || $3::text || '/' || i || '.jpg', $4, i::text,
+                  'attached', 10, 10, 10, now(), now()
+           FROM gen_random_uuid() i RETURNING id`,
+          [org, event, purpose, player],
+        );
+      const photo = await object("submission");
+      await owner(
+        `INSERT INTO submission (organizer_id, event_id, enrollment_id, quest_id, kind, photo, points, status,
+                                 idempotency_key)
+         VALUES ($1, $2, $3, $4, 'photo', $5::uuid, 10, 'pending', $5::text) RETURNING id`,
+        [org, event, enrollment, quest, photo],
+      );
+      const ticketPhoto = await object("ticket");
+      const ticket = await owner(
+        `INSERT INTO ticket (player_id, organizer_id, event_id, enrollment_id, kind, body, idempotency_key, photo)
+         VALUES ($1, $2, $3, $4, 'problem', 'Look', $5::text, $5::uuid) RETURNING id`,
+        [player, org, event, enrollment, ticketPhoto],
+      );
+      return { quest, photo, ticket };
+    };
+    const b = await photosOf(f.orgB, f.eventB, f.playerB);
+    for (const seat of ["organizer", "staff", "player"] as const) {
+      for (const sql of [
+        "SELECT * FROM event_submissions($1, 'pending', NULL, 50)",
+        "SELECT * FROM event_tickets($1, 'open', NULL, NULL, 50)",
+      ]) {
+        expect(await refusal(asA(seat, sql, [f.eventB])), `${seat} ${sql}`).toBe("AN404");
+      }
+    }
+    expect(
+      await refusal(asA("player", "SELECT * FROM operator_submissions($1, NULL, 50)", [f.eventB])),
+    ).toBe("OP403");
+    expect(
+      await refusal(asA("player", "SELECT * FROM operator_ticket($1, $2)", [f.eventB, b.ticket])),
+    ).toBe("OP403");
+    expect(
+      await refusal(
+        asA("player", "SELECT * FROM operator_inbox($1, NULL, NULL, NULL, 50)", [f.eventB]),
+      ),
+    ).toBe("OP403");
+
+    // Player A, a member of A's event, can neither attach, store nor release B's photo.
+    const questA = await (async () => {
+      if ((await owner("SELECT id FROM category WHERE event_id = $1 LIMIT 1", [f.eventA])) === "") {
+        await owner(
+          "INSERT INTO category (event_id, name_en) VALUES ($1, 'General') RETURNING id",
+          [f.eventA],
+        );
+      }
+      return photoQuest(f.eventA);
+    })();
+    await db.owner.query(
+      `INSERT INTO player_acceptance (player_id, document, version, method)
+       SELECT $1, 'community_guidelines', '1.0', 'submission' WHERE NOT EXISTS (
+         SELECT 1 FROM player_acceptance WHERE player_id = $1 AND document = 'community_guidelines')`,
+      [f.playerA],
+    );
+    expect(
+      await refusal(
+        asA("player", "SELECT * FROM submit_quest($1, NULL, '1.0', $2, $3)", [
+          questA,
+          randomUUID(),
+          b.photo,
+        ]),
+      ),
+    ).toBe("SM404");
+    expect(
+      await refusal(
+        asA("player", "SELECT * FROM open_ticket($1, 'problem', NULL, NULL, 'x', $2, $3)", [
+          f.eventA,
+          randomUUID(),
+          b.photo,
+        ]),
+      ),
+    ).toBe("SM404");
+    const keyB = `o/${f.orgB}/e/${f.eventB}/submission/${b.photo}.jpg`;
+    expect(
+      await refusal(asA("player", "SELECT media_stored($1, $2, 1, 1, 1)", [b.photo, keyB])),
+    ).toBe("SM404");
+    expect((await asA("player", "SELECT media_release($1) AS ok", [b.photo])).rows).toEqual([
+      { ok: false },
+    ]);
+    expect(
+      await refusal(
+        asA("player", "SELECT * FROM media_reserve('submission', NULL, $1, 'k')", [b.quest]),
+      ),
+    ).toBe("QC404");
+    expect(
+      await count("owner", "media_object WHERE id = $1 AND state = 'attached'", [b.photo]),
+    ).toBe(1);
+
+    // An editor scoped to one of A's events gets no key of A's other event.
+    const otherA = await owner(
+      `INSERT INTO event (organizer_id, join_code, name_en, status, starts_at, ends_at)
+       VALUES ($1, 'NAJD9', 'Other', 'live', now() - interval '1 hour', now() + interval '1 day') RETURNING id`,
+      [f.orgA],
+    );
+    await db.owner.query(
+      "INSERT INTO enrollment (organizer_id, event_id, player_id) VALUES ($1, $2, $3)",
+      [f.orgA, otherA, f.playerA],
+    );
+    await photosOf(f.orgA, otherA, f.playerA);
+    const scoped = await addMember(db.owner, f.orgA, "editor", [f.eventA]);
+    const seat = { organizerId: f.orgA, staffUserId: scoped };
+    const scopedRead = (sql: string) =>
+      refusal(withRequestContext(db.app, seat, async () => db.app.query(sql, [otherA])));
+    expect(await scopedRead("SELECT * FROM event_submissions($1, 'pending', NULL, 50)")).toBe(
+      "AN404",
+    );
+    expect(await scopedRead("SELECT * FROM event_tickets($1, 'open', NULL, NULL, 50)")).toBe(
+      "AN404",
+    );
+    const own = await asA<{ photo_key: string }>(
+      "organizer",
+      "SELECT * FROM event_submissions($1, 'pending', NULL, 50)",
+      [otherA],
+    );
+    expect(own.rows.map((row) => row.photo_key)).toEqual([
+      expect.stringMatching(`^o/${f.orgA}/e/${otherA}/`),
+    ]);
   });
 
   it("classifies every table as owned (tested here) or shared (with a reason)", async () => {

@@ -4,8 +4,11 @@ import { withConnection } from "#src/db/connection";
 import { withRequestContext, type RequestContext } from "#src/db/context";
 import type { OrganizerContext } from "#src/organizers/store";
 import { teamSeat } from "#src/organizers/store";
+import type { ObjectStore } from "#src/storage/client";
+import { signedPhoto, type SignedPhoto } from "#src/storage/signed";
 
-export type TicketDeps = Readonly<{ pool: Pool }>;
+/** The pool, and the photo bucket when this server has one (T-301b): a ticket's photo is read through a signed URL. */
+export type TicketDeps = Readonly<{ pool: Pool; storage?: ObjectStore | undefined }>;
 
 /** Why a ticket was refused; each maps to one HTTP answer in the routes (API.md, Help desk). */
 export type TicketRefusal =
@@ -32,7 +35,8 @@ export type TicketRefusal =
   | Readonly<{ kind: "invalid_device"; field: string }>
   | Readonly<{ kind: "not_open" }>
   | Readonly<{ kind: "moved" }>
-  | Readonly<{ kind: "not_escalated" }>;
+  | Readonly<{ kind: "not_escalated" }>
+  | Readonly<{ kind: "photo_unusable" }>;
 
 export type Done<T> = Readonly<{ kind: "done"; value: T }> | TicketRefusal;
 
@@ -73,6 +77,8 @@ const REFUSALS: Readonly<Record<string, (detail: string) => TicketRefusal | unde
   HT429: (detail) => ({ kind: "too_many_tickets", retryAfterSeconds: Math.max(1, Number(detail)) }),
   OP403: () => ({ kind: "not_operator" }),
   OA403: () => ({ kind: "ability_off" }),
+  // The photo (migration 0193): not the caller's stored, unused ticket upload of this event.
+  SM404: () => ({ kind: "photo_unusable" }),
 };
 
 type PgFailure = { code?: string; detail?: string; constraint?: string };
@@ -159,12 +165,14 @@ export function openTicket(
     questId: string | null;
     reportedUsername: string | null;
     text: string;
+    /** An upload from the ticket photo door (T-301b), or null. */
+    photoId: string | null;
     idempotencyKey: string;
   }>,
 ): Promise<Done<Opened>> {
   return run(deps, { playerId: request.playerId }, async (client) => {
     const { rows } = await client.query<OpenedRow>(
-      "SELECT * FROM open_ticket($1, $2, $3, $4, $5, $6)",
+      "SELECT * FROM open_ticket($1, $2, $3, $4, $5, $6, $7)",
       [
         request.eventId,
         request.kind,
@@ -172,6 +180,7 @@ export function openTicket(
         request.reportedUsername,
         request.text,
         request.idempotencyKey,
+        request.photoId,
       ],
     );
     return openedOf(rows);
@@ -410,7 +419,8 @@ export type TeamTicket = Readonly<{
   escalation: Readonly<{ at: Date; note: string; by: string | null }> | null;
   /** Questify's latest send-back and its note for the team. */
   returned: Readonly<{ at: Date; note: string }> | null;
-}>;
+}> &
+  SignedPhoto;
 
 type TeamRow = {
   id: string;
@@ -439,6 +449,7 @@ type TeamRow = {
   escalated_by: string | null;
   returned_at: Date | null;
   return_note: string | null;
+  photo_key: string | null;
 };
 
 const escalationOf = (row: TeamRow): TeamTicket["escalation"] =>
@@ -446,7 +457,7 @@ const escalationOf = (row: TeamRow): TeamTicket["escalation"] =>
     ? null
     : { at: row.escalated_at, note: row.escalation_note ?? "", by: row.escalated_by };
 
-const teamOf = (row: TeamRow): TeamTicket => ({
+const teamOf = async (deps: TicketDeps, row: TeamRow): Promise<TeamTicket> => ({
   id: row.id,
   kind: row.kind,
   quest:
@@ -474,6 +485,7 @@ const teamOf = (row: TeamRow): TeamTicket => ({
       : { enrollmentId: row.reported_enrollment_id, username: row.reported_username },
   escalation: escalationOf(row),
   returned: row.returned_at === null ? null : { at: row.returned_at, note: row.return_note ?? "" },
+  ...(await signedPhoto(deps.storage, row.photo_key)),
 });
 
 export type TeamCounts = Readonly<{
@@ -517,7 +529,7 @@ export function staffTickets(
     ]);
     const row = counts.rows[0] as CountsRow;
     return {
-      tickets: rows.map(teamOf),
+      tickets: await Promise.all(rows.map((one) => teamOf(deps, one))),
       counts: {
         open: row.open,
         withQuestify: row.with_questify,
@@ -562,7 +574,8 @@ export type OperatorTicket = Readonly<{
   reply: string | null;
   createdAt: Date;
   closedAt: Date | null;
-}>;
+}> &
+  SignedPhoto;
 
 /** An open ticket the operator may see, or a closed one they answered (HT404 otherwise). */
 export function operatorTicket(
@@ -592,6 +605,7 @@ export function operatorTicket(
       reply: row.reply,
       createdAt: row.created_at,
       closedAt: row.closed_at,
+      ...(await signedPhoto(deps.storage, row.photo_key)),
     };
   });
 }
@@ -614,6 +628,8 @@ export type InboxItem = Readonly<{
   preview: string | null;
   marked: boolean;
   ticketKind: TicketKind | null;
+  /** The item holds a photo; its own read (the queue or the ticket) signs it. */
+  hasPhoto: boolean;
 }>;
 
 export type Inbox = Readonly<{
@@ -635,6 +651,7 @@ type InboxRow = {
   preview: string | null;
   marked: boolean;
   ticket_kind: TicketKind | null;
+  has_photo: boolean;
   position: string;
 };
 
@@ -673,6 +690,7 @@ export function operatorInbox(
         preview: row.preview,
         marked: row.marked,
         ticketKind: row.ticket_kind,
+        hasPhoto: row.has_photo,
       })),
       next: last === undefined ? null : { position: last.position, kind: last.kind, id: last.id },
       abilities: { review: seat.review, helpDesk: seat.help },

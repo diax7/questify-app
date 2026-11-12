@@ -277,14 +277,21 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("submission quests (database)",
       expect(await refusal(send(stranger, quest))).toBe("QC404");
     });
 
-    it("refuses photos and video in the quest's config, at the database too", async () => {
+    it("refuses video and unknown kinds in the quest's config, at the database too (0193)", async () => {
       const event = await newEvent();
       const quest = await newQuest(event);
-      await expect(
-        owner(`UPDATE quest SET type_config = '{"accepts": ["text", "photo"]}' WHERE id = $1`, [
-          quest,
-        ]),
-      ).rejects.toMatchObject({ code: "23514" });
+      for (const accepts of ['["video"]', '["text", "video"]', '["photo", "text"]', "[]"]) {
+        await expect(
+          owner(
+            `UPDATE quest SET type_config = jsonb_build_object('accepts', $2::jsonb) WHERE id = $1`,
+            [quest, accepts],
+          ),
+          accepts,
+        ).rejects.toMatchObject({ code: "23514" });
+      }
+      await owner(`UPDATE quest SET type_config = '{"accepts": ["text", "photo"]}' WHERE id = $1`, [
+        quest,
+      ]);
     });
 
     it("marks text with a listed word (whole word or part, Arabic or English) without blocking it", async () => {

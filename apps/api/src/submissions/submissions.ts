@@ -18,8 +18,11 @@ import { withConnection } from "#src/db/connection";
 import { withRequestContext, type RequestContext } from "#src/db/context";
 import type { OrganizerContext } from "#src/organizers/store";
 import { teamSeat } from "#src/organizers/store";
+import type { ObjectStore } from "#src/storage/client";
+import { signedPhoto } from "#src/storage/signed";
 
-export type SubmissionDeps = Readonly<{ pool: Pool }>;
+/** The pool, and the photo bucket when this server has one (T-301b): queue rows with a photo get a short signed URL. */
+export type SubmissionDeps = Readonly<{ pool: Pool; storage?: ObjectStore | undefined }>;
 
 /** Why a submission, a review or a removal was refused; each maps to one HTTP answer in the routes. */
 export type SubmissionRefusal =
@@ -45,7 +48,10 @@ export type SubmissionRefusal =
   | Readonly<{ kind: "not_approved" }>
   | Readonly<{ kind: "already_removed" }>
   | Readonly<{ kind: "open_reservation" }>
-  | Readonly<{ kind: "removal_closed" }>;
+  | Readonly<{ kind: "removal_closed" }>
+  | Readonly<{ kind: "photo_unusable" }>
+  | Readonly<{ kind: "photo_required" }>
+  | Readonly<{ kind: "photo_not_accepted" }>;
 
 export type Done<T> = Readonly<{ kind: "done"; value: T }> | SubmissionRefusal;
 
@@ -78,6 +84,10 @@ const REFUSALS: Readonly<Record<string, (detail: string) => SubmissionRefusal>> 
   AD409: () => ({ kind: "already_removed" }),
   AO409: () => ({ kind: "open_reservation" }),
   AS409: () => ({ kind: "removal_closed" }),
+  // The photo (migration 0193): not the caller's stored, unused upload of this event, or not the kind the quest takes.
+  SM404: () => ({ kind: "photo_unusable" }),
+  SM422: (detail) =>
+    detail === "photo_required" ? { kind: "photo_required" } : { kind: "photo_not_accepted" },
 };
 
 /** Runs one call in `context`; a refusal the database raises becomes its result, anything else is thrown. */
@@ -169,19 +179,27 @@ async function paidExtras(
 }
 
 /**
- * The player sends text for a submission quest (FR-206, FR-327): pending until reviewed, or paid at once on an
- * auto-approve quest. `submit_quest` checks every rule (migration 0040).
+ * The player sends text, a photo (an id from the photo door), or a photo with a caption for a submission quest (FR-204,
+ * FR-206, FR-327): pending until reviewed, or paid at once on an auto-approve quest. `submit_quest` checks every rule
+ * (migrations 0040, 0193).
  */
 export function sendSubmission(
   deps: SubmissionDeps,
-  request: Readonly<{ playerId: string; questId: string; text: string; idempotencyKey: string }>,
+  request: Readonly<{
+    playerId: string;
+    questId: string;
+    text: string | null;
+    photoId: string | null;
+    idempotencyKey: string;
+  }>,
 ): Promise<Done<Sent>> {
   return run(deps, { playerId: request.playerId }, async (client) => {
-    const { rows } = await client.query<SentRow>("SELECT * FROM submit_quest($1, $2, $3, $4)", [
+    const { rows } = await client.query<SentRow>("SELECT * FROM submit_quest($1, $2, $3, $4, $5)", [
       request.questId,
       request.text,
       await guidelinesVersion(client),
       request.idempotencyKey,
+      request.photoId,
     ]);
     const row = rows[0] as SentRow;
     const boost = row.completion_id === null ? null : await boostApplied(client, row.completion_id);
@@ -198,12 +216,18 @@ export function sendSubmission(
   });
 }
 
+export type SubmissionKind = "text" | "photo";
+
 export type OwnSubmission = Readonly<{
   id: string;
   questId: string;
   status: "pending" | "approved" | "rejected" | "removed";
   points: number;
+  kind: SubmissionKind;
+  /** A photo submission's caption, or a text submission's text. */
   text: string | null;
+  /** The photo was deleted (a rejection, a removal, the retention purge): the history says so. */
+  photoGone: boolean;
   /** The reviewer's words, or a code when the system closed it (`left_event`). */
   reason: string | null;
   reasonSystem: boolean;
@@ -224,6 +248,8 @@ type OwnRow = {
   resubmit: boolean;
   created_at: Date;
   reviewed_at: Date | null;
+  kind: SubmissionKind;
+  photo_gone: boolean;
 };
 
 /** The points all of the calling player's pending submissions in an event will pay (FR-409). */
@@ -246,7 +272,9 @@ export async function readOwnSubmissions(
     questId: row.quest_id,
     status: row.status,
     points: row.points,
+    kind: row.kind,
     text: row.body,
+    photoGone: row.photo_gone,
     reason: row.reason,
     reasonSystem: row.reason_system,
     resubmit: row.resubmit,
@@ -279,8 +307,13 @@ export type QueueItem = Readonly<{
   /** Null for a deleted account. */
   username: string | null;
   avatar: string;
-  /** Null once the account is deleted. */
+  kind: SubmissionKind;
+  /** Null once the account is deleted, and for a photo sent without a caption. */
   text: string | null;
+  /** A signed read of the photo on the bucket's host, for 5 minutes; null without a photo (or once it is gone). */
+  photoUrl: string | null;
+  photoExpiresAt: Date | null;
+  photoGone: boolean;
   points: number;
   status: OwnSubmission["status"];
   auto: boolean;
@@ -310,16 +343,23 @@ type QueueRow = {
   created_at: Date;
   reviewed_at: Date | null;
   seen_at: Date | null;
+  kind: SubmissionKind;
+  photo_key: string | null;
+  photo_gone: boolean;
 };
 
-const itemOf = (row: QueueRow): QueueItem => ({
+/** One queue row; its photo URL is signed here, only for the key the seat-checked reader returned. */
+const itemOf = async (deps: SubmissionDeps, row: QueueRow): Promise<QueueItem> => ({
   id: row.id,
   questId: row.quest_id,
   questTitle: { ar: row.quest_title_ar, en: row.quest_title_en },
   enrollmentId: row.enrollment_id,
   username: row.username,
   avatar: row.avatar,
+  kind: row.kind,
   text: row.body,
+  ...(await signedPhoto(deps.storage, row.photo_key)),
+  photoGone: row.photo_gone,
   points: row.points,
   status: row.status,
   auto: row.auto,
@@ -344,7 +384,7 @@ export function staffQueue(
       "SELECT * FROM event_submissions($1, $2, $3, $4)",
       [request.eventId, request.filter, request.cursor, request.limit],
     );
-    return rows.map(itemOf);
+    return Promise.all(rows.map((row) => itemOf(deps, row)));
   });
 }
 
@@ -359,7 +399,7 @@ export function operatorQueue(
       "SELECT * FROM operator_submissions($1, $2, $3)",
       [request.eventId, request.cursor, request.limit],
     );
-    return rows.map(itemOf);
+    return Promise.all(rows.map((row) => itemOf(deps, row)));
   });
 }
 

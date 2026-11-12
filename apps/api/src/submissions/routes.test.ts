@@ -43,6 +43,9 @@ describe("refuse (API.md, submissions)", () => {
     [{ kind: "already_removed" }, [409, "already_removed", {}]],
     [{ kind: "open_reservation" }, [409, "open_reservation", {}]],
     [{ kind: "removal_closed" }, [409, "removal_closed", {}]],
+    [{ kind: "photo_unusable" }, [422, "photo_unusable", {}]],
+    [{ kind: "photo_required" }, [422, "photo_required", {}]],
+    [{ kind: "photo_not_accepted" }, [422, "photo_not_accepted", {}]],
   ] as const)("answers %o", (refusal, expected) => {
     expect(answerOf(refusal as SubmissionRefusal)).toEqual(expected);
   });

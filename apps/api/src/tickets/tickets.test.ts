@@ -27,6 +27,7 @@ const SEND = {
   questId: null,
   reportedUsername: null,
   text: "Where?",
+  photoId: null,
   idempotencyKey: "k",
 } as const;
 
@@ -78,6 +79,7 @@ describe("refusals (migrations 0059 and 0061's SQLSTATEs)", () => {
     [{ code: "HT409", detail: "moved" }, { kind: "moved" }],
     [{ code: "HT409", detail: "not_escalated" }, { kind: "not_escalated" }],
     [{ code: "HT409", detail: "anything" }, { kind: "already_closed" }],
+    [{ code: "SM404" }, { kind: "photo_unusable" }],
   ])("reads %o", async (fields, expected) => {
     expect(await openTicket({ pool: refusing(fields) }, SEND)).toEqual(expected);
   });
@@ -160,8 +162,8 @@ describe("the calls", () => {
       kind: "done",
       value: { ticketId: "9", status: "open", createdAt: AT, marked: true, replayed: false },
     });
-    expect(queries).toEqual(["SELECT * FROM open_ticket($1, $2, $3, $4, $5, $6)"]);
-    expect(seen).toEqual([[EVENT, "question", null, null, "Where?", "k"]]);
+    expect(queries).toEqual(["SELECT * FROM open_ticket($1, $2, $3, $4, $5, $6, $7)"]);
+    expect(seen).toEqual([[EVENT, "question", null, null, "Where?", "k", null]]);
   });
 
   it("sends a report's username, and a platform ticket's device facts or nulls", async () => {
@@ -197,7 +199,7 @@ describe("the calls", () => {
       "SELECT * FROM open_platform_ticket($1, $2, $3, $4, $5, $6, $7)",
     ]);
     expect(seen).toEqual([
-      [EVENT, "report_player", null, "sara", "Where?", "k"],
+      [EVENT, "report_player", null, "sara", "Where?", "k", null],
       ["app_problem", "Blank", "1.4.0", "ios", "18.1", null, "p"],
       ["suggestion", "Idea", null, null, null, null, "s"],
     ]);

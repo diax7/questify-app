@@ -9,6 +9,7 @@ import { MemoryIdempotencyStore } from "#src/idempotency-store";
 import { createMsegatSender } from "#src/players/sms";
 import { createPushProviders } from "#src/push/providers";
 import { createRankingRedis, createRankingStore, type RankingRedis } from "#src/ranking/store";
+import { createObjectStore } from "#src/storage/client";
 import { loadTelemetryConfig } from "#src/telemetry/config";
 import { countLogEvent } from "#src/telemetry/logs";
 import { instrumentEmail, instrumentPush, instrumentSms } from "#src/telemetry/outbound";
@@ -27,6 +28,8 @@ const RANK_PUSH_INTERVAL_MS = 10_000;
 const ORGANIZER_ALERT_INTERVAL_MS = 60_000;
 /** The team alert worker (T-701b): due owner email changes every minute; the digest itself at most every 10 minutes. */
 const TEAM_ALERT_INTERVAL_MS = 60_000;
+/** The media worker (T-301b): sweeps unused uploads, purges what is due and deletes queued keys every 30 s. */
+const MEDIA_INTERVAL_MS = 30_000;
 /** A ranking write or read that Redis cannot answer this fast falls back to PostgreSQL (ADR-118). */
 const REDIS_COMMAND_TIMEOUT_MS = 250;
 const REDIS_CONNECT_TIMEOUT_MS = 2000;
@@ -139,6 +142,14 @@ async function main(): Promise<void> {
     souvenirIntervalMs: 5000,
     invitationIntervalMs: INVITATION_INTERVAL_MS,
     rankPushIntervalMs: RANK_PUSH_INTERVAL_MS,
+    ...(config.storage === undefined
+      ? {}
+      : {
+          storage: createObjectStore(config.storage, {
+            log: (fields) => app.log.warn(fields),
+          }),
+          mediaIntervalMs: MEDIA_INTERVAL_MS,
+        }),
     organizerAlerts: { intervalMs: ORGANIZER_ALERT_INTERVAL_MS },
     teamAlertIntervalMs: TEAM_ALERT_INTERVAL_MS,
     // Built here so a key that cannot sign stops the start; their log lines run later, once `app` exists.

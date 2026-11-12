@@ -111,8 +111,10 @@ export type Refused =
   | Readonly<{ kind: "has_completions" }>
   /** Only rehearsal accounts completed it: erase the rehearsal first (T-211). */
   | Readonly<{ kind: "rehearsal_data" }>
-  /** A submission quest asked for photos (T-301b) or video (never in v1, FR-1006). */
+  /** A submission quest asked for photos on a server with no bucket (T-301b) or video (never in v1, FR-1006). */
   | Readonly<{ kind: "submission_kind_unavailable"; asked: "photo" | "video" }>
+  /** What a submission quest accepts is fixed once it has a submission (migration 0193). */
+  | Readonly<{ kind: "accepts_locked" }>
   /** Players voted or started the quiz: only its text may change (ADR-194, migration 0041). */
   | Readonly<{ kind: "quest_locked" }>
   /** Players stamped this passport step (T-304b): it stays. */
@@ -483,7 +485,8 @@ export function mergeQuest(
   timeZone: string,
   now: Date = new Date(),
 ): QuestFields | QuestRefusal {
-  const asked = type === "submission" ? unavailableSubmissionKind(input.config) : undefined;
+  // Video only: whether this server takes photos is the routes' check (it knows the bucket); the database holds both.
+  const asked = type === "submission" ? unavailableSubmissionKind(input.config, true) : undefined;
   if (asked !== undefined) {
     return { kind: "submission_kind_unavailable", asked };
   }
@@ -641,6 +644,8 @@ const CODE_REFUSALS = new Map<string, (pg: PgError) => Refused>([
   [LOCKED, () => ({ kind: "quest_locked" })],
   // A live poll's settings once sent or voted on (migration 0052).
   ["PL409", (pg) => ({ kind: "poll_locked", field: pg.detail ?? "live" })],
+  // What a submission quest accepts, once it has a submission (migration 0193).
+  ["SA409", () => ({ kind: "accepts_locked" })],
   // A flash quest launched, or its window started, between the read and the write (migration 0055).
   ["FL409", () => ({ kind: "invalid", field: "flashWindow" })],
   // The categories' unlocks would go round in a circle (migration 0044).

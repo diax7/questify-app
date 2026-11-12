@@ -18,6 +18,9 @@ import {
   openReservation,
   operatorPlayOff,
   outsideStation,
+  photoNotAccepted,
+  photoRequired,
+  photoUnusable,
   questNotOpen,
   reasonRequired,
   removalClosed,
@@ -57,8 +60,17 @@ const ID = /^[1-9][0-9]{0,17}$/;
 const questParams = z.object({ questId: z.uuid() });
 const eventParams = z.object({ eventId: z.uuid() });
 const itemParams = z.object({ eventId: z.uuid(), submissionId: z.string().regex(ID) });
-// The database cleans and measures the text (NFC, trimmed); this only bounds the body.
-const sendBody = z.strictObject({ text: z.string().max(SUBMISSION_TEXT_MAX * 4) });
+// The database cleans and measures the text (NFC, trimmed); this only bounds the body. Text, a photo from the photo
+// door (T-301b), or both: a photo's text is its caption.
+const sendBody = z
+  .strictObject({
+    text: z
+      .string()
+      .max(SUBMISSION_TEXT_MAX * 4)
+      .optional(),
+    photoId: z.uuid().optional(),
+  })
+  .refine((body) => body.text !== undefined || body.photoId !== undefined);
 const reviewBody = z.union([
   z.strictObject({ decision: z.literal("approve") }),
   z.strictObject({ decision: z.literal("reject"), reason: z.string().max(1000) }),
@@ -113,6 +125,9 @@ const refuseSubmission = refusalThrower<SubmissionRefusal>({
   already_removed: () => alreadyRemoved(),
   open_reservation: () => openReservation(),
   removal_closed: () => removalClosed(),
+  photo_unusable: () => photoUnusable(),
+  photo_required: () => photoRequired(),
+  photo_not_accepted: () => photoNotAccepted(),
 });
 
 /** One HTTP answer per refusal (API.md, submissions). */
@@ -151,10 +166,16 @@ export function registerSubmissionPlayerRoutes(
 ): void {
   app.post("/v1/quests/:questId/submit", playerIdempotent, async (request, reply) => {
     const { questId } = parse(questParams, request.params);
-    const { text } = parse(sendBody, request.body);
+    const body = parse(sendBody, request.body);
     const playerId = playerIdOf(request);
     const sent = valueOf(
-      await sendSubmission(deps, { playerId, questId, text, idempotencyKey: keyOf(request) }),
+      await sendSubmission(deps, {
+        playerId,
+        questId,
+        text: body.text ?? null,
+        photoId: body.photoId ?? null,
+        idempotencyKey: keyOf(request),
+      }),
     );
     logStreakBonus(request.log, sent);
     const rank =
@@ -170,8 +191,10 @@ export function registerSubmissionPlayerRoutes(
     return ownSubmissions(deps, playerIdOf(request), eventId);
   });
 
-  app.get("/v1/operator/events/:eventId/submissions", player, async (request) => {
+  app.get("/v1/operator/events/:eventId/submissions", player, async (request, reply) => {
     const { eventId } = parse(eventParams, request.params);
+    // The rows carry signed photo URLs: never kept by a cache (the dashboard's scope already sends no-store).
+    reply.header("cache-control", "no-store");
     const query = parse(operatorQueueQuery, request.query);
     const items = valueOf(
       await operatorQueue(deps, playerIdOf(request), {

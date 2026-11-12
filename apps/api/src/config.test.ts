@@ -76,6 +76,7 @@ describe("loadConfig", () => {
       msegatPromoSender: undefined,
       redisUrl: undefined,
       push: { apns: undefined, fcm: undefined },
+      storage: undefined,
     });
   });
 
@@ -352,6 +353,64 @@ describe("loadConfig", () => {
 
   it("accepts zero proxies", () => {
     expect(loadConfig({ ...REQUIRED, TRUST_PROXY_HOPS: "0" }).trustProxyHops).toBe(0);
+  });
+
+  describe("the photo bucket (T-301b)", () => {
+    const S3 = {
+      S3_ENDPOINT: "https://s3.riyadh-1.example.test",
+      S3_BUCKET: "questify-media-staging",
+      S3_REGION: "riyadh-1",
+      S3_ACCESS_KEY_ID: "AKIDTEST",
+      S3_SECRET_ACCESS_KEY: "secret-test",
+    };
+
+    it("reads all five together, path-style by default", () => {
+      expect(loadConfig({ ...REQUIRED, ...S3 }).storage).toEqual({
+        endpoint: "https://s3.riyadh-1.example.test",
+        bucket: "questify-media-staging",
+        region: "riyadh-1",
+        accessKeyId: "AKIDTEST",
+        secretAccessKey: "secret-test",
+        urlStyle: "path",
+      });
+      expect(loadConfig({ ...REQUIRED, ...S3, S3_URL_STYLE: "virtual" }).storage?.urlStyle).toBe(
+        "virtual",
+      );
+    });
+
+    it("is off with none, and refuses some without the others", () => {
+      expect(loadConfig(REQUIRED).storage).toBeUndefined();
+      expect(() => loadConfig({ ...REQUIRED, ...S3, S3_SECRET_ACCESS_KEY: "" })).toThrow(
+        /required together/,
+      );
+    });
+
+    it("refuses a bad endpoint, bucket, region or style, and http in production", () => {
+      for (const [name, value] of [
+        ["S3_ENDPOINT", "not a url"],
+        ["S3_ENDPOINT", "https://s3.example.test/bucket"],
+        ["S3_ENDPOINT", "ftp://s3.example.test"],
+        ["S3_BUCKET", "Bad_Bucket"],
+        ["S3_REGION", "riyadh 1"],
+        ["S3_URL_STYLE", "dns"],
+      ] as const) {
+        expect(() => loadConfig({ ...REQUIRED, ...S3, [name]: value }), name).toThrow(/S3_/);
+      }
+      expect(
+        loadConfig({ ...REQUIRED, ...S3, S3_ENDPOINT: "http://127.0.0.1:9000" }).storage?.endpoint,
+      ).toBe("http://127.0.0.1:9000");
+      expect(() =>
+        loadConfig({
+          ...REQUIRED,
+          ...MSEGAT,
+          ...REDIS,
+          NODE_ENV: "production",
+          TRUST_PROXY_HOPS: "1",
+          ...S3,
+          S3_ENDPOINT: "http://s3.example.test",
+        }),
+      ).toThrow(/https/);
+    });
   });
 
   describe("Msegat", () => {

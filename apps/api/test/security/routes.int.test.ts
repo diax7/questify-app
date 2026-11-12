@@ -808,6 +808,10 @@ const ROUTES: Readonly<Record<string, string>> = {
     "members inside their event limit; matches only that event's members (test/awards/routes, test/db/awards)",
   "POST /v1/organizers/:organizerId/events/:eventId/bulk-awards":
     "members inside their event limit; ids outside the event are skipped; an editor inside the per-award cap (test/awards/routes, test/db/awards)",
+  "POST /v1/quests/:questId/photo":
+    "the calling player's own active enrollment in the quest's event only, the quest open and taking photos (media_reserve); the object's key is built by the database from that event and organizer, never from the request; at most 5 unused uploads in 30 minutes (test/submissions/photo, test/db/media)",
+  "POST /v1/events/:eventId/tickets/photo":
+    "the calling player's own active enrollment in that event only, the help desk on and sending open (media_reserve); the key is the database's, under that event's prefix (test/submissions/photo, test/db/media)",
   "POST /v1/quests/:questId/submit":
     "the calling player's own active enrollment in the quest's event only; guidelines, cap and one pending checked by submit_quest (test/submissions/routes, test/db/submissions)",
   "GET /v1/events/:eventId/submissions/mine":
