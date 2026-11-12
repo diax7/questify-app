@@ -98,7 +98,7 @@ function useUpload(
   return { busy, problem, pick };
 }
 
-/** The stored image through the team's read door, or "No image". */
+/** The stored image through the team's read door, or "No image" (also when the door refuses it or it fails to load). */
 function ImagePreview({
   language,
   purpose,
@@ -107,10 +107,12 @@ function ImagePreview({
 }: Readonly<{ language: Language; purpose: ImagePurpose; label: string; value: string | null }>) {
   const t = useTranslator(language);
   const src = useTeamImageSrc(value);
-  if (src === null) return <Muted>{t("image.none")}</Muted>;
+  const [failed, setFailed] = useState<string | null>(null);
+  if (src === null || failed === src) return <Muted>{t("image.none")}</Muted>;
   return (
     <img
       src={src}
+      onError={() => setFailed(src)}
       alt={t("image.preview", { label })}
       referrerPolicy="no-referrer"
       decoding="async"
@@ -151,6 +153,9 @@ export function ImageField({
   const on = useImagesOn();
   if (!on) return null;
   const off = disabled || busy;
+  const pickText = busy
+    ? t("image.uploading")
+    : t(value === null ? "image.choose" : "image.replace");
   return (
     <Stack>
       <span>{label}</span>
@@ -168,11 +173,23 @@ export function ImageField({
         }}
       />
       <Toolbar>
-        <Button size="sm" disabled={off} aria-busy={busy} onClick={() => input.current?.click()}>
-          {busy ? t("image.uploading") : t(value === null ? "image.choose" : "image.replace")}
+        <Button
+          size="sm"
+          disabled={off}
+          aria-busy={busy}
+          aria-label={`${pickText}: ${label}`}
+          onClick={() => input.current?.click()}
+        >
+          {pickText}
         </Button>
         {value === null ? null : (
-          <Button size="sm" variant="quiet" disabled={off} onClick={() => onChange(null)}>
+          <Button
+            size="sm"
+            variant="quiet"
+            disabled={off}
+            aria-label={`${t("image.remove")}: ${label}`}
+            onClick={() => onChange(null)}
+          >
             {t("image.remove")}
           </Button>
         )}

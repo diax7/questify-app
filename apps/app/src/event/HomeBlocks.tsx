@@ -391,7 +391,6 @@ export function PodiumBlock({
   );
 }
 
-/** The organizer's text card (FR-1828): plain text in the player's language; nothing in it is tappable. */
 /**
  * The event's banner picture at the top of Home (T-602b, FR-1023): the organizer's own, 3:1, with the event's name for a
  * screen reader. Nothing at all while there is none or it cannot be drawn, so Home looks as before.
@@ -405,6 +404,7 @@ export function EventBannerPicture({ name }: Readonly<{ name: string }>) {
   );
 }
 
+/** The organizer's text card (FR-1828): plain text in the player's language; nothing in it is tappable. */
 export function TextCardBlock({ card }: Readonly<{ card: TextCard }>) {
   const { language } = useI18n();
   const { eventId } = useEvent();

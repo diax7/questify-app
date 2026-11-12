@@ -318,11 +318,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer images over HTTP", (
       expect((await playerRead(event, logo, token)).statusCode).toBe(302);
     });
 
-    it("saves layout images of the event and refuses another event's with the field", async () => {
+    it("saves layout images of the event and refuses another event's or organizer's with the field", async () => {
       const event = await newEvent(orgA);
       const banner = await imageOf(orgA, event, "banner");
       const picture = await imageOf(orgA, event, "picture");
-      const foreign = await imageOf(orgA, await newEvent(orgA), "banner");
+      const sibling = await imageOf(orgA, await newEvent(orgA), "banner");
+      const foreign = await imageOf(orgB, await newEvent(orgB), "banner", ownerB);
       const save = (content: object) =>
         team("PUT", orgA, `/events/${event}/layout`, layoutWith(content));
       const good = await save({
@@ -334,11 +335,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer images over HTTP", (
         },
       });
       expect(good.statusCode).toBe(200);
-      const refused = await save({ banner: [slide(foreign)], cards: [card(picture)] });
-      expect(refused.json()).toMatchObject({
-        code: "image_unknown",
-        details: { field: "content.banner.0.image" },
-      });
+      for (const id of [sibling, foreign]) {
+        const refused = await save({ banner: [slide(id)], cards: [card(picture)] });
+        expect(refused.statusCode).toBe(422);
+        expect(refused.json()).toMatchObject({
+          code: "image_unknown",
+          details: { field: "content.banner.0.image" },
+        });
+      }
       expect(codeOf(await save({ banner: [slide(picture)], cards: [card(picture)] }))).toEqual([
         422,
         "image_unknown",
@@ -349,35 +353,43 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer images over HTTP", (
       const event = await newEvent(orgA);
       const board = await imageOf(orgA, event, "map");
       const logo = await imageOf(orgA, event, "logo");
+      const siblingMap = await imageOf(orgA, await newEvent(orgA), "map");
+      const siblingLogo = await imageOf(orgA, await newEvent(orgA), "logo");
       const foreign = await imageOf(orgB, await newEvent(orgB), "map", ownerB);
+      const foreignLogo = await imageOf(orgB, await newEvent(orgB), "logo", ownerB);
       const map = await team("POST", orgA, `/events/${event}/maps`, {
         nameEn: "Hall",
         image: board,
       });
       expect(map.json<{ image: Row }>().image).toEqual({ id: board, width: 800, height: 600 });
-      const refusedMap = await team("POST", orgA, `/events/${event}/maps`, {
-        nameEn: "Hall",
-        image: foreign,
-      });
-      expect(refusedMap.json()).toMatchObject({
-        code: "image_unknown",
-        details: { field: "image" },
-      });
+      for (const id of [siblingMap, foreign]) {
+        const refusedMap = await team("POST", orgA, `/events/${event}/maps`, {
+          nameEn: "Hall",
+          image: id,
+        });
+        expect(refusedMap.statusCode).toBe(422);
+        expect(refusedMap.json()).toMatchObject({
+          code: "image_unknown",
+          details: { field: "image" },
+        });
+      }
       const sponsor = await team("POST", orgA, `/events/${event}/sponsors`, {
         nameEn: "Acme",
         tier: "gold",
         logo,
       });
       expect(sponsor.json<Row>()["logo"]).toBe(logo);
-      expect(
-        codeOf(
-          await team("POST", orgA, `/events/${event}/sponsors`, {
-            nameEn: "Acme",
-            tier: "gold",
-            logo: foreign,
-          }),
-        ),
-      ).toEqual([422, "image_unknown"]);
+      for (const id of [siblingLogo, foreignLogo]) {
+        expect(
+          codeOf(
+            await team("POST", orgA, `/events/${event}/sponsors`, {
+              nameEn: "Acme",
+              tier: "gold",
+              logo: id,
+            }),
+          ),
+        ).toEqual([422, "image_unknown"]);
+      }
       await owner(
         "UPDATE event SET config = jsonb_set(config, '{features}', '{\"maps\": true}') WHERE id = $1",
         [event],
@@ -391,7 +403,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer images over HTTP", (
       expect(sponsors.json<{ sponsors: Row[] }>().sponsors[0]).toMatchObject({ logo });
     });
 
-    it("saves vote option icons and game art of the event, refuses another event's, and shows them to the player", async () => {
+    it("saves vote option icons and game art of the event, refuses another event's or organizer's, and shows them to the player", async () => {
       const event = await newEvent(orgA);
       const [category] = await owner<{ id: string }>(
         "SELECT id FROM category WHERE event_id = $1",
@@ -399,7 +411,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer images over HTTP", (
       );
       const icon = await imageOf(orgA, event, "icon");
       const picture = await imageOf(orgA, event, "picture");
-      const foreign = await imageOf(orgA, await newEvent(orgA), "icon");
+      const sibling = await imageOf(orgA, await newEvent(orgA), "icon");
+      const foreign = await imageOf(orgB, await newEvent(orgB), "icon", ownerB);
+      const siblingPicture = await imageOf(orgA, await newEvent(orgA), "picture");
+      const foreignPicture = await imageOf(orgB, await newEvent(orgB), "picture", ownerB);
       const create = (type: string, config: object) =>
         team("POST", orgA, `/events/${event}/quests`, {
           categoryId: category?.id,
@@ -411,12 +426,23 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer images over HTTP", (
         });
       const made = await create("vote", vote(icon));
       expect(made.statusCode).toBe(201);
-      const refused = await create("vote", vote(foreign));
-      expect(refused.json()).toMatchObject({
-        code: "image_unknown",
-        details: { field: "config.options.0.image" },
-      });
+      for (const id of [sibling, foreign]) {
+        const refused = await create("vote", vote(id));
+        expect(refused.statusCode).toBe(422);
+        expect(refused.json()).toMatchObject({
+          code: "image_unknown",
+          details: { field: "config.options.0.image" },
+        });
+      }
       expect((await create("game", game({ picture }))).statusCode).toBe(201);
+      for (const id of [siblingPicture, foreignPicture]) {
+        const refusedGame = await create("game", game({ picture: id }));
+        expect(refusedGame.statusCode).toBe(422);
+        expect(refusedGame.json()).toMatchObject({
+          code: "image_unknown",
+          details: { field: "config.images.picture" },
+        });
+      }
       expect(codeOf(await create("game", game({ picture: icon })))).toEqual([422, "image_unknown"]);
       expect(codeOf(await create("game", game({ faces: [icon] })))).toEqual([422, "invalid_quest"]);
 
@@ -431,6 +457,66 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer images over HTTP", (
         { id: "a", text: { ar: null, en: "Robots" }, image: icon },
         { id: "b", text: { ar: null, en: "Space" } },
       ]);
+    });
+
+    it("refuses another event's or organizer's image on a quest edit, and on a change set's apply", async () => {
+      const event = await newEvent(orgA);
+      const [category] = await owner<{ id: string }>(
+        "SELECT id FROM category WHERE event_id = $1",
+        [event],
+      );
+      const icon = await imageOf(orgA, event, "icon");
+      const sibling = await imageOf(orgA, await newEvent(orgA), "icon");
+      const foreign = await imageOf(orgB, await newEvent(orgB), "icon", ownerB);
+      const made = await team("POST", orgA, `/events/${event}/quests`, {
+        categoryId: category?.id,
+        type: "vote",
+        title: { en: "Pick" },
+        points: 10,
+        visible: true,
+        config: vote(icon),
+      });
+      expect(made.statusCode).toBe(201);
+      const quest = made.json<{ quest: { id: string } }>().quest.id;
+      const stored = async () =>
+        (await owner("SELECT type_config FROM quest WHERE id = $1", [quest]))[0]?.["type_config"];
+      const before = await stored();
+
+      for (const id of [sibling, foreign]) {
+        const patched = await team("PATCH", orgA, `/events/${event}/quests/${quest}`, {
+          config: vote(id),
+          confirm: true,
+        });
+        expect(patched.statusCode).toBe(422);
+        expect(patched.json()).toMatchObject({
+          code: "image_unknown",
+          details: { field: "config.options.0.image" },
+        });
+      }
+      expect(await stored()).toEqual(before);
+
+      const set = await team("POST", orgA, `/events/${event}/change-sets`, {
+        items: [sibling, foreign].map((id) => ({
+          op: "edit",
+          target: "quest",
+          targetId: quest,
+          body: { config: vote(id) },
+        })),
+      });
+      expect(set.statusCode).toBe(201);
+      const setId = set.json<{ changeSet: { id: string } }>().changeSet.id;
+      const opened = await team("GET", orgA, `/events/${event}/change-sets/${setId}`);
+      const items = opened.json<{ changeSet: { items: { id: string }[] } }>().changeSet.items;
+      const applied = await team("POST", orgA, `/events/${event}/change-sets/${setId}/apply`, {
+        itemIds: items.map((item) => item.id),
+      });
+      expect(applied.statusCode).toBe(200);
+      const failed = {
+        status: "failed",
+        error: { code: "image_unknown", details: { field: "config.options.0.image" } },
+      };
+      expect(applied.json<{ results: Row[] }>().results).toMatchObject([failed, failed]);
+      expect(await stored()).toEqual(before);
     });
   });
 });

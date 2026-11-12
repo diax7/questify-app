@@ -1637,7 +1637,9 @@ react-native-web dependency, which T-502 does not add. No EAS build or real vend
   coalesce(used_at, stored_at) < now() - interval '24 hours' GROUP BY 1` as the owner. To delete one organizer image
   on request, clear it from its holder (a save without it, or `UPDATE event_map SET image = NULL …`); the sweep takes it
   a day later, or `DELETE FROM media_object WHERE id = <id>` as the owner queues its key at once (the holders' reads then
-  fall back to the default art).
+  fall back to the default art). Clear the holder first, always: a setting, quest or change set that still names a
+  deleted id is refused with 422 `image_unknown` at its next save (the branding page resends its logo), until the id is
+  removed from it.
 
 ### The admin re-check sweep (migration 0191; deploy steps)
 

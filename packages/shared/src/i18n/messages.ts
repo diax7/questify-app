@@ -7876,7 +7876,7 @@ export const MESSAGES = {
   "image.card": { ar: "صورة البطاقة", en: "Card image" },
   "image.map": { ar: "صورة الخريطة", en: "Map picture" },
   "image.option": { ar: "صورة الخيار {n}", en: "Option {n} image" },
-  "image.face": { ar: "صورة البطاقة {n}", en: "Card face {n}" },
+  "image.face": { ar: "وجه البطاقة {n}", en: "Card face {n}" },
   "image.puzzle": { ar: "صورة اللغز", en: "Puzzle picture" },
   "image.item": { ar: "صورة العنصر {n}", en: "Falling item {n}" },
   "image.gameArt": { ar: "صور اللعبة", en: "Game art" },

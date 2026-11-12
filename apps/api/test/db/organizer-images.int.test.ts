@@ -542,7 +542,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer images (database)", 
       expect(await exists(slot.id)).toBe(false);
     });
 
-    it("skips an image a save in flight is naming (SKIP LOCKED), and refuses a save that waited on a swept one", async () => {
+    it("skips an image a save in flight is naming (SKIP LOCKED), and refuses a save that names a swept one after the sweep committed", async () => {
       const event = await newEvent();
       const held = await image(event);
       const gone = await image(event);
