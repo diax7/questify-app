@@ -2,7 +2,7 @@
 
 Source: TASKS.md T-810d, Q-663 (Dhia, 2026-11-05: "Yes, console subdomain"), `docs/security/ASVS_L2.md` gap 12 and row
 V3.5.4. Migration **0199** (new; 0198 is the newest on main). Decisions ADR-720 to ADR-724, questions Q-690 to Q-693
-(numbers held for T-810d since 2026-11-05, never used on main) and Q-769, Q-770.
+(numbers held for T-810d since 2026-11-05, never used on main) and Q-782, Q-783.
 
 **This is a port, with one change of rule.** T-810d was planned (review 86) and built (code review 92) on 2026-11-05 on
 branch `t-810d-console-hostname` (plan `docs/plans/2026-11-05-t-810d-console-hostname.md` on that branch). It never
@@ -15,7 +15,7 @@ rule (ADR-723, amended):
 > can merge and deploy now; the split starts the day the setting is set on both apps after Dhia's DNS step.
 
 **Done when** (TASKS.md): the console and the public pages are on different origins on staging and ASVS V3.5.4 is Met.
-That needs Dhia's DNS step, so this task ships the code side; the tick waits on the probes (RUNBOOK checklist, Q-770).
+That needs Dhia's DNS step, so this task ships the code side; the tick waits on the probes (RUNBOOK checklist, Q-783).
 
 ---
 
@@ -152,7 +152,7 @@ console host opens the Arabic console with no sideways scroll.
 ## 6. DNS and CranL (Dhia's step, not in this task)
 
 RUNBOOK "The console on its own host" gets the checklist (Cloudflare CNAME, CranL domain on the same web app, the two
-settings on both apps, deploy, probes, the admins' sign-in again, rollback). OPEN_QUESTIONS Q-770 asks Dhia for it.
+settings on both apps, deploy, probes, the admins' sign-in again, rollback). OPEN_QUESTIONS Q-783 asks Dhia for it.
 Nothing touches CranL in this task.
 
 ## 7. Docs

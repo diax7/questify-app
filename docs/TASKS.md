@@ -1828,6 +1828,13 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
   redirects console paths — delivers no FR (ASVS V3.5.4); depends on: T-810; Q-663 (Dhia, 2026-11-05). Needs Dhia to add
   the DNS record and the CranL domain once the code is ready (asked with AskUserQuestion then).
   - Done when: the console and the public pages are on different origins on staging and the sheet's row moves to Met.
+  - Note 2026-11-13 (port of the unmerged 2026-11-05 branch `t-810d-console-hostname`, plan
+    `docs/plans/2026-11-13-console-host.md`): code side built on today's main with `CONSOLE_ORIGIN` optional (unset is
+    the app exactly as before; ADR-723 amended, Q-769). Migration 0199 (`staff_session.surface`, the four-argument
+    `open_staff_session`), one guard for the three staff doors (`guardStaffDoor`), host routing in `proxy.ts` and the
+    forwarder, cross-host links, a second Playwright server pair for `console-host.spec.ts`. Not ticked: waits on Dhia's
+    DNS record and CranL domain (Q-783), then the settings, probes and the ASVS row (RUNBOOK checklist). The old branch's
+    number 0156 stays a gap.
 - [x] **T-810e** (tier C, copy) One line under the code field of the sign-in code screen (app and web), in Arabic and
   English with the ux-araby skill: never share this code; Questify never asks for it — delivers no FR (ASVS V6.6.1);
   depends on: T-810; Q-662 (Dhia, 2026-11-05).

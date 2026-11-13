@@ -2766,6 +2766,33 @@ new tokens included, although that phone was just used. No token is left alive a
 **Recommended (developer):** accept it: it needs ten other live sign-ins and a rotation in the same moment, and the
 phone only signs in again. Re-reading the oldest family after the lock would add a query to every capped sign-in.
 
+## Q-690 - A subdomain or a separate domain for the console (T-810d, ADR-722)
+
+**Status:** Answered (developer, delegated by Dhia, 2026-11-05, after the T-810d code review 92: as recommended).
+`console.questify.nafes.com` (and later `console.questify.sa`) is a different origin but the same site as the public
+host, so `SameSite` cookies do not separate them; the per-session origin check (ADR-721) and the surface (ADR-720) do.
+**Recommended (developer):** the subdomain, as Dhia chose; a separate registrable domain only if the pen test (T-809)
+asks for it.
+
+## Q-691 - Does CranL pass the `Host` header unchanged to the web app? (T-810d, ADR-722)
+
+**Status:** Open (developer, 2026-11-05): proved by the staging probes once `CONSOLE_ORIGIN` is set (RUNBOOK).
+**Recommended (developer):** read `Host` only. If CranL rewrites it, read `x-forwarded-host` set by the edge; until then
+unset `CONSOLE_ORIGIN` (one host, as before).
+
+## Q-692 - An admin giving support signs in on both hosts (T-810d, ADR-720, ADR-407)
+
+**Status:** Answered (developer, delegated by Dhia, 2026-11-05, after the T-810d code review 92: as recommended).
+Support works inside the organizer's dashboard on the public host, which refuses console sessions.
+**Recommended (developer):** two sessions, one per host, each with its own sign-in code; no hand-off token between
+hosts (a hand-off would carry console trust onto the public origin).
+
+## Q-693 - Which pages the console host serves (T-810d, ADR-722)
+
+**Status:** Answered (developer, delegated by Dhia, 2026-11-05, after the T-810d code review 92: as recommended).
+**Recommended (developer):** the console, sign-in and the staff account page (own sessions, password; T-810c). Password
+reset, invitations, sign-up, `/play` and every public page stay on the public host.
+
 ## Q-694 - One previous reward code key or a list (T-810f, ADR-725)
 
 **Status:** Answered (developer, delegated by Dhia, 2026-11-05, after the T-810f code review 93: one previous key, as recommended).
@@ -3336,3 +3363,18 @@ enabled, and a service account with permission to decode tokens; its key file as
 the package as `PLAY_INTEGRITY_PACKAGE`; (2) the App Attest capability on the app id in the Apple Developer account
 and the team id and bundle id as `APP_ATTEST_TEAM_ID` and `APP_ATTEST_BUNDLE_ID`; (3) the go-ahead for the native
 module and new build in ADR-835; (4) a test on one real iPhone and one Android phone, then one rooted or emulated phone.
+## Q-782 - `CONSOLE_ORIGIN` optional rather than required (T-810d, ADR-723)
+
+**Status:** Proposed (worker, 2026-11-13).
+The 2026-11-05 build made the setting required, so it could not merge before the DNS record existed and sat unmerged for
+eight days.
+**Recommended (developer):** optional: unset is the app exactly as before; set on both apps, the console moves to its own
+host. The RUNBOOK checklist and the ASVS row (Partly until the staging probes) keep the switch visible.
+
+## Q-783 - Dhia: the console's DNS record and CranL domain (T-810d, ASVS V3.5.4)
+
+**Status:** Open (for Dhia, 2026-11-13). The code is ready and safe to deploy with the setting off.
+**Needs Dhia:** (1) Cloudflare, zone `nafes.com`: a `CNAME` `console.questify` to the same target as `questify`, proxy
+off (DNS only); (2) CranL, web app `questify-web-staging`: add the domain `console.questify.nafes.com` and wait for its
+certificate. Then the coordinator sets `CONSOLE_ORIGIN` on both apps, redeploys and runs the probes (RUNBOOK "The
+console on its own host").

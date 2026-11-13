@@ -1,5 +1,24 @@
 # Blueprint State — Questify
 
+## T-810d the console on its own host, code side (migration 0199) — 2026-11-13
+
+- **Built (tier A, admin powers and sign-in; port of the unmerged 2026-11-05 branch `t-810d-console-hostname`).** Plan
+  `docs/plans/2026-11-13-console-host.md`. One rule changed: `CONSOLE_ORIGIN` is optional on both apps, and unset the app
+  is exactly as before (ADR-723 amended, Q-769), so this can merge and deploy now. 0199: `staff_session.surface` and the
+  four-argument `open_staff_session`. `guardStaffDoor` (staff-guard.ts) runs the three staff doors: unset, today's
+  checks; set, the caller check before any lookup (`Sec-Fetch-Site`, Origin), console sessions only on `/v1/admin/*`,
+  dashboard sessions only on `/v1/organizers/*`, own origin on `/v1/staff/*`. Web: host routing in `proxy.ts`
+  (`console-host.ts`; old `/console` links 308 to the console host; `/play` and dashboard pages 308 back), the public
+  host's forwarder answers `/v1/admin/*` itself, cross-host links absolute. CSP unchanged (`frame-ancestors 'none'`); no
+  CORS. ADR-720 to 722 carried, 723 and 724 Proposed; Q-690 to Q-693 carried, Q-782, Q-783 (Dhia: DNS and CranL domain).
+- **Tests:** new `test/auth/console-surface.int.test.ts` (both modes, route inventory, cookie and CORS),
+  `test/db/staff-session-surface.int.test.ts`, unit tests for config, staff routes, console-host, proxy hosts, forwarder;
+  security, auth, rehearsal, team alerts and all API unit suites 4,798 passed; app and web units 4,153 passed; browser
+  `layout`, `console-home`, `console-host` (second server pair) passed. Types, lint, format, lint:limits (none new) green.
+  Full suite left to the coordinator. CI 0 minutes (not pushed).
+- **Next:** code review (tier A), then mutation (`staff-guard.ts`, `session.ts`, `activation/routes.ts`,
+  `organizers/routes.ts`, `apps/web/src/lib/console-host.ts`). T-810d stays open for Q-783 and the RUNBOOK probes.
+
 ## ASVS L2 sheet brought up to date (T-810, tier C, docs only) — 2026-11-13
 
 - **Done:** `docs/security/ASVS_L2.md` now covers the work since 2026-11-08. Counts: Met 166, Partly 21, Not met 0, N/A 66

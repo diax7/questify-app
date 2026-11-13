@@ -8154,6 +8154,75 @@ the request's own session token.
 **Trade-offs:** an API instance of the old release cannot open a staff session once 0155 ran; staff sign in again after
 the deploy's minute (RUNBOOK). Setting a new password still ends the other sessions, the documented path.
 
+## ADR-720 - T-810d a staff session belongs to one surface, dashboard or console
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810d code review 92 on the unmerged branch
+`t-810d-console-hostname`); carried unchanged to the 2026-11-13 port (`docs/plans/2026-11-13-console-host.md`, migration
+0199 in place of 0156). Q-663.
+**Decision:** `staff_session.surface` (`dashboard` or `console`, default `dashboard`) is set by `open_staff_session` from
+the sign-in request's `Origin`: only a platform admin's sign-in from the console origin opens `console`; anything else
+(no Origin, a non-admin) `dashboard`; sign-up always opens `dashboard`. Once the console has its own host (ADR-723) the
+console hook (`/v1/admin/*`) accepts only `console` sessions and answers a hidden 404 otherwise; organizer doors accept
+only `dashboard` sessions; `/v1/staff/*` accepts both. Device doors take the device cookie and are unchanged.
+**Why:** ASVS V3.5.4. A script on a public page can then never use console powers, even with an admin's public-host
+cookie: the power belongs to a session opened on the console origin, whose `__Host-` cookie lives only there.
+**Trade-offs:** existing sessions are `dashboard`, so admins sign in again on the console host when it is switched on;
+an admin giving support (ADR-407) holds two sessions, one per host (Q-692). A support seat remains an admin power usable
+from a dashboard session (SECURITY.md, known risk).
+
+## ADR-721 - T-810d every cookie request is checked against its own session's origin
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810d code review 92); carried unchanged to
+the 2026-11-13 port, and applied only once a console origin is set (ADR-723).
+**Decision:** before any session lookup, on every method, a staff door refuses a `Sec-Fetch-Site` of `same-site` or
+`cross-site` and an Origin outside its list (`/v1/admin/*`: the console origin; `/v1/organizers/*`: the dashboard
+origin; `/v1/staff/*`: either), and an unsafe cookie request without Origin. After the lookup, `/v1/staff/*` requires a
+sent Origin to be the session's own. The web forwarder passes `Sec-Fetch-Site` on.
+**Why:** the two hosts are same-site, so `SameSite=Strict` lets one host's page send the other host's cookie; Origin and
+`Sec-Fetch-Site` tell them apart, and refusing before the lookup keeps a refused request from refreshing the idle clock or
+spending the session's limits (plan review 86, item 1).
+**Trade-offs:** none known.
+
+## ADR-722 - T-810d the web app routes pages by host
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810d code review 92); carried to the
+2026-11-13 port with `/play` added to the pages the console host sends back.
+**Decision:** one CranL web app answers on both hosts. `proxy.ts` reads `Host`: on the public host `/{lang}/console/**`
+goes 308 to the console host (same path and query); on the console host only the console, `/{lang}/sign-in` and
+`/{lang}/account` are served, `/` and `/{lang}` go to `/{lang}/console`, and every other page, `/play` included, goes
+308 to the public host. The forwarder answers 404 to `/v1/admin/*` on the public host without calling the API.
+Redirect targets are the configured origins joined to the path, never the request's `Host`.
+**Why:** no public page (organizer content, event page, station, big screen, `/play`) ever runs on the console origin,
+and the browser keeps the two hosts' cookies apart. No new CranL app (three-app budget).
+**Trade-offs:** cross-host links become absolute; the result depends on CranL passing `Host` unchanged (Q-691).
+
+## ADR-723 - T-810d `CONSOLE_ORIGIN` is optional: unset, the app is exactly as before
+
+**Status:** Proposed (worker, 2026-11-13; replaces the branch's "required" rule, accepted 2026-11-05, which kept the
+code from merging before Dhia's DNS step). Q-769.
+**Decision:** both apps read an optional `CONSOLE_ORIGIN`. Unset or empty: one host, every door, page and link as before
+T-810d (the proxy has no host step, sign-ins open `dashboard` sessions and no door reads the surface). Set: an origin
+only (https, http only on `localhost`, `*.localhost` and 127.0.0.1 for the web app), different from
+`DASHBOARD_ORIGIN`, else the app refuses to start; ADR-720 to ADR-722 then apply. Team alert emails link to the
+console's host when it is set.
+**Why:** the code and migration 0199 can merge and deploy now, and the split starts the day the setting is put on both
+apps after the DNS record and CranL domain, with a one-setting way back.
+**Trade-offs:** an optional setting could be forgotten; the RUNBOOK checklist, Q-783 and the ASVS row (Partly until
+the staging probes pass) keep it visible. The setting on one app only fails closed: the console is unusable, never
+exposed.
+
+## ADR-724 - T-810d browser tests run the console host on a second server pair
+
+**Status:** Proposed (worker, 2026-11-13; amends the branch's ADR-724, which ran every console spec on
+`console.localhost`).
+**Decision:** every existing spec runs, as before, on the one-host pair (no console origin). `playwright.config.ts`
+starts a second pair for `console-host.spec.ts`: the e2e API on 4102 with `E2E_CONSOLE_ORIGIN` (own database, codes
+file and control port, one seeded admin per browser size), and the same web build on 3102 with
+`DASHBOARD_ORIGIN=http://localhost:3102` and `CONSOLE_ORIGIN=http://console.localhost:3102`, listening on `0.0.0.0`.
+**Why:** both modes are covered in the browser, and no console spec changes. Chromium resolves `*.localhost` to loopback
+and treats it as a secure context, so `__Host-` cookies work over http.
+**Trade-offs:** about one more API start per browser run (CI shards included).
+
 ## ADR-725 - T-810f one previous reward code key at a time
 
 **Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810f code review 93; T-810f plan; refines ADR-705's `REWARD_CODE_PREVIOUS_SECRETS` list; Q-694).

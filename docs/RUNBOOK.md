@@ -396,6 +396,58 @@ or adds a contact, sends a code, moves points or merges accounts (ADR-421, ADR-4
    with a case reference (`POST /v1/admin/players/{id}/erase`, T-708: the reference and the username typed exactly), never
    because a caller says the account is theirs.
 
+## The console on its own host (T-810d, migration 0199, ADR-720 to ADR-724)
+
+- **Off until set.** With `CONSOLE_ORIGIN` unset on both apps (the default) everything is as before: one host, the
+  console at `/{lang}/console`. Migration 0199 and the code are safe to deploy first.
+- **Hosts, once set.** One web app (`questify-web-staging`) answers on both: `questify.nafes.com` (event pages, sign-in,
+  the dashboard, `/play`) and `console.questify.nafes.com` (the console, sign-in and the account page only). The public
+  host sends `/{lang}/console/**` to the console host (308, old links keep working); the console host sends every other
+  page back (308). Production later: `console.questify.sa` beside `questify.sa`, the same steps.
+- **Checklist (Dhia's steps 1 and 2, Q-783; nothing in this repo touches CranL):**
+  1. Cloudflare, zone `nafes.com`: add `CNAME` `console.questify` -> the same target as the `questify` record (the
+     staging web app, `questify-web-staging-4ecphq.cranl.net`, or what CranL's domain screen asks for), proxy off (DNS
+     only), like `questify.nafes.com`.
+  2. CranL, web app `questify-web-staging`: Domains -> add `console.questify.nafes.com`; wait until its certificate
+     shows as issued. Same app, no new CranL app. The new host then serves today's app (harmless).
+  3. Coordinator: set `CONSOLE_ORIGIN=https://console.questify.nafes.com` on **both** the API and the web app, in one
+     go, then redeploy both. Set on one app only fails closed (the console unusable, never exposed). The two origins must
+     differ (each app refuses to start otherwise). The web image listens on `HOSTNAME=0.0.0.0` (Dockerfile.web); never
+     set it to a public host name, or Next makes the cross-host redirects relative and they loop.
+  4. Every existing staff session is a dashboard session: each platform admin signs in once on
+     `https://console.questify.nafes.com/en/sign-in`. An admin giving support signs in on the public host too (Q-692).
+  5. Probes (no CI minutes):
+     `curl -s -o /dev/null -w "%{http_code}" https://questify.nafes.com/en` -> 200;
+     `curl -sI https://questify.nafes.com/en/console` -> 308, `location: https://console.questify.nafes.com/en/console`;
+     `curl -sI https://console.questify.nafes.com/en/organizers` -> 308 to `https://questify.nafes.com/en/organizers`;
+     `curl -s -o /dev/null -w "%{http_code}" https://console.questify.nafes.com/en/sign-in` -> 200;
+     `curl -s -o /dev/null -w "%{http_code}" -X POST https://questify.nafes.com/v1/admin/activation-requests` -> 404.
+     If the console path redirects to itself, CranL is not passing `Host` (Q-691): unset `CONSOLE_ORIGIN` on both apps
+     and redeploy (back to one host) until that is fixed.
+  6. Then tick T-810d and move ASVS gap 12 and V3.5.4 to Met.
+- **Turning it off** is step 3 backwards: unset `CONSOLE_ORIGIN` on both apps and redeploy. Console sessions keep
+  working on the public host (with no console host no door reads the surface).
+- **Refusals to expect, once set.** A console call from the public origin, or any staff request a browser marks
+  `same-site` or `cross-site` (`Sec-Fetch-Site`), answers 403 `csrf_rejected` before any session is read; an admin's
+  dashboard session on `/v1/admin/*` answers 404 and logs `authz.denied` with `reason: wrong_surface`.
+- **T-810d rollback of the code: fix forward.** 0155 revoked INSERT on `staff_session`, and 0199 dropped the
+  three-argument `open_staff_session` the release before it calls, so a plain redeploy of that release cannot sign
+  anyone in. To run it while a fix is made, put its opener back beside the new one (as the owner):
+
+  ```sql
+  BEGIN;
+  SET LOCAL lock_timeout = '10s';
+  CREATE FUNCTION open_staff_session(token bytea, agent text, address text)
+    RETURNS TABLE (session_id uuid, ended integer)
+    LANGUAGE sql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+    SELECT o.session_id, o.ended FROM open_staff_session(token, agent, address, 'dashboard') o $$;
+  REVOKE ALL ON FUNCTION open_staff_session(bytea, text, text) FROM PUBLIC;
+  GRANT EXECUTE ON FUNCTION open_staff_session(bytea, text, text) TO questify_app;
+  COMMIT;
+  ```
+
+  The next migration drops this three-argument opener again with the fixed release.
+
 ## The App Review demo (T-710, ADR-560 to ADR-568)
 
 - **Once per environment:** console, **App Review demo**, type Questify's reviewer SIM number (Q-520; never a real
@@ -1232,6 +1284,8 @@ the first step of that rerun.
 - Setting: `API_ORIGIN` = the API's **internal** address, for staging `http://questify-api-staging-3ez01s:3000`
   (never the public https URL: the app refuses to start with one). No secrets in the web app.
 - The API's `DASHBOARD_ORIGIN` must equal the web app's public https origin, and `TRUST_PROXY_HOPS=1` (ADR-113).
+- Optional `CONSOLE_ORIGIN` on the web app and the API alike (T-810d): the console's own host, https (http only for
+  `localhost`, `*.localhost` and 127.0.0.1); unset, one host as before. See "The console on its own host".
 - `DASHBOARD_ORIGIN` (required, T-803 P2): the web app reads the same origin under the API's name, so the two never
   drift; its forwarder refuses a player-cookie write or a `/v1/auth/*` write from any other `Origin` (ADR-819).
   `ops/cranl/*.json` sets it for both apps; a missing or non-https value stops the web app at start.
