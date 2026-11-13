@@ -3194,3 +3194,15 @@ for quests that show faces)?
 `ON DELETE SET NULL (image)`, which needs PostgreSQL 15 or later; CI runs 17.
 **Question:** which PostgreSQL version does CranL run for staging and production? Below 15, 0194 needs a trigger that
 clears the column instead.
+
+## Q-768 - Where does CranL store bucket files? (ADR-828, PDPL, T-811)
+
+**Status:** open; photos stay off until answered (Dhia, 2026-11-13). Dhia created bucket `questify-media` (public
+host `storage-questify-media.cranl.net`) and is switching it to Private. Its host answers from BunnyCDN (`server:
+BunnyCDN-FR1-…`, a European edge), and the CranL page shows no Saudi region. Player photos are personal data and
+must stay in Saudi Arabia (rule 3).
+**Question for CranL:** (1) In which country and data centre are bucket objects stored? (2) Does the CDN in front of
+`storage-*.cranl.net` cache or copy objects outside Saudi Arabia, and can it be turned off for a bucket? (3) What is
+the S3 API endpoint and signing region for a bucket, and does it accept path-style URLs and presigned GET/PUT? (4)
+Is there a riyadh-1 storage option? If storage cannot stay in KSA, the fallback is storing photos in a KSA provider
+(or in PostgreSQL for staging-sized volumes); decided after the answer.
