@@ -1,5 +1,19 @@
 # Blueprint State — Questify
 
+## T-806 store forms prepared (tier C, docs only) — 2026-11-13
+
+- **Written:** `docs/store/` holds the ready-to-paste answers for every store form that needs no account: App Store privacy
+  labels (with the privacy-manifest list), age rating, review notes with the demo sign-in steps and the review demo event; Play
+  Data safety, content rating and App content declarations, review notes; the screenshot shot list (screens, languages,
+  sizes; nothing captured) and the Arabic and English listing texts. Every answer is traced to the code and docs in
+  `docs/store/README.md` (data inventory, permissions, SDKs, `app.json` findings). ADR-831 (Proposed). Eleven gaps (G1 to G11)
+  are listed there and in the T-806 note, ten as Q-769 to Q-778 with a recommended answer; none fixed silently. The T-806 box
+  stays unticked.
+- **Tests:** none run (docs only).
+- **Next:** Q-769 to Q-772 are small build tasks (Legal block in Profile, privacy-manifest data types, EAS store profiles,
+  merged-manifest read); Q-768 (photo storage), the `locationQuests` switch, the Firebase file and counsel's policy (T-807)
+  gate the submission; Dhia's accounts, the reviewer SIM (Q-520) and device screenshots finish T-806.
+
 ## FOLLOWUPS batch, media lease, lock keys, touch race, campaign id (migration 0197) — 2026-11-13
 
 - **Built (tier B on core code; no table).** The media worker starts no bucket delete after 4 minutes of a round

@@ -3206,3 +3206,101 @@ must stay in Saudi Arabia (rule 3).
 the S3 API endpoint and signing region for a bucket, and does it accept path-style URLs and presigned GET/PUT? (4)
 Is there a riyadh-1 storage option? If storage cannot stay in KSA, the fallback is storing photos in a KSA provider
 (or in PostgreSQL for staging-sized volumes); decided after the answer.
+
+## Q-769 - The signed-in app has no Legal, support or deletion-page entry (T-806 prep, FR-1707, Apple 5.1.1(i))
+
+**Status:** Proposed (developer, 2026-11-13); found while preparing `docs/store/` (gap G1).
+The privacy policy, terms and community guidelines open from the sign-in and re-accept screens and the submission composer
+only; Profile has Download my data and Delete account but no Legal block, no support/contact link and no link to the web
+deletion page. FR-1707 ("Settings, Legal ... a contact page") was marked partly delivered (T-110) and never finished.
+**Recommended (developer):** a small tier B task before submission: a Legal block in Profile (the three documents, the
+contact page, the deletion page) using the same `Linking.openURL` helper. Apple wants the policy "within the app in an
+easily accessible manner"; Google reads the Data safety deletion link against the app.
+
+## Q-770 - The privacy manifest declares no collected data types (T-806 prep, EXPO_SDK_CHECK A2)
+
+**Status:** Proposed (developer, 2026-11-13); gap G2.
+`apps/app/app.json` `ios.privacyManifests` lists required-reason APIs only: no `NSPrivacyCollectedDataTypes`, no
+`NSPrivacyTracking`. The App Privacy label would then disagree with Xcode's privacy report.
+**Recommended (developer):** add the list in `docs/store/app-store-privacy-labels.md` section 3 with `NSPrivacyTracking`
+false and no tracking domains, re-read each added library's own manifest, and generate the privacy report once on the
+first archive. A build change, so it goes through a worker, not this docs task.
+
+## Q-771 - No store build profile in EAS, and two web origins (T-806 prep, EXPO_SDK_CHECK A4)
+
+**Status:** Proposed (developer, 2026-11-13); gap G3.
+`apps/app/eas.json` has `development`, `preview` and `demo-ios` only: no `production` profile for iOS or an Android app
+bundle, no Google submit profile; `demo-ios` targets the staging API host and `ascAppId` is the placeholder
+`SET_ASC_APP_ID_DIGITS`. The profiles set `EXPO_PUBLIC_QUEST_CODE_ORIGIN` to `questify.nafes.com` while the join-link host in
+`packages/shared/src/join/link.ts` is `questify.sa`. The review notes attach QR images signed with that origin.
+**Recommended (developer):** add `production` profiles (image `auto` or `sdk-57`, never `latest`) with the production API,
+and decide one web origin before printing the review QR codes and before any store URL (privacy, support, deletion) is
+entered. Dhia supplies the App Store Connect id.
+
+## Q-772 - Android permission list is stale; Firebase file and notification icon missing (T-806 prep)
+
+**Status:** Proposed (developer, 2026-11-13); gap G4.
+STORE_COMPLIANCE 2.7 says Android asks for `INTERNET`, `VIBRATE` and `CAMERA` only (checked 2026-10-21). Since then
+`expo-location`, `expo-notifications` and `react-native-nfc-manager` joined, adding location (fine and coarse), `POST_NOTIFICATIONS`
+and `NFC`, plus small library permissions. `android.googleServicesFile` is unset (the RUNBOOK's hard gate on the store build) and
+the notification icon is unset.
+**Recommended (developer):** read the merged manifest of the first release bundle (check no `READ_MEDIA_*`, no SMS, no
+`AD_ID`, no background location), rewrite 2.7 from it, and declare in Data safety both location types. Wire the Firebase file
+when Dhia has it; it stays the Done-when gate of T-806.
+
+## Q-773 - Is the Home sponsor strip an "ad" for Google Play's declaration? (T-806 prep, ADR-067, ADR-311)
+
+**Status:** Proposed (developer, 2026-11-13); gap G5.
+STORE_COMPLIANCE 2.11 and PD-27 say "Ads: No". ADR-311 reasons that Google treats sponsored native content as an ad and keeps
+the daily challenge editorial so "No ads" stays true. The Home sponsor strip and "Presented by" labels on quests,
+categories, rewards and souvenirs (ADR-067) are organizer-managed sponsor names and logos with no link-out and no targeting, but they
+are promotional content from third parties.
+**Recommended (developer):** answer Play's "contains ads" as **Yes** (a wrong "No" risks the listing; a "Yes" costs a label and
+changes no data answer), Apple's advertising question as **No** (no ad network, no advertiser content chosen by Questify; no
+rating effect). Dhia or counsel may overturn it; the forms change in one line.
+
+## Q-774 - Photos and the store forms wait on photo storage (T-806 prep, Q-768, ADR-828, ADR-830)
+
+**Status:** Proposed (developer, 2026-11-13); gap G6.
+Both forms must declare photos (ADR-073: declarations always describe every feature as on) and the binary contains the photo
+quest and the wall, but photos stay off until Q-768 is answered. A review demo without a photo quest would leave a declared feature
+unreachable (Apple 2.3.1(a), STORE_COMPLIANCE 1.3 item 2).
+**Recommended (developer):** do not submit before Q-768 is settled and photos are on in the demo event. If CranL cannot store
+files in Saudi Arabia, decide the fallback first and then re-read the label, Data safety and the privacy policy's section 5.
+
+## Q-775 - `locationQuests` is off but the labels declare location (T-806 prep, ADR-208, PD-09)
+
+**Status:** Proposed (developer, 2026-11-13); gap G7.
+The platform switch `locationQuests` defaults to off until the labels are updated (RUNBOOK, "Location switch"). The forms
+now declare location and the review demo must show a location quest with its QR alternative.
+**Recommended (developer):** after the RUNBOOK's database-log check, turn the switch on before Prepare for review, keep it on, and
+submit the forms as written. Do not submit with the switch off.
+
+## Q-776 - Privacy policy v0.1 and the contact page do not match the build (T-806 prep, T-807)
+
+**Status:** Proposed (developer, 2026-11-13); gap G8.
+The draft names wallet passes and device-integrity checks (T-801 and T-812 are not built) and an Android install link (no
+code); says a location reading "is kept only with a flag" while DATA_MODEL says no coordinate is stored; says all personal
+data stays in Saudi Arabia while the email provider is Google (ADR-112) and photo storage is open (Q-768); every retention period is
+a placeholder (Q-075); the contact page still says its details are being prepared (`contact.pending`).
+**Recommended (developer):** counsel's pass (T-807) trims the policy to what ships and fills the placeholders before the first
+submission; Play's Data safety is checked against the final text. The store forms in `docs/store/` follow the as-built state and
+list the lines to update when T-801 and T-812 land.
+
+## Q-777 - Age-rating answers with the photo wall (T-806 prep, STORE_COMPLIANCE 1.2 and 1.14)
+
+**Status:** Proposed (developer, 2026-11-13); gap G9.
+STORE_COMPLIANCE asks for the "social" answer to be re-checked now that players see each other's photos.
+**Recommended (developer):** user-generated content Yes, messaging No, social media No (the wall is browse, Report and Block
+only; no feed ranking, likes, comments or re-sharing), contests Frequent, advertising per Q-773. Result 13+, equal to ADR-028
+and to Play's declared audience 13-15, 16-17 and 18 and over. Re-open the answer if any feed behaviour is added. Q-766
+(photos of 13 to 17 year olds) is still with counsel.
+
+## Q-778 - Is the organizer "shared with" in Play's Data safety? (T-806 prep, PD-17, Q-043)
+
+**Status:** Proposed (developer, 2026-11-13); gap G10.
+STORE_COMPLIANCE 1.11 calls the organizer a third party; the DPA draft makes Questify the organizer's processor, which would
+make the organizer the first party for event data. Play's "shared" column depends on which reading counsel confirms.
+**Recommended (developer):** declare the rows the organizer sees (name if asked, username, activity, submissions, photos,
+help requests) as shared with the event's organizer, backed by the join card's consent. Over-disclosure is safe; revisit when
+counsel answers Q-043.

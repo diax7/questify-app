@@ -708,6 +708,8 @@ manifest. Inspect the merged manifest of every release build.
 - **When the camera is asked for:** the app asks in context when the player opens the scanner, never at launch.
 - **Repeat** the check on every release build.
 
+Note 2026-11-13 (T-806 preparation, `docs/store/README.md` G4, Q-772): the "Android asks for" list above predates `expo-location`, `expo-notifications` and `react-native-nfc-manager`; the app now also declares `ACCESS_COARSE_LOCATION`, `ACCESS_FINE_LOCATION`, `POST_NOTIFICATIONS` and `NFC` plus small library permissions. Rewrite this section from the merged manifest of the first release bundle.
+
 ### 2.8 User-generated content policy
 
 UGC apps "must implement robust, effective, and ongoing UGC moderation that":

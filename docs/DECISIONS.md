@@ -9235,3 +9235,21 @@ Amends ADR-054 (the photo wall scene) and ADR-068 (safety); builds on ADR-828 an
 - **No bucket, no wall:** the scene is not offered and answers an empty list; Home's `photoWall` is false.
 **Why:** the room watches together (ADR-054), but a photo of a person on a public screen needs that person's choice,
 the team's pick, and a way to take it down quickly.
+
+## ADR-831 - Store form answers for the first submission (T-806 preparation)
+
+**Status:** Proposed (developer, 2026-11-13; tier C, no review). Written into `docs/store/`; recorded for Dhia to overturn.
+**Decision:** (1) Apple privacy labels: Name, Email, Phone, Precise Location, Photos or Videos, Customer Support, Other User
+Content, User ID, Device ID, Product Interaction and Other Data Types, all linked, none used for tracking; no diagnostics
+claimed. (2) Apple age rating: user-generated content Yes; messaging, social media, unrestricted web access, parental
+controls, age assurance No; contests Frequent; result 13+. (3) Play: the same inventory as Data safety, with Name, User IDs,
+App interactions, Other user-generated content, Photos and Other in-app messages marked shared with the event's organizer;
+target audience 13-15, 16-17 and 18 and over; ads declared Yes while the Home sponsor strip ships (Apple's advertising
+question No). (4) One reviewer account, one six-digit code and one window for both stores, window 30 days, played to level 3 once
+after Prepare. (5) The forms are written on the as-built state: wallet passes (T-801) and device attestation (T-812)
+are added to each form on the day they ship. (6) Nothing is submitted before Q-768 (photo storage), the location
+switch, the Firebase file and counsel's privacy policy (T-807) are settled.
+**Why:** every answer is traced to the code and docs in `docs/store/README.md`; over-disclosure costs a label, an
+under-disclosure costs the listing (Apple 2.3, 5.1.1; Google User Data and Ads policies). Gaps G1 to G11 are Q-769 to Q-778.
+**Trade-offs:** declaring ads and sharing with the organizer may read worse on the listing than the narrower answers; each is
+one line to change once counsel decides Q-043 and Q-773.

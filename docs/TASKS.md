@@ -1661,6 +1661,19 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
     screen) must have passed and be recorded first: review needs push live (STORE_COMPLIANCE).
   - Note 2026-10-28 (T-501c code review): the Android build must carry the Firebase `google-services.json` before it is
     submitted (RUNBOOK, "The app's side of push"): without it no Android push can arrive and review needs push live.
+  - Note 2026-11-13 (store forms prepared, tier C, ADR-831): everything of T-806 that needs no store account is written in
+    `docs/store/` (App Store privacy labels and privacy-manifest list, age rating, review notes with the demo sign-in steps and
+    the review demo event, Play Data safety, Play content rating and App content declarations, Play review notes, screenshot
+    shot list and Arabic and English listing texts), each answer traced to the code and docs; no form was entered and no
+    screenshot was taken. Still needing Dhia or a device: the store accounts, the reviewer SIM (Q-520), the console's Prepare
+    for review (the code is shown once), play to level 3, screenshots on a device, the first merged-manifest and Xcode
+    privacy-report reads. Gaps found, each with its recommended answer (`docs/store/README.md` G1 to G11): the signed-in app has no
+    Legal, support or deletion-page entry (Q-769); the privacy manifest lists no collected data types (Q-770); EAS has no
+    store profile and two web origins (Q-771); the Android permission list is stale and the Firebase file and icon are unset
+    (Q-772); the Home sponsor strip against Play's ads declaration (Q-773); photos wait on Q-768 (Q-774); `locationQuests` is off
+    while the labels declare location (Q-775); privacy policy v0.1 and the contact page against the build (Q-776); age-rating
+    answers with the photo wall (Q-777); the organizer as "shared with" in Data safety (Q-778). Minor: NFC term in Arabic
+    (glossary «بطاقة NFC» against «وسم NFC»), the seller is Dhia personally (Q-078). The box stays unticked.
   - Done when: Both stores accept the submission for review, the RUNBOOK's push go-live checklist has passed, and the
     Android build was made with the Firebase `google-services.json`.
 - [ ] **T-807** Counsel batch and data map: send the batched legal questions and finalize the vendor data map — delivers no FR (infrastructure or quality gate); depends on: none
