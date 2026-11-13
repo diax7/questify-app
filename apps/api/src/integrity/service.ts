@@ -195,6 +195,8 @@ async function assert(
       { ...input, publicKey: stored.public_key, storedCounter: Number(stored.sign_count) },
       settings,
     );
+    if (asserted.ok && asserted.repeat)
+      return { next: "done", log: { platform: "ios", outcome: "repeat" } } as const;
     const verdict: Verdict = asserted.ok
       ? { passed: true, reasons: [] }
       : { passed: false, reasons: [asserted.reason] };

@@ -243,7 +243,7 @@ export function verifyAttestation(
   };
 }
 
-export type Asserted = Readonly<{ ok: true; counter: number }>;
+export type Asserted = Readonly<{ ok: true; counter: number; repeat: boolean }>;
 
 /** The assertion's signature and authenticator data, else undefined. */
 function assertionParts(
@@ -268,8 +268,9 @@ function signedBy(publicKey: Buffer, message: Buffer, signature: Buffer): boolea
 
 /**
  * Verifies an assertion with the stored key (Apple's six steps): the signature over SHA-256(authenticatorData ‖
- * clientDataHash), the rpId, and a counter above `storedCounter`. The caller holds the key's row locked and stores the
- * new counter.
+ * clientDataHash), the rpId, and a counter not below `storedCounter`. A counter equal to it is a resend of the last accepted
+ * assertion (an honest retry after a timeout): it holds with `repeat` set and the caller records nothing. The caller
+ * holds the key's row locked and stores a higher counter.
  */
 export function verifyAssertion(
   input: Readonly<{
@@ -285,8 +286,12 @@ export function verifyAssertion(
   const nonce = sha256(parts.data, input.clientDataHash);
   if (!signedBy(input.publicKey, nonce, parts.signature)) return refused("signature");
   if (!rpIdHolds(parts.auth, settings.appId)) return refused("rp_id");
-  if (parts.auth.counter <= input.storedCounter) return refused("counter");
-  return { ok: true, counter: parts.auth.counter };
+  if (parts.auth.counter < input.storedCounter) return refused("counter");
+  return {
+    ok: true,
+    counter: parts.auth.counter,
+    repeat: parts.auth.counter === input.storedCounter,
+  };
 }
 
 /** The SHA-256 the app signs over as the client data: the challenge's text. */

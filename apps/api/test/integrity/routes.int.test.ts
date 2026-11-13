@@ -240,7 +240,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("device integrity over HTTP", (
   };
 
   describe("App Attest", () => {
-    it("attests a key, then takes assertions with a rising counter, flagging a replay", async () => {
+    it("attests a key, then takes assertions with a rising counter, ignoring a byte-identical resend", async () => {
       const who = await caller();
       const enrollment = await played(who);
       const { made, text } = await attestFor(who);
@@ -263,12 +263,40 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("device integrity over HTTP", (
         next: "done",
       });
       expect(await flags(enrollment)).toEqual([]);
+      const recorded = await f.owner("SELECT 1 FROM device_check WHERE install_id = $1", [
+        who.install,
+      ]);
 
       expect(
         (await check(who, { platform: "ios", challenge: second, keyId, assertion })).json(),
-      ).toEqual({
-        next: "done",
+      ).toEqual({ next: "done" });
+      expect(await flags(enrollment)).toEqual([]);
+      expect(
+        await f.owner("SELECT 1 FROM device_check WHERE install_id = $1", [who.install]),
+      ).toEqual(recorded);
+    });
+
+    it("flags an assertion whose counter is below the stored one", async () => {
+      const who = await caller();
+      const enrollment = await played(who);
+      const { made, text } = await attestFor(who);
+      const keyId = made.keyId.toString("base64");
+      await check(who, {
+        platform: "ios",
+        challenge: text,
+        keyId,
+        attestation: made.attestation.toString("base64"),
       });
+      const send = async (counter: number) => {
+        const next = (await challenge(who, "ios")).challenge ?? "";
+        const assertion = makeAssertion(made.key, clientDataHashOf(next), counter).toString(
+          "base64",
+        );
+        return (await check(who, { platform: "ios", challenge: next, keyId, assertion })).json();
+      };
+      expect(await send(5)).toEqual({ next: "done" });
+      expect(await flags(enrollment)).toEqual([]);
+      expect(await send(3)).toEqual({ next: "done" });
       const [flag] = await flags(enrollment);
       expect(flag?.evidence).toMatchObject({ platform: "ios", reasons: ["counter"] });
     });

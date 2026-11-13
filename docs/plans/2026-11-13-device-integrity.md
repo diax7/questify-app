@@ -18,7 +18,7 @@ keys the API starts and behaves exactly as today: the challenge door answers `{ 
    counter stops an assertion replay. `{ enabled: false }` when the platform has no keys.
 2. **Check** `POST /v1/me/device-integrity` (player, X-Device-Id, 10 an hour per player):
    - Android `{ platform, challenge, token }`: Google's `decodeIntegrityToken` with a service-account token (the
-     existing `createGoogleTokenSource`, scope `playintegrity`), 5 s timeout each. Fails on: not
+     existing `createGoogleTokenSource`, scope `playintegrity`), 4 s timeout each. Fails on: not
      `MEETS_DEVICE_INTEGRITY`, app not `PLAY_RECOGNIZED`, wrong package, nonce/requestHash not ours, older than
      10 minutes, or a token Google calls invalid (400).
    - iOS `{ platform, challenge, keyId, attestation }` once, then `{ …, keyId, assertion }`: CBOR and DER parsed in

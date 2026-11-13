@@ -99,7 +99,13 @@ async function accessToken(options: PlayIntegrityOptions): Promise<string | Atte
 /** Google's answer as an attempt: a payload, a bad token (400), or a status worth retrying or not. */
 async function answerOf(response: Response, access: string): Promise<Attempt> {
   const body: unknown = await response.json().catch(() => undefined);
-  if (response.ok) return { kind: "answer", payload: field(body, "tokenPayloadExternal") };
+  if (response.ok) {
+    const payload = field(body, "tokenPayloadExternal");
+    // A 200 without the decoded payload is Google misbehaving, not a failed check: no verdict.
+    return isRecord(payload) && isRecord(field(payload, "requestDetails"))
+      ? { kind: "answer", payload }
+      : { kind: "stop", why: "200_malformed" };
+  }
   if (response.status === 400) return { kind: "bad_token" };
   const why = `${response.status}_${reasonOf(field(field(body, "error"), "status"))}`;
   if (response.status === 401) return { kind: "retry", why, stale: access };

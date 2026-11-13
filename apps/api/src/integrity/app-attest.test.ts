@@ -148,15 +148,27 @@ describe("App Attest assertion (T-812)", () => {
     verifyAssertion({ assertion, clientDataHash: hash, publicKey, storedCounter }, settings);
 
   it("takes a signature by the attested key with a higher counter, and answers the counter", () => {
-    expect(check(makeAssertion(made.key, clientDataHash, 1))).toEqual({ ok: true, counter: 1 });
-    expect(check(makeAssertion(made.key, clientDataHash, 8), 7)).toEqual({ ok: true, counter: 8 });
+    expect(check(makeAssertion(made.key, clientDataHash, 1))).toEqual({
+      ok: true,
+      counter: 1,
+      repeat: false,
+    });
+    expect(check(makeAssertion(made.key, clientDataHash, 8), 7)).toEqual({
+      ok: true,
+      counter: 8,
+      repeat: false,
+    });
   });
 
-  it("refuses a counter that does not move forward (a replay)", () => {
+  it("takes a resend of the last accepted assertion as a repeat, not a failure", () => {
     expect(check(makeAssertion(made.key, clientDataHash, 7), 7)).toEqual({
-      ok: false,
-      reason: "counter",
+      ok: true,
+      counter: 7,
+      repeat: true,
     });
+  });
+
+  it("refuses a counter below the stored one (a replay)", () => {
     expect(check(makeAssertion(made.key, clientDataHash, 3), 7)).toEqual({
       ok: false,
       reason: "counter",

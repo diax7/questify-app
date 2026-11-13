@@ -321,6 +321,12 @@ hour (10 a day) stop its codes. Email sign-in still works, and support frees the
 SMS"). The windows stay per contact because a per-address limit cannot stop a spread-out attack and would lock out
 whole venues.
 
+**Residual risk accepted (T-812, review).** The device-integrity flag trusts `X-Device-Id` as the install's anchor, as
+the `shared_device` flag does: someone who knows another install's id can send a garbage proof for it and flag the
+accounts that played on that install. The id is a random UUID that the app never shows and no screen lists, the flag
+only opens a case for the organizer (it never blocks), and a passing check later closes nothing but is also not needed
+to clear it by hand. A client that never calls the check is never flagged either; both limits are accepted.
+
 **Deviation (T-018, 2026-11-03): written; evaluated from T-018b.** The alerts for these signals are rules in `ops/alerts/questify.rules.yml`:
 `QuestifyEmailFailing` and `QuestifyEmailBackupInUse` (email senders down), `QuestifySignInThrottleSpike` (throttle spikes),
 each with a RUNBOOK entry. They are evaluated once the telemetry store exists (T-018b, Q-560). One address key carrying most of the

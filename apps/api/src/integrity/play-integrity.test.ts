@@ -101,6 +101,16 @@ describe("Play Integrity over HTTP, against a local fake of Google (T-812)", () 
     });
   });
 
+  it("gives no verdict for a 200 without the decoded payload or its request details", async () => {
+    for (const body of [{}, { tokenPayloadExternal: {} }, { tokenPayloadExternal: "x" }]) {
+      fake.answer({ status: 200, body });
+      expect(await fakePlayIntegrity(fake).decide("t", CHALLENGE)).toEqual({
+        kind: "unavailable",
+        why: "200_malformed",
+      });
+    }
+  });
+
   it("asks once more after a 5xx and gives no verdict when Google still does not answer", async () => {
     fake.answer({ status: 503, body: {} }, { status: 200, body: goodPayload(CHALLENGE) });
     expect(await fakePlayIntegrity(fake).decide("t", CHALLENGE)).toMatchObject({
