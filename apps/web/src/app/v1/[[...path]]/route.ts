@@ -1,4 +1,5 @@
 import { webConfig } from "#src/lib/config.ts";
+import { hostKind } from "#src/lib/console-host.ts";
 import { forward } from "#src/lib/forward.ts";
 import { forwardBodyBytes, forwardTimeoutMs } from "#src/lib/forward-timeout.ts";
 
@@ -16,6 +17,10 @@ function handle(request: Request): Promise<Response> {
     apiOrigin: config.apiOrigin,
     webOrigin: config.webOrigin,
     playerSession: config.playerWebSession,
+    // Once the console has its own host (T-810d), the public host never passes a console call on.
+    refuseConsoleApi:
+      config.consoleOrigin !== undefined &&
+      hostKind(request.headers.get("host"), config) === "public",
     timeoutMs: forwardTimeoutMs(pathname),
     maxBodyBytes: forwardBodyBytes(pathname),
     // One JSON line on the server log (stderr), like the API's own log lines.

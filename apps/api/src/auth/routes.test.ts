@@ -15,6 +15,7 @@ import type { CodeResult, PasswordResult, SignIn, StaffResendResult } from "#src
 import { MemoryIdempotencyStore } from "#src/idempotency-store";
 
 const ORIGIN = "https://app.test";
+const CONSOLE = "https://console.app.test";
 const TOKEN = "T".repeat(43);
 
 let app: FastifyInstance;
@@ -24,9 +25,15 @@ const noSessions = {
 } as unknown as Sessions;
 
 const ACCOUNT = { id: "u1", email: "a@x.sa", status: "active", platformRole: "none" } as const;
+let lookups = 0;
 const liveSession = {
-  authenticate: async () => ({ kind: "valid", account: ACCOUNT, sessionId: "s1" }),
+  authenticate: async () => {
+    lookups += 1;
+    return { kind: "valid", account: ACCOUNT, sessionId: "s1", surface: "dashboard" };
+  },
+  memberships: async () => [],
 } as unknown as Sessions;
+let codeSurface: string | undefined;
 
 async function start(results: {
   password?: PasswordResult;
@@ -42,10 +49,15 @@ async function start(results: {
   accept?: AcceptResult;
   acceptNew?: AcceptNewResult;
   signedIn?: boolean;
+  /** The console's own origin (T-810d); unset, the routes behave as before it. */
+  consoleOrigin?: string;
 }): Promise<void> {
   const signIn: SignIn = {
     passwordStep: async () => results.password ?? { kind: "invalid_credentials" },
-    codeStep: async () => results.code ?? { kind: "challenge_expired" },
+    codeStep: async (input) => {
+      codeSurface = input.surface;
+      return results.code ?? { kind: "challenge_expired" };
+    },
     resend: async () => results.resend ?? { kind: "challenge_expired" },
   };
   const passwords: Passwords = {
@@ -92,7 +104,10 @@ async function start(results: {
       confirm: async () => ({ kind: "challenge_expired" }),
     },
     dashboardOrigin: ORIGIN,
+    consoleOrigin: results.consoleOrigin,
   });
+  lookups = 0;
+  codeSurface = undefined;
   await app.ready();
 }
 
@@ -572,5 +587,80 @@ describe("invite answers (T-101)", () => {
       password: "a long enough password",
     });
     expect(response.json()).toEqual({ challengeToken: TOKEN, expiresInSeconds: 600 });
+  });
+});
+
+const me = (headers: Record<string, string>) =>
+  app.inject({
+    method: "GET",
+    url: "/v1/staff/me",
+    headers: { cookie: `__Host-qs_session=${TOKEN}`, ...headers },
+  });
+
+const codeFrom = (origin: string) =>
+  app.inject({
+    method: "POST",
+    url: "/v1/staff/auth/code",
+    headers: { origin },
+    payload: { challengeToken: TOKEN, code: "123456" },
+  });
+
+describe("which host a staff request may come from, the console on its own host (T-810d)", () => {
+  it.each(["same-site", "cross-site"])(
+    "refuses a %s fetch before the session is looked up",
+    async (site) => {
+      await start({ signedIn: true, consoleOrigin: CONSOLE });
+      const response = await me({ "sec-fetch-site": site });
+      expect(response.statusCode).toBe(403);
+      expect(response.json()).toMatchObject({ code: "csrf_rejected" });
+      expect(lookups).toBe(0);
+    },
+  );
+
+  it("refuses an Origin that is neither host before the session is looked up", async () => {
+    await start({ signedIn: true, consoleOrigin: CONSOLE });
+    const response = await me({ origin: "https://questify.evil.example" });
+    expect(response.statusCode).toBe(403);
+    expect(lookups).toBe(0);
+  });
+
+  it("refuses the console's Origin on a dashboard session, after the lookup", async () => {
+    await start({ signedIn: true, consoleOrigin: CONSOLE });
+    const response = await me({ origin: CONSOLE });
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "csrf_rejected" });
+    expect(lookups).toBe(1);
+  });
+
+  it("takes a same-origin read, its own Origin, and a server render with neither header", async () => {
+    await start({ signedIn: true, consoleOrigin: CONSOLE });
+    expect((await me({ "sec-fetch-site": "same-origin" })).statusCode).toBe(200);
+    expect((await me({ origin: ORIGIN })).statusCode).toBe(200);
+    expect((await me({ "sec-fetch-site": "none" })).statusCode).toBe(200);
+    expect((await me({})).statusCode).toBe(200);
+  });
+
+  it("takes a sign-in step from either host and asks for the surface of its origin", async () => {
+    await start({ consoleOrigin: CONSOLE });
+    await codeFrom(CONSOLE);
+    expect(codeSurface).toBe("console");
+    await codeFrom(ORIGIN);
+    expect(codeSurface).toBe("dashboard");
+    expect((await codeFrom("https://evil.example")).statusCode).toBe(403);
+  });
+});
+
+describe("with no console host configured, exactly as before T-810d", () => {
+  it("lets a same-site read and a foreign Origin's read through, and refuses a foreign write", async () => {
+    await start({ signedIn: true });
+    expect((await me({ "sec-fetch-site": "same-site" })).statusCode).toBe(200);
+    expect((await me({ origin: "https://other.app.test" })).statusCode).toBe(200);
+    expect((await codeFrom(CONSOLE)).statusCode).toBe(403);
+  });
+
+  it("asks for a dashboard session whatever the sign-in's origin", async () => {
+    await start({});
+    await codeFrom(ORIGIN);
+    expect(codeSurface).toBe("dashboard");
   });
 });

@@ -310,7 +310,12 @@ async function codeStep(
           (slug) => completeSignup(client, slug, judged.typed, caller.requestId),
         );
         await promote(created.staffUserId);
-        await openSession(client, created.staffUserId, session.hash, caller);
+        // A new account is an organizer, which has no console: sign-up always opens a dashboard session (ADR-720).
+        await openSession(
+          client,
+          { staffUserId: created.staffUserId, tokenHash: session.hash, surface: "dashboard" },
+          caller,
+        );
         return {
           kind: "signed_up",
           sessionToken: session.token,

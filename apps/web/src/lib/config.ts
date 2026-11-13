@@ -5,6 +5,11 @@ export type WebConfig = Readonly<{
    * drift: a write that carries the player cookie or reaches `/v1/auth/*` must send exactly this `Origin`.
    */
   webOrigin: string;
+  /**
+   * The console's own origin (`CONSOLE_ORIGIN`, T-810d, ADR-722, ADR-723), another host of this same app. Unset, every
+   * page and `/v1` path is served on the one host exactly as before; set, the console answers only there.
+   */
+  consoleOrigin: string | undefined;
   /** `PLAYER_WEB_SESSION=on`: the forwarder's player cookie steps (ADR-818); off in production until Dhia enables it (on in staging). */
   playerWebSession: boolean;
   /** The app's store pages (T-010), unset until the app is published: the event page then shows no store buttons. */
@@ -48,8 +53,10 @@ function storeLink(
  */
 const INTERNAL_ORIGIN = /^http:\/\/([a-z0-9-]+|127\.0\.0\.1)(:[0-9]{1,5})?$/;
 
-/** A local run's own origin may be plain http; every other web origin is https. */
+/** A local run's own origin may be plain http (`*.localhost` too, for the console host in browser tests); else https. */
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
+const isLocalHost = (hostname: string): boolean =>
+  LOCAL_HOSTS.has(hostname) || hostname.endsWith(".localhost");
 
 const parsedUrl = (value: string): URL | undefined => {
   try {
@@ -65,7 +72,7 @@ function isWebOrigin(value: string): boolean {
   if (url === undefined || url.origin !== value) {
     return false;
   }
-  return url.protocol === "https:" || LOCAL_HOSTS.has(url.hostname);
+  return url.protocol === "https:" || isLocalHost(url.hostname);
 }
 
 /**
@@ -83,6 +90,33 @@ function webOriginOf(env: Readonly<Record<string, string | undefined>>): string 
   if (!isWebOrigin(value)) {
     throw new Error(
       `DASHBOARD_ORIGIN "${value}" must be an https origin with no path or trailing slash (https://questify.nafes.com), or http://localhost:<port> on this machine.`,
+    );
+  }
+  return value;
+}
+
+/**
+ * The console's own origin (`CONSOLE_ORIGIN`, T-810d): optional; set, an origin only, https except on this machine, and
+ * a different host from `DASHBOARD_ORIGIN`.
+ *
+ * @throws Error naming the setting and the expected form.
+ */
+function consoleOriginOf(
+  env: Readonly<Record<string, string | undefined>>,
+  webOrigin: string,
+): string | undefined {
+  const value = env["CONSOLE_ORIGIN"];
+  if (value === undefined || value.trim() === "") {
+    return undefined;
+  }
+  if (!isWebOrigin(value)) {
+    throw new Error(
+      `CONSOLE_ORIGIN "${value}" must be an https origin with no path or trailing slash (https://console.questify.nafes.com), or http://console.localhost:<port> on this machine.`,
+    );
+  }
+  if (value === webOrigin) {
+    throw new Error(
+      `CONSOLE_ORIGIN must be a different host from DASHBOARD_ORIGIN (both are "${value}"), or unset.`,
     );
   }
   return value;
@@ -109,7 +143,8 @@ function playerWebSessionOf(env: Readonly<Record<string, string | undefined>>): 
  * Reads the web app's settings.
  *
  * @throws Error naming the setting and the expected form when `API_ORIGIN` is missing or not an internal address, a
- *   store link is not https on its store's host, `DASHBOARD_ORIGIN` is missing or not an origin, or
+ *   store link is not https on its store's host, `DASHBOARD_ORIGIN` is missing or not an origin, `CONSOLE_ORIGIN` is
+ *   set but not an origin or the same as `DASHBOARD_ORIGIN`, or
  *   `PLAYER_WEB_SESSION` is neither `on` nor `off`.
  */
 export function readWebConfig(env: Readonly<Record<string, string | undefined>>): WebConfig {
@@ -126,9 +161,11 @@ export function readWebConfig(env: Readonly<Record<string, string | undefined>>)
   }
   const appStoreUrl = storeLink(env, "APP_STORE_URL");
   const playStoreUrl = storeLink(env, "PLAY_STORE_URL");
+  const webOrigin = webOriginOf(env);
   return {
     apiOrigin,
-    webOrigin: webOriginOf(env),
+    webOrigin,
+    consoleOrigin: consoleOriginOf(env, webOrigin),
     playerWebSession: playerWebSessionOf(env),
     ...(appStoreUrl === undefined ? {} : { appStoreUrl }),
     ...(playStoreUrl === undefined ? {} : { playStoreUrl }),
@@ -136,6 +173,15 @@ export function readWebConfig(env: Readonly<Record<string, string | undefined>>)
 }
 
 let cached: WebConfig | undefined;
+
+/**
+ * The settings, only when the console has its own host (`CONSOLE_ORIGIN` set, T-810d); undefined otherwise, without
+ * reading anything else, so the proxy's host step is not there at all while no console host is configured.
+ */
+export function splitHostConfig(): WebConfig | undefined {
+  const value = process.env["CONSOLE_ORIGIN"];
+  return value === undefined || value.trim() === "" ? undefined : webConfig();
+}
 
 /** The settings of the running server, read once. */
 export function webConfig(): WebConfig {

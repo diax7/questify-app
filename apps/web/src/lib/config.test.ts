@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import { readWebConfig } from "#src/lib/config.ts";
 
 const WEB = { DASHBOARD_ORIGIN: "https://questify.nafes.com" };
-const WEB_PARSED = { webOrigin: "https://questify.nafes.com", playerWebSession: false };
+const WEB_PARSED = {
+  webOrigin: "https://questify.nafes.com",
+  consoleOrigin: undefined,
+  playerWebSession: false,
+};
 
 describe("readWebConfig", () => {
   it.each([
@@ -111,6 +115,38 @@ describe("readWebConfig", () => {
     it.each(["true", "1", "ON", "yes"])("refuses PLAYER_WEB_SESSION=%s", (value) => {
       expect(() => readWebConfig({ ...base, ...WEB, PLAYER_WEB_SESSION: value })).toThrow(
         /PLAYER_WEB_SESSION ".*" must be "on" or "off"/,
+      );
+    });
+  });
+
+  describe("the console's own host (CONSOLE_ORIGIN, T-810d)", () => {
+    const base = { API_ORIGIN: "http://questify-api", ...WEB };
+
+    it.each([undefined, "", " "])("has no console host for %j (everything as before)", (value) => {
+      expect(readWebConfig({ ...base, CONSOLE_ORIGIN: value }).consoleOrigin).toBeUndefined();
+    });
+
+    it.each(["https://console.questify.nafes.com", "http://console.localhost:3102"])(
+      "accepts %s",
+      (origin) => {
+        expect(readWebConfig({ ...base, CONSOLE_ORIGIN: origin }).consoleOrigin).toBe(origin);
+      },
+    );
+
+    it.each([
+      "http://console.questify.nafes.com",
+      "https://console.questify.nafes.com/",
+      "https://console.questify.nafes.com/en",
+      "console.questify.nafes.com",
+    ])("refuses %s, which is not an https origin", (origin) => {
+      expect(() => readWebConfig({ ...base, CONSOLE_ORIGIN: origin })).toThrow(
+        /CONSOLE_ORIGIN ".*" must be an https origin/,
+      );
+    });
+
+    it("refuses the dashboard's own origin", () => {
+      expect(() => readWebConfig({ ...base, CONSOLE_ORIGIN: WEB.DASHBOARD_ORIGIN })).toThrow(
+        /CONSOLE_ORIGIN must be a different host from DASHBOARD_ORIGIN/,
       );
     });
   });

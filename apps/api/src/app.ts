@@ -243,6 +243,7 @@ function startAlertTicks(
   if (options.teamAlertIntervalMs !== undefined) {
     const worker = startTeamAlertWorker({
       ...emailChange,
+      consoleOrigin: options.config.auth.consoleOrigin,
       mailFrom: options.config.auth.gmail.from,
       intervalMs: options.teamAlertIntervalMs,
       log: (level, fields) => app.log[level](fields),
@@ -372,7 +373,7 @@ function registerConsole(app: FastifyInstance, options: AppOptions, shared: Cons
     activation: shared.activation,
     settings: shared.settings,
     sessions: shared.sessions,
-    dashboardOrigin: config.auth.dashboardOrigin,
+    ...staffOriginsOf(config),
     tickets: { pool, keys: shared.keys, storage: options.storage },
     questify: { pool },
     invitations: shared.invitations,
@@ -405,8 +406,18 @@ function registerConsole(app: FastifyInstance, options: AppOptions, shared: Cons
   });
 }
 
+/** The staff doors' two origins (T-810d): the dashboard's, and the console's own once `CONSOLE_ORIGIN` is set. */
+const staffOriginsOf = (config: AppConfig) => ({
+  dashboardOrigin: config.auth.dashboardOrigin,
+  consoleOrigin: config.auth.consoleOrigin,
+});
+
 /** Staff sign-in, password reset, sign-up, invites, sessions and the owner email change link (T-701b). */
-function registerStaff(app: FastifyInstance, deps: PasswordDeps): void {
+function registerStaff(
+  app: FastifyInstance,
+  deps: PasswordDeps,
+  consoleOrigin: string | undefined,
+): void {
   const signIn = createSignIn(deps);
   registerStaffRoutes(app, {
     signIn,
@@ -417,6 +428,7 @@ function registerStaff(app: FastifyInstance, deps: PasswordDeps): void {
     signUp: createSignUp(deps),
     emailChange: createEmailChange(deps),
     dashboardOrigin: deps.dashboardOrigin,
+    consoleOrigin,
   });
 }
 
@@ -517,7 +529,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     deferred,
     dashboardOrigin: config.auth.dashboardOrigin,
   };
-  registerStaff(app, passwordDeps);
+  registerStaff(app, passwordDeps, config.auth.consoleOrigin);
 
   const questCodeKey = createQuestCodeKey(config.qrSecret);
   const stepCodeKey = createStepCodeKey(config.qrSecret);
@@ -659,7 +671,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     devices: deviceClaims,
     invitations,
     suspended,
-    dashboardOrigin: config.auth.dashboardOrigin,
+    ...staffOriginsOf(config),
     storage: options.storage,
   });
   registerPublicLinkRoutes(app, { pool: options.pool, keys: signInDeps.keys });

@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import { ConsoleEvent } from "#src/components/ConsoleEvent.tsx";
+import { webConfig } from "#src/lib/config.ts";
+import { dashboardHref } from "#src/lib/console-host.ts";
 import { isEventId } from "#src/lib/console.ts";
 import { consolePage } from "#src/lib/console-page.ts";
 
@@ -12,5 +14,11 @@ export default async function ConsoleEventPage({ params }: Props) {
   if (!isEventId(eventId)) {
     notFound();
   }
-  return <ConsoleEvent language={page.language} eventId={eventId} />;
+  return (
+    <ConsoleEvent
+      language={page.language}
+      eventId={eventId}
+      dashboardBase={dashboardHref(webConfig(), "")}
+    />
+  );
 }

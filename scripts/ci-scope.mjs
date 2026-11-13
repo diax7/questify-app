@@ -82,6 +82,8 @@ export const AREAS = [
     ["setup"],
   ],
   [/analytics/i, ["analytics"]],
+  // The console on its own host (T-810d): the host step, the staff doors' guard and the web settings.
+  [/console-?host|staff-guard|lib\/config\.|console-page/i, ["console-host"]],
   [/(?<!feature-?)usage/i, ["console-usage"]],
   [/feature-?usage/i, ["console-feature-usage"]],
   [/translation|text-matrix|leave-guard/i, ["console-translations"]],

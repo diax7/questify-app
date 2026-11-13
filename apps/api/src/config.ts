@@ -19,6 +19,12 @@ export type AuthConfig = Readonly<{
   previous: Readonly<{ id: number; secret: string }> | undefined;
   /** The one origin of the dashboard, which proxies /v1. State-changing cookie requests must come from it. */
   dashboardOrigin: string;
+  /**
+   * The console's own origin (`CONSOLE_ORIGIN`, T-810d, ADR-723), a different host of the same web app. Unset, every
+   * staff door behaves as before T-810d. Set, only a platform admin's sign-in from it opens a console session, the only
+   * kind `/v1/admin/*` takes (ADR-720).
+   */
+  consoleOrigin: string | undefined;
   /** The Gmail API sender (ADR-112): a service account acting for a Workspace mailbox, sending from `from`. */
   gmail: Readonly<{ key: ServiceAccountKey; from: string; actAs: string | undefined }>;
   /** The backup email provider. Present only when both its key and its verified From address are set. */
@@ -228,6 +234,23 @@ function previousAuthSecret(
   return previous;
 }
 
+/**
+ * `DASHBOARD_ORIGIN` (required) and `CONSOLE_ORIGIN` (optional, T-810d): when set, an origin only and another host.
+ *
+ * @throws Error naming the setting.
+ */
+function staffOrigins(env: Env): Pick<AuthConfig, "dashboardOrigin" | "consoleOrigin"> {
+  const dashboardOrigin = origin(env, "DASHBOARD_ORIGIN");
+  const consoleOrigin =
+    optional(env, "CONSOLE_ORIGIN") === undefined ? undefined : origin(env, "CONSOLE_ORIGIN");
+  if (consoleOrigin === dashboardOrigin) {
+    throw new Error(
+      `CONSOLE_ORIGIN must be a different host from DASHBOARD_ORIGIN (both are "${consoleOrigin}"); use the console's own host, such as https://console.questify.nafes.com, or leave it unset.`,
+    );
+  }
+  return { dashboardOrigin, consoleOrigin };
+}
+
 export function authConfig(env: Env): AuthConfig {
   const secret = required(env, "AUTH_SECRET");
   if (secret.length < MIN_SECRET_LENGTH) {
@@ -245,7 +268,7 @@ export function authConfig(env: Env): AuthConfig {
     secret,
     keyId: keyIdNow,
     previous: previousAuthSecret(env, { id: keyIdNow, secret }),
-    dashboardOrigin: origin(env, "DASHBOARD_ORIGIN"),
+    ...staffOrigins(env),
     gmail: {
       key: gmailKey(env),
       from: emailAddress(env, "MAIL_FROM"),

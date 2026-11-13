@@ -156,6 +156,7 @@ describe("the forwarder's player web session (PLAYER_WEB_SESSION on)", () => {
     log: (fields) => logged.push(fields),
     webOrigin: WEB,
     playerSession: true,
+    refuseConsoleApi: false,
     ...extra,
   });
   const old = { access: token(), refresh: token() };
@@ -656,6 +657,7 @@ describe("the forwarder with PLAYER_WEB_SESSION off (the default)", () => {
     log: () => undefined,
     webOrigin: WEB,
     playerSession: false,
+    refuseConsoleApi: false,
   });
   const cookie = `__Host-qs_player=${token()}.${token()}`;
 

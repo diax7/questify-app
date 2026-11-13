@@ -33,12 +33,25 @@ export type ForwardOptions = Readonly<{
    * bearer, and the sign-in steps pass through as before; the SECURITY.md ship gate keeps it off until P3's CSP.
    */
   playerSession: boolean;
+  /**
+   * True on the public host once the console has its own host (T-810d, ADR-722): `/v1/admin/*` then gets the
+   * forwarder's own 404 and never reaches the API from a public page. False everywhere else, as before.
+   */
+  refuseConsoleApi: boolean;
 }>;
 
-/** The API address for this request, or undefined when the path is not a plain `/v1/...` path. */
-function targetOf(request: Request, apiOrigin: string): URL | undefined {
+const CONSOLE_API = "/v1/admin/";
+
+/**
+ * The API address for this request, or undefined when the path is not a plain `/v1/...` path, or is a console path the
+ * public host does not pass on.
+ */
+function targetOf(request: Request, apiOrigin: string, refuseConsoleApi: boolean): URL | undefined {
   const incoming = new URL(request.url);
   if (!incoming.pathname.startsWith("/v1/") || ENCODED_PATH_TRICK.test(incoming.pathname)) {
+    return undefined;
+  }
+  if (refuseConsoleApi && incoming.pathname.startsWith(CONSOLE_API)) {
     return undefined;
   }
   const target = new URL(incoming.pathname + incoming.search, apiOrigin);
@@ -138,7 +151,7 @@ async function passThrough(
  * the player cookie into a bearer token on player paths.
  */
 export async function forward(request: Request, options: ForwardOptions): Promise<Response> {
-  const target = targetOf(request, options.apiOrigin);
+  const target = targetOf(request, options.apiOrigin, options.refuseConsoleApi);
   if (target === undefined) {
     return refusal("not_found");
   }

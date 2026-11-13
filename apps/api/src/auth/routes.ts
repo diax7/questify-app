@@ -40,7 +40,7 @@ import type { SignIn, StaffResendResult } from "#src/auth/sign-in";
 import type { SignUp } from "#src/auth/sign-up";
 import type { Invites } from "#src/organizers/accept";
 import { callerOf, parse } from "#src/auth/request";
-import { checkOrigin, requireSession } from "#src/auth/staff-guard";
+import { guardStaffDoor, surfaceOf } from "#src/auth/staff-guard";
 import { waitThen } from "#src/http-error";
 
 export type StaffRoutesDeps = Readonly<{
@@ -51,8 +51,13 @@ export type StaffRoutesDeps = Readonly<{
   signUp: SignUp;
   invites: Invites;
   emailChange: EmailChange;
-  /** The one origin allowed to make state-changing requests with the session cookie. */
+  /** The dashboard's origin: while no console origin is set, the one allowed to make state-changing cookie requests. */
   dashboardOrigin: string;
+  /**
+   * The console's own origin (T-810d), or undefined. Set, sign-in steps take either origin, a cookie request only its own
+   * session's (ADR-721), and a platform admin's sign-in from it opens a console session (ADR-720).
+   */
+  consoleOrigin: string | undefined;
 }>;
 
 const SIGN_IN_BODY_LIMIT = 4096;
@@ -394,7 +399,16 @@ function registerSignInRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): vo
 
   scope.post("/auth/code", open, async (request, reply) => {
     const body = parse(codeBody, request.body);
-    const result = await deps.signIn.codeStep(body, callerOf(request));
+    const result = await deps.signIn.codeStep(
+      {
+        ...body,
+        surface: surfaceOf(request, {
+          dashboard: deps.dashboardOrigin,
+          console: deps.consoleOrigin,
+        }),
+      },
+      callerOf(request),
+    );
     switch (result.kind) {
       case "signed_in": {
         const limits = sessionLimitsFor(result.account.platformRole);
@@ -563,19 +577,24 @@ function failClosed(): never {
 
 /**
  * Registers every /v1/staff route inside one scope whose hook demands a valid session unless the route's access is
- * "public" (the three sign-in steps and the two reset steps). Every route declares its access; the app refuses to start otherwise
- * (route-access.ts).
+ * "public" (the three sign-in steps and the two reset steps). With the console on its own host (T-810d) it refuses a
+ * request from another host before any session lookup, and an Origin that is not the session's own after it. Every
+ * route declares its access; the app refuses to start otherwise (route-access.ts).
  */
 export function registerStaffRoutes(app: FastifyInstance, deps: StaffRoutesDeps): void {
   app.register(
     async (scope) => {
       scope.addHook("onRequest", async (request, reply) => {
         reply.header("cache-control", "no-store");
-        const isPublic = request.routeOptions.config.access === "public";
-        checkOrigin(request, deps.dashboardOrigin, !isPublic);
-        if (!isPublic) {
-          await requireSession(request, reply, deps.sessions);
-        }
+        await guardStaffDoor(
+          request,
+          reply,
+          {
+            sessions: deps.sessions,
+            origins: { dashboard: deps.dashboardOrigin, console: deps.consoleOrigin },
+          },
+          { kind: "staff", needsSession: request.routeOptions.config.access !== "public" },
+        );
       });
       registerSignInRoutes(scope, deps);
       registerResetRoutes(scope, deps);

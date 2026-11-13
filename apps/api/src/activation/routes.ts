@@ -16,7 +16,7 @@ import {
 } from "#src/auth/http-errors";
 import { callerOf, parse } from "#src/auth/request";
 import type { Sessions } from "#src/auth/session";
-import { checkOrigin, requireSession } from "#src/auth/staff-guard";
+import { guardStaffDoor } from "#src/auth/staff-guard";
 import type { PublicAccount } from "#src/auth/staff-store";
 import {
   registerConsolePlatformRoutes,
@@ -149,6 +149,8 @@ export type ConsoleRoutesDeps = Readonly<{
   settings: SettingsService;
   sessions: Sessions;
   dashboardOrigin: string;
+  /** The console's own origin (T-810d): once set, the only one these routes take, on every method, with a console session. */
+  consoleOrigin: string | undefined;
   /** Questify's ticket queue (T-312), behind the same hook. */
   tickets: ConsoleTicketDeps;
   /** The Questify quests page (T-403b), behind the same hook. */
@@ -268,8 +270,8 @@ function registerConsoleWrites(scope: FastifyInstance, deps: ConsoleRoutesDeps):
 }
 
 /**
- * The console's activation routes (FR-1021, FR-1402), all under /v1/admin/. The hook runs the staff checks, then
- * answers 404 to anyone who is not an active platform admin, so the console is not advertised. The database checks the
+ * The console's activation routes (FR-1021, FR-1402), all under /v1/admin/. The hook runs the staff checks (with the
+ * console on its own host, T-810d: the caller's host before any lookup, and a `console` session only), then answers 404 to anyone who is not an active platform admin, so the console is not advertised. The database checks the
  * admin again inside every definer (`app_admin_id`, migration 0027).
  */
 export function registerConsoleRoutes(app: FastifyInstance, deps: ConsoleRoutesDeps): void {
@@ -277,8 +279,15 @@ export function registerConsoleRoutes(app: FastifyInstance, deps: ConsoleRoutesD
     async (scope) => {
       scope.addHook("onRequest", async (request, reply) => {
         reply.header("cache-control", "no-store");
-        checkOrigin(request, deps.dashboardOrigin, true);
-        await requireSession(request, reply, deps.sessions);
+        await guardStaffDoor(
+          request,
+          reply,
+          {
+            sessions: deps.sessions,
+            origins: { dashboard: deps.dashboardOrigin, console: deps.consoleOrigin },
+          },
+          { kind: "console", needsSession: true },
+        );
         const account = request.staff?.account;
         if (account?.platformRole !== "admin" || account.status !== "active") {
           throw hiddenNotFound();

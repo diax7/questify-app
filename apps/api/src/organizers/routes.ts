@@ -28,7 +28,7 @@ import type { Rehearsal } from "#src/rehearsal/service";
 import type { Sessions } from "#src/auth/session";
 import { callerOf, parse } from "#src/auth/request";
 import { waitThen } from "#src/http-error";
-import { checkOrigin, requireSession } from "#src/auth/staff-guard";
+import { guardStaffDoor } from "#src/auth/staff-guard";
 import type { Events } from "#src/events/events";
 import type { SuspendedSet } from "#src/events/suspended-set";
 import { registerEventRoutes } from "#src/events/routes";
@@ -119,6 +119,8 @@ export type OrganizerRoutesDeps = Readonly<{
   /** The suspended events (T-701): a member's writes to one answer 423. */
   suspended: SuspendedSet;
   dashboardOrigin: string;
+  /** The console's own origin (T-810d), or undefined. Set, this door takes only dashboard sessions from the dashboard. */
+  consoleOrigin: string | undefined;
 }>;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -344,7 +346,7 @@ function refuseSupport(
 
 /**
  * Registers every /v1/organizers/:organizerId route in one scope. Its hook runs the staff checks (no-store, Origin,
- * session), then reads the caller's membership of that organizer from the database: a non-member gets 404, the same
+ * session; with the console on its own host, T-810d, the caller's host first and a `dashboard` session only), then reads the caller's membership of that organizer from the database: a non-member gets 404, the same
  * as an organizer that does not exist, and an editor on an `owner` route gets 403. A Questify admin with a live support
  * grant is seated as an editor of the granted events, on a deny-by-default list of routes (T-701); under a `view` grant
  * only reads pass, each throttled and logged, and its database work runs in read-only transactions (T-712). The database checks
@@ -355,8 +357,15 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
     async (scope) => {
       scope.addHook("onRequest", async (request, reply) => {
         reply.header("cache-control", "no-store");
-        checkOrigin(request, deps.dashboardOrigin, true);
-        await requireSession(request, reply, deps.sessions);
+        await guardStaffDoor(
+          request,
+          reply,
+          {
+            sessions: deps.sessions,
+            origins: { dashboard: deps.dashboardOrigin, console: deps.consoleOrigin },
+          },
+          { kind: "organizer", needsSession: true },
+        );
         const membership = await principalOf(deps.pool, request);
         const params = request.params as { eventId?: string };
         refuseSupport(request, params, membership);

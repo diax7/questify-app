@@ -4,6 +4,8 @@ import { OrganizerNav } from "#src/components/OrganizerNav.tsx";
 import { translatorFor } from "#src/lib/language.ts";
 import type { Language } from "@questify/shared";
 import { clockOf } from "#src/lib/console-organizers.ts";
+import { webConfig } from "#src/lib/config.ts";
+import { consoleHref } from "#src/lib/console-host.ts";
 import type { OrganizerPage } from "#src/lib/organizer-page.ts";
 import type { Membership, Suspension } from "#src/lib/staff-api.ts";
 import { AppShell } from "#src/ui/Shell.tsx";
@@ -31,7 +33,9 @@ export function OrganizerShell({
         <Notice tone="info" role="status">
           {t("support.viewEnded")}
         </Notice>
-        <TextLink href={`/${page.language}/console`}>{t("support.backToConsole")}</TextLink>
+        <TextLink href={consoleHref(webConfig(), `/${page.language}/console`)}>
+          {t("support.backToConsole")}
+        </TextLink>
       </AppShell>
     );
   }

@@ -36,6 +36,7 @@ function build(
         account: { id: ADMIN } as PublicAccount,
         sessionId: "session-1",
         tokenHash: "",
+        surface: "console",
       };
     }
   });

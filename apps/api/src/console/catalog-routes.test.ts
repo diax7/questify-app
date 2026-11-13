@@ -90,6 +90,7 @@ function build(answer: unknown = {}) {
       account: { id: ADMIN } as PublicAccount,
       sessionId: "session-1",
       tokenHash: "",
+      surface: "console",
     };
   });
   const deps = {

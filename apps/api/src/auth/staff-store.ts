@@ -27,9 +27,16 @@ export type Challenge = Readonly<{
   secondsSinceSent: number;
 }>;
 
+/**
+ * Where a staff session was opened (T-810d, ADR-720): `console` only by a platform admin's sign-in from the console's
+ * own origin, the only kind `/v1/admin/*` takes once `CONSOLE_ORIGIN` is set; `dashboard` is every other session.
+ */
+export type Surface = "dashboard" | "console";
+
 export type SessionRow = Readonly<{
   id: string;
   staffUserId: string;
+  surface: Surface;
   revoked: boolean;
   idleSeconds: number;
   ageSeconds: number;
@@ -255,17 +262,18 @@ export async function consumeResetLink(db: Db): Promise<string | undefined> {
 // ---------------------------------------------------------------- sessions
 
 /**
- * As the user: opens a session (`open_staff_session`, migration 0155) and ends the oldest live ones beyond 10.
+ * As the user: opens a session on one surface (`open_staff_session`, migration 0199) and ends the oldest live ones
+ * beyond 10 (both surfaces count).
  *
  * @returns the new session's id and how many older sessions ended.
  */
 export async function openStaffSession(
   db: Db,
-  session: { tokenHash: string; userAgent: string | null; ip: string },
+  session: { tokenHash: string; userAgent: string | null; ip: string; surface: Surface },
 ): Promise<{ id: string; endedOlder: number }> {
   const { rows } = await db.query<{ session_id: string | null; ended: number }>(
-    "SELECT session_id, ended FROM open_staff_session(decode($1, 'hex'), $2, $3)",
-    [session.tokenHash, session.userAgent, session.ip],
+    "SELECT session_id, ended FROM open_staff_session(decode($1, 'hex'), $2, $3, $4)",
+    [session.tokenHash, session.userAgent, session.ip, session.surface],
   );
   const id = rows[0]?.session_id ?? undefined;
   if (id === undefined) {
@@ -281,11 +289,12 @@ export async function findSession(db: Db): Promise<SessionRow | undefined> {
   const { rows } = await db.query<{
     id: string;
     staff_user_id: string;
+    surface: Surface;
     revoked: boolean;
     idle: number;
     age: number;
   }>(
-    `SELECT id, staff_user_id, revoked_at IS NOT NULL AS revoked,
+    `SELECT id, staff_user_id, surface, revoked_at IS NOT NULL AS revoked,
             extract(epoch FROM now() - last_seen_at)::float8 AS idle,
             extract(epoch FROM now() - created_at)::float8 AS age
      FROM staff_session`,
@@ -296,6 +305,7 @@ export async function findSession(db: Db): Promise<SessionRow | undefined> {
     : {
         id: row.id,
         staffUserId: row.staff_user_id,
+        surface: row.surface,
         revoked: row.revoked,
         idleSeconds: row.idle,
         ageSeconds: row.age,

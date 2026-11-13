@@ -13,6 +13,9 @@ const REQUEST_HEADERS = [
   "if-none-match",
   "accept-language",
   "user-agent",
+  // Who started the request, by the browser's own account: once the console has its own host, the API refuses a staff
+  // request from the other host on it before any session lookup (T-810d).
+  "sec-fetch-site",
   // Passed through unchanged: behind CranL's edge its last entry is the real client, and the API trusts one hop.
   "x-forwarded-for",
 ];

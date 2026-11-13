@@ -27,6 +27,8 @@ export type TeamAlertWorkerDeps = EmailChangeDeps &
   Readonly<{
     /** Where the digest goes while `moderation.alertEmail` is unset (`MAIL_FROM`). */
     mailFrom: string;
+    /** The console's own host (T-810d): the digest's console links open there once set, else on the dashboard's host. */
+    consoleOrigin?: string | undefined;
     intervalMs: number;
     log: (level: "info" | "error", fields: Record<string, unknown>) => void;
     random?: () => number;
@@ -111,7 +113,7 @@ async function sendDigest(
   const addresses = await readModerationAddresses(deps.pool);
   const content = teamAlertDigest(
     rows.map((row) => row.doc),
-    { origin: deps.dashboardOrigin, now: deps.now?.() ?? new Date() },
+    { origin: deps.consoleOrigin ?? deps.dashboardOrigin, now: deps.now?.() ?? new Date() },
   );
   const limit = deadline(deps.sendDeadlineMs ?? TEAM_ALERT_DEADLINE_MS);
   try {

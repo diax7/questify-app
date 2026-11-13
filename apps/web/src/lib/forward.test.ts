@@ -24,6 +24,7 @@ describe("forward (same-origin /v1 forwarder)", () => {
     log: (fields) => logged.push(fields),
     webOrigin: WEB,
     playerSession: false,
+    refuseConsoleApi: false,
     ...extra,
   });
 
@@ -38,6 +39,48 @@ describe("forward (same-origin /v1 forwarder)", () => {
     logged = [];
     api.answer((_request, response) => {
       response.writeHead(200, { "content-type": "application/json" }).end('{"ok":true}');
+    });
+  });
+
+  describe("the console's API on the public host (T-810d)", () => {
+    it.each(["GET", "POST"])(
+      "answers %s /v1/admin/* itself with 404 and never calls the API",
+      async (method) => {
+        const response = await forward(
+          new Request(`${WEB}/v1/admin/activation-requests`, {
+            method,
+            headers: { cookie: "__Host-qs_session=abc", origin: WEB },
+            ...(method === "POST" ? { body: "{}" } : {}),
+          }),
+          options({ refuseConsoleApi: true }),
+        );
+        expect(response.status).toBe(404);
+        expect(await response.json()).toMatchObject({ code: "not_found" });
+        expectApiHeaders(response);
+        expect(api.seen).toHaveLength(0);
+      },
+    );
+
+    it("still passes every other path on the public host", async () => {
+      const response = await forward(
+        new Request(`${WEB}/v1/staff/me`),
+        options({ refuseConsoleApi: true }),
+      );
+      expect(response.status).toBe(200);
+      expect(api.seen[0]?.url).toBe("/v1/staff/me");
+    });
+
+    it("passes /v1/admin/* on the console host, and everywhere while no console host is set", async () => {
+      await forward(new Request(`${WEB}/v1/admin/activation-requests`), options());
+      expect(api.seen[0]?.url).toBe("/v1/admin/activation-requests");
+    });
+
+    it("passes the browser's Sec-Fetch-Site on, so the API can refuse the other host", async () => {
+      await forward(
+        new Request(`${WEB}/v1/staff/me`, { headers: { "sec-fetch-site": "same-site" } }),
+        options(),
+      );
+      expect(api.seen[0]?.headers["sec-fetch-site"]).toBe("same-site");
     });
   });
 

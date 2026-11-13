@@ -11,6 +11,8 @@ import type { SmsMessage, SmsResult, SmsSender } from "#src/players/sms";
 import type { TestDatabase } from "#test/support/test-db";
 
 export const DASHBOARD_ORIGIN = "https://app.questify.test";
+/** The console's own host (T-810d), for the suites that start the app with it set. */
+export const CONSOLE_ORIGIN = "https://console.questify.test";
 export const PASSWORD = "correct horse battery staple";
 
 export function testConfig(
@@ -31,6 +33,8 @@ export function testConfig(
       keyId: 1,
       previous: undefined,
       dashboardOrigin: DASHBOARD_ORIGIN,
+      // Unset, as on an app with no console host (T-810d): the suites that need one pass CONSOLE_ORIGIN.
+      consoleOrigin: undefined,
       gmail: {
         key: {
           clientEmail: "mailer@questify.iam.gserviceaccount.test",
@@ -227,6 +231,11 @@ export function browserHeaders(extra: Record<string, string> = {}): Record<strin
   return { origin: DASHBOARD_ORIGIN, "x-forwarded-for": freshIp(), ...extra };
 }
 
+/** Headers a browser on the console host sends (T-810d). */
+export function consoleHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  return browserHeaders({ origin: CONSOLE_ORIGIN, ...extra });
+}
+
 export async function postPassword(
   test: TestApp,
   email: string,
@@ -283,4 +292,9 @@ export async function signInFully(
 
 export function withSession(cookie: string, extra: Record<string, string> = {}) {
   return browserHeaders({ cookie, ...extra });
+}
+
+/** Signs in on the console host (T-810d): with `CONSOLE_ORIGIN` set, an admin's session is then a console one. */
+export function signInConsole(test: TestApp, email: string): Promise<string> {
+  return signInFully(test, email, { origin: CONSOLE_ORIGIN });
 }

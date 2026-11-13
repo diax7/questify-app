@@ -1,5 +1,14 @@
 import { defineConfig, devices } from "@playwright/test";
-import { CODES_FILE, CONTROL_PORT } from "#e2e/paths.ts";
+import {
+  CODES_FILE,
+  CONTROL_PORT,
+  SPLIT_API_PORT,
+  SPLIT_CODES_FILE,
+  SPLIT_CONSOLE_ORIGIN,
+  SPLIT_CONTROL_PORT,
+  SPLIT_WEB_ORIGIN,
+  SPLIT_WEB_PORT,
+} from "#e2e/paths.ts";
 
 /**
  * Browser tests of the dashboard sign-in (T-011) against the real API on a throw-away database. The API server is
@@ -55,6 +64,38 @@ export default defineConfig({
         PLAYER_WEB_SESSION: "on",
         PORT: String(WEB_PORT),
         HOSTNAME: "localhost",
+      },
+      reuseExistingServer: false,
+      timeout: 60_000,
+    },
+    {
+      // The second pair (T-810d): an e2e API with the console on its own host, for console-host.spec.ts only.
+      command: "node ../api/test/support/e2e-server.bundle.mjs",
+      url: `http://127.0.0.1:${SPLIT_API_PORT}/healthz`,
+      env: {
+        ...process.env,
+        E2E_API_PORT: String(SPLIT_API_PORT),
+        E2E_WEB_ORIGIN: SPLIT_WEB_ORIGIN,
+        E2E_CONSOLE_ORIGIN: SPLIT_CONSOLE_ORIGIN,
+        E2E_CODES_FILE: SPLIT_CODES_FILE,
+        E2E_CONTROL_PORT: String(SPLIT_CONTROL_PORT),
+      },
+      reuseExistingServer: false,
+      timeout: 60_000,
+    },
+    {
+      // The same standalone build on a second port, answering on two hosts. `pnpm start` above has copied the static
+      // files already. It listens on 0.0.0.0, as the Docker image does: Next makes a redirect relative when its target
+      // is the host it listens on, which would loop between the two hosts.
+      command: "node .next/standalone/apps/web/server.js",
+      url: `${SPLIT_WEB_ORIGIN}/en/sign-in`,
+      env: {
+        ...process.env,
+        API_ORIGIN: `http://127.0.0.1:${SPLIT_API_PORT}`,
+        DASHBOARD_ORIGIN: SPLIT_WEB_ORIGIN,
+        CONSOLE_ORIGIN: SPLIT_CONSOLE_ORIGIN,
+        PORT: String(SPLIT_WEB_PORT),
+        HOSTNAME: "0.0.0.0",
       },
       reuseExistingServer: false,
       timeout: 60_000,

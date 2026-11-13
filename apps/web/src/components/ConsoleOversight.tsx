@@ -278,6 +278,7 @@ export function SupportPanel({
   name,
   grants,
   onChanged,
+  dashboardBase,
 }: Readonly<{
   language: Language;
   eventId: string;
@@ -285,12 +286,21 @@ export function SupportPanel({
   name: string;
   grants: readonly SupportGrant[];
   onChanged: (done: string) => void;
+  /** The public host's origin once the console has its own host (T-810d, Q-692): a full page load there; else "". */
+  dashboardBase: string;
 }>) {
   const t = translatorFor(language);
   const router = useRouter();
   const [reason, setReason] = useState("");
   const { busy, problem, run } = useWrite(language, onChanged);
-  const goTo = () => router.push(`/${language}/organizers/${organizerId}/events/${eventId}`);
+  const goTo = () => {
+    const path = `/${language}/organizers/${organizerId}/events/${eventId}`;
+    if (dashboardBase === "") {
+      router.push(path);
+    } else {
+      window.location.assign(`${dashboardBase}${path}`);
+    }
+  };
   const open = (kind: "view" | "edit") =>
     void run(
       () =>

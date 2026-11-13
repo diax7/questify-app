@@ -314,6 +314,30 @@ describe("loadConfig", () => {
     expect(config.auth.dashboardOrigin).toBe("http://localhost:3001");
   });
 
+  it("has no console host while CONSOLE_ORIGIN is unset or empty (T-810d: everything as before)", () => {
+    expect(loadConfig(REQUIRED).auth.consoleOrigin).toBeUndefined();
+    expect(loadConfig({ ...REQUIRED, CONSOLE_ORIGIN: " " }).auth.consoleOrigin).toBeUndefined();
+  });
+
+  it("reads the console's own origin", () => {
+    const config = loadConfig({ ...REQUIRED, CONSOLE_ORIGIN: "https://console.questify.sa" });
+    expect(config.auth.consoleOrigin).toBe("https://console.questify.sa");
+  });
+
+  it.each([
+    "https://console.questify.sa/",
+    "https://console.questify.sa/en",
+    "console.questify.sa",
+  ])("rejects the console origin %j", (value) => {
+    expect(() => loadConfig({ ...REQUIRED, CONSOLE_ORIGIN: value })).toThrow(/CONSOLE_ORIGIN/);
+  });
+
+  it("refuses a console origin equal to the dashboard's, naming both settings", () => {
+    expect(errorOf({ ...REQUIRED, CONSOLE_ORIGIN: REQUIRED.DASHBOARD_ORIGIN })).toMatch(
+      /CONSOLE_ORIGIN must be a different host from DASHBOARD_ORIGIN/,
+    );
+  });
+
   it("refuses a Resend key without its From address, and the other way round", () => {
     expect(() => loadConfig({ ...REQUIRED, RESEND_API_KEY: "re_key" })).toThrow(/RESEND_FROM/);
     expect(() => loadConfig({ ...REQUIRED, RESEND_FROM: "a@questify.sa" })).toThrow(

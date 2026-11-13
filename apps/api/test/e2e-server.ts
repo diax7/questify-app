@@ -20,7 +20,9 @@ import { createTestDatabase, seedTwoTenants } from "#test/support/test-db";
  * bundled and started by Playwright, never part of the product. Sign-in codes are written to a file the tests read,
  * so the product needs no test endpoint.
  *
- * Settings: TEST_DATABASE_URL, E2E_API_PORT, E2E_WEB_ORIGIN (the browser's origin), E2E_CODES_FILE, E2E_CONTROL_PORT.
+ * Settings: TEST_DATABASE_URL, E2E_API_PORT, E2E_WEB_ORIGIN (the browser's origin), E2E_CODES_FILE, E2E_CONTROL_PORT,
+ * and E2E_CONSOLE_ORIGIN (optional, T-810d): the console's own host, for the second server pair that runs
+ * `console-host.spec.ts`; it also seeds one platform admin per browser size (`console.<size>@questify.test`).
  */
 const required = (name: string): string => {
   const value = process.env[name];
@@ -81,9 +83,16 @@ async function main(): Promise<void> {
     }
     await createStaff(db.owner, { email: `new.${size}@najd.test` });
   }
+  const consoleSetting = process.env["E2E_CONSOLE_ORIGIN"];
+  const consoleOrigin = consoleSetting === "" ? undefined : consoleSetting;
+  if (consoleOrigin !== undefined) {
+    for (const size of ["desktop", "phone"]) {
+      await createStaff(db.owner, { email: `console.${size}@questify.test`, admin: true });
+    }
+  }
   const pool = new Pool({ connectionString: db.appUrl, max: 8 });
   const config = {
-    ...testConfig(db.appUrl, { dashboardOrigin: required("E2E_WEB_ORIGIN") }),
+    ...testConfig(db.appUrl, { dashboardOrigin: required("E2E_WEB_ORIGIN"), consoleOrigin }),
     port,
   };
   const pushPool = new Pool({ connectionString: db.appUrl, max: 3 });

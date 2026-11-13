@@ -26,21 +26,30 @@ export const account = (name: string, info: TestInfo): string =>
 
 type Mailbox = Readonly<{ codes: Record<string, string>; links: Record<string, string> }>;
 
-function readMailbox(): Mailbox {
+function readMailbox(file = CODES_FILE): Mailbox {
   try {
-    return JSON.parse(readFileSync(CODES_FILE, "utf8")) as Mailbox;
+    return JSON.parse(readFileSync(file, "utf8")) as Mailbox;
   } catch {
     return { codes: {}, links: {} };
   }
 }
 
+/** The last code emailed to this address so far, without waiting; `file` as for `codeFor`. */
+export const lastCodeFor = (email: string, file = CODES_FILE): string | undefined =>
+  readMailbox(file).codes[email];
+
 /**
  * The code emailed to this address, waiting for the API to send it (it answers before the email goes out). With
- * `previous`, waits for a newer code than that one, for a second sign-in of the same account.
+ * `previous`, waits for a newer code than that one, for a second sign-in of the same account. `file` is another e2e
+ * API's mailbox (the console host's pair, T-810d).
  */
-export async function codeFor(email: string, previous?: string): Promise<string> {
+export async function codeFor(
+  email: string,
+  previous?: string,
+  file = CODES_FILE,
+): Promise<string> {
   const fresh = (): string | undefined => {
-    const code = readMailbox().codes[email];
+    const code = readMailbox(file).codes[email];
     return code === previous ? undefined : code;
   };
   await expect.poll(fresh, { timeout: 30_000 }).toMatch(/^[0-9]{6}$/);
