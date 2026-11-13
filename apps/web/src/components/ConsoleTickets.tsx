@@ -1,6 +1,6 @@
 "use client";
 
-import { TICKET_KINDS, type Language, type TicketKind } from "@questify/shared";
+import { TICKET_KINDS, withArabicComma, type Language, type TicketKind } from "@questify/shared";
 import { useEffect, useRef, useState } from "react";
 import { problemOf } from "#src/components/PlayerAwards.tsx";
 import { nameIn } from "#src/lib/console.ts";
@@ -25,7 +25,10 @@ import { Tabs } from "#src/ui/Tabs.tsx";
 import { TextLink } from "#src/ui/Text.tsx";
 
 const timeOf = (iso: string, language: Language) =>
-  new Date(iso).toLocaleString(language === "ar" ? "ar-SA-u-nu-latn" : "en-GB");
+  withArabicComma(
+    new Date(iso).toLocaleString(language === "ar" ? "ar-SA-u-nu-latn" : "en-GB"),
+    language,
+  );
 
 /** One page of the queue at a time, with the counts. */
 function useQueue(tab: ConsoleTab, kind: TicketKind | null, source: ConsoleSource | null) {

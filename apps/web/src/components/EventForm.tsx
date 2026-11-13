@@ -31,7 +31,7 @@ import {
   sessionEnded,
   type SaveQuestion,
 } from "#src/lib/event-form-rules.ts";
-import { isolate, type Translate } from "#src/lib/language.ts";
+import { type Translate } from "#src/lib/language.ts";
 import { requestJson, type PostResult } from "#src/lib/post-json.ts";
 import { useReportUnsaved, type ReportUnsaved } from "#src/lib/use-unsaved.ts";
 import { EventWords } from "#src/components/EventWords.tsx";
@@ -598,7 +598,9 @@ function EventFacts({ language, event }: Readonly<{ language: Language; event: E
   return (
     <>
       <Badge tone={STATUS_TONE[status]}>{t(`events.status.${status}`)}</Badge>
-      <span>{t("events.joinCode", { code: isolate(event.joinCode) })}</span>
+      <span>
+        {t("events.joinCode", { code: "" }).trimEnd()} <bdi dir="ltr">{event.joinCode}</bdi>
+      </span>
     </>
   );
 }

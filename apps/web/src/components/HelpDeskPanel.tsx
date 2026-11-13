@@ -1,10 +1,10 @@
 "use client";
-
 import {
   EVENT_TICKET_KINDS,
   TICKET_TEXT_MAX,
   type Language,
   type TicketKind,
+  withArabicComma,
 } from "@questify/shared";
 import { useEffect, useRef, useState } from "react";
 import { problemOf } from "#src/components/PlayerAwards.tsx";
@@ -252,7 +252,12 @@ function TicketHeader({
         {ticket.quest === null ? t("tickets.eventWide") : textFor(ticket.quest.title, language)}
       </span>
       <time dateTime={ticket.createdAt} dir="ltr">
-        {new Date(ticket.createdAt).toLocaleString(language === "ar" ? "ar-SA-u-nu-latn" : "en-GB")}
+        {withArabicComma(
+          new Date(ticket.createdAt).toLocaleString(
+            language === "ar" ? "ar-SA-u-nu-latn" : "en-GB",
+          ),
+          language,
+        )}
       </time>
       {ticket.marked ? <Badge>{t("tickets.marked")}</Badge> : null}
       <Badge>
