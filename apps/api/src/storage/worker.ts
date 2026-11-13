@@ -63,6 +63,36 @@ const codeOf = (error: unknown): string =>
       : error.code
     : "error";
 
+/** Claims up to one round of keys; the claim commits before any bucket call. */
+const claimRound = (pool: Pool): Promise<Claimed[]> =>
+  system(pool, async (client) => {
+    const { rows } = await client.query<Claimed>("SELECT * FROM media_delete_claim($1)", [
+      CLAIM_SIZE,
+    ]);
+    return rows;
+  });
+
+/** Deletes one key; a failure is recorded on its row (backed off) and answers false. */
+async function deleteOne(deps: MediaWorkerDeps, row: Claimed): Promise<boolean> {
+  try {
+    await deps.store.delete(row.key);
+    return true;
+  } catch (error) {
+    await system(deps.pool, (client) =>
+      client.query("SELECT media_delete_failed($1, $2, $3)", [row.id, codeOf(error), row.claim]),
+    );
+    return false;
+  }
+}
+
+/** Marks the deleted keys done, under the round's claim token. */
+async function markDone(pool: Pool, claimed: readonly Claimed[], done: readonly string[]) {
+  const token = claimed[0]?.claim;
+  if (done.length > 0 && token !== undefined) {
+    await scalar(pool, "SELECT media_delete_done($1::bigint[], $2) AS n", [done, token]);
+  }
+}
+
 /**
  * Deletes one round of claimed keys. The claim is its own transaction and has committed before the first delete, so a
  * key is leased to this worker alone while the bucket is called, and no transaction stays open across an outside call.
@@ -72,12 +102,7 @@ async function deleteRound(
 ): Promise<{ deleted: number; failed: number; more: boolean }> {
   const now = deps.now ?? Date.now;
   const startedAt = now();
-  const claimed = await system(deps.pool, async (client) => {
-    const { rows } = await client.query<Claimed>("SELECT * FROM media_delete_claim($1)", [
-      CLAIM_SIZE,
-    ]);
-    return rows;
-  });
+  const claimed = await claimRound(deps.pool);
   const done: string[] = [];
   let failed = 0;
   let cut = false;
@@ -86,20 +111,13 @@ async function deleteRound(
       cut = true;
       break;
     }
-    try {
-      await deps.store.delete(row.key);
+    if (await deleteOne(deps, row)) {
       done.push(row.id);
-    } catch (error) {
+    } else {
       failed += 1;
-      await system(deps.pool, (client) =>
-        client.query("SELECT media_delete_failed($1, $2, $3)", [row.id, codeOf(error), row.claim]),
-      );
     }
   }
-  const token = claimed[0]?.claim;
-  if (done.length > 0 && token !== undefined) {
-    await scalar(deps.pool, "SELECT media_delete_done($1::bigint[], $2) AS n", [done, token]);
-  }
+  await markDone(deps.pool, claimed, done);
   // A round cut short ends the run: the bucket is slow, and the next run comes soon enough.
   return { deleted: done.length, failed, more: !cut && claimed.length === CLAIM_SIZE };
 }
