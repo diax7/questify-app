@@ -8198,8 +8198,8 @@ and the browser keeps the two hosts' cookies apart. No new CranL app (three-app 
 
 ## ADR-723 - T-810d `CONSOLE_ORIGIN` is optional: unset, the app is exactly as before
 
-**Status:** Proposed (worker, 2026-11-13; replaces the branch's "required" rule, accepted 2026-11-05, which kept the
-code from merging before Dhia's DNS step). Q-769.
+**Status:** Accepted (coordinator, delegated by Dhia, 2026-11-14, after the T-810d tier A review; worker 2026-11-13; replaces the branch's "required" rule, accepted 2026-11-05, which kept the
+code from merging before Dhia's DNS step). Q-782.
 **Decision:** both apps read an optional `CONSOLE_ORIGIN`. Unset or empty: one host, every door, page and link as before
 T-810d (the proxy has no host step, sign-ins open `dashboard` sessions and no door reads the surface). Set: an origin
 only (https, http only on `localhost`, `*.localhost` and 127.0.0.1 for the web app), different from
@@ -8213,7 +8213,7 @@ exposed.
 
 ## ADR-724 - T-810d browser tests run the console host on a second server pair
 
-**Status:** Proposed (worker, 2026-11-13; amends the branch's ADR-724, which ran every console spec on
+**Status:** Accepted (coordinator, delegated by Dhia, 2026-11-14, after the T-810d tier A review; worker 2026-11-13; amends the branch's ADR-724, which ran every console spec on
 `console.localhost`).
 **Decision:** every existing spec runs, as before, on the one-host pair (no console origin). `playwright.config.ts`
 starts a second pair for `console-host.spec.ts`: the e2e API on 4102 with `E2E_CONSOLE_ORIGIN` (own database, codes

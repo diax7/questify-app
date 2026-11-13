@@ -43,6 +43,21 @@ export type ForwardOptions = Readonly<{
 const CONSOLE_API = "/v1/admin/";
 
 /**
+ * Whether the path reaches the console's API. The API's router decodes `%XX` before matching (`/v1/%61dmin/x` is
+ * `/v1/admin/x` there), so the decoded path is checked too; a path that does not decode is refused.
+ */
+function isConsoleApi(pathname: string): boolean {
+  if (pathname.startsWith(CONSOLE_API)) {
+    return true;
+  }
+  try {
+    return decodeURIComponent(pathname).startsWith(CONSOLE_API);
+  } catch {
+    return true;
+  }
+}
+
+/**
  * The API address for this request, or undefined when the path is not a plain `/v1/...` path, or is a console path the
  * public host does not pass on.
  */
@@ -51,7 +66,7 @@ function targetOf(request: Request, apiOrigin: string, refuseConsoleApi: boolean
   if (!incoming.pathname.startsWith("/v1/") || ENCODED_PATH_TRICK.test(incoming.pathname)) {
     return undefined;
   }
-  if (refuseConsoleApi && incoming.pathname.startsWith(CONSOLE_API)) {
+  if (refuseConsoleApi && isConsoleApi(incoming.pathname)) {
     return undefined;
   }
   const target = new URL(incoming.pathname + incoming.search, apiOrigin);

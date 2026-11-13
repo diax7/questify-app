@@ -525,7 +525,8 @@ app is exactly as before: one host), three layers, each enough for that on its o
   session, so a public page's request to the console host neither reaches the console nor refreshes the session's
   idle clock or spends its limits; after the lookup an Origin must be the session's own.
 - **Host routing (ADR-722):** no public page is ever served on the console host, and the public host's forwarder never
-  passes `/v1/admin/*` on. Redirects use the configured origins only, never the request's `Host` (no open redirect);
+  passes `/v1/admin/*` on (checked on the raw and the percent-decoded path, as the API router decodes `%XX`; a path that
+  does not decode is refused). Redirects use the configured origins only, never the request's `Host` (no open redirect);
   only `Host` is read (Q-691).
 
 Cookies and headers: `__Host-qs_session` has no `Domain`, so each host's cookie stays on that host; the forwarder copies

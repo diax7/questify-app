@@ -61,6 +61,20 @@ describe("forward (same-origin /v1 forwarder)", () => {
       },
     );
 
+    it.each(["/v1/%61dmin/activation-requests", "/v1/%61%64%6d%69%6e/x", "/v1/%E0%A4%A/x"])(
+      "refuses %s, which the API's router would decode into the console's API, without calling it",
+      async (path) => {
+        const response = await forward(
+          new Request(`${WEB}${path}`, {
+            headers: { cookie: "__Host-qs_session=abc", origin: WEB },
+          }),
+          options({ refuseConsoleApi: true }),
+        );
+        expect(response.status).toBe(404);
+        expect(api.seen).toHaveLength(0);
+      },
+    );
+
     it("still passes every other path on the public host", async () => {
       const response = await forward(
         new Request(`${WEB}/v1/staff/me`),
