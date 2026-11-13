@@ -1,10 +1,6 @@
 import { levelUpMessage } from "#src/questify/level.ts";
-import {
-  JOIN_LINK_HOSTS,
-  SUBMISSION_TEXT_MAX,
-  formatNumber,
-  type LocalizedText,
-} from "@questify/shared";
+import { webPageUrl, type WebPage } from "#src/legal/web-pages.ts";
+import { SUBMISSION_TEXT_MAX, formatNumber, type LocalizedText } from "@questify/shared";
 import { useCallback, useEffect, useState } from "react";
 import { Linking } from "react-native";
 import { api, keyValueStore } from "#src/api/app-session.ts";
@@ -46,8 +42,7 @@ function GuidelinesStep({ onAccepted }: Readonly<{ onAccepted: () => void }>) {
   const { t, language } = useI18n();
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
-  const open = (id: string) =>
-    void Linking.openURL(`https://${JOIN_LINK_HOSTS[0]}/${language}/legal/${id}`);
+  const open = (id: WebPage) => void Linking.openURL(webPageUrl(language, id));
   const accept = async () => {
     setBusy(true);
     const accepted = await acceptGuidelines({ session: api.session, store: keyValueStore });

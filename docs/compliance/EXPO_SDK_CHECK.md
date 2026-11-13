@@ -38,7 +38,17 @@ packages in `node_modules` (React Native's `gradle/libs.versions.toml`, each lib
   - Disk space `E174.1` and `85F4.1` (`expo-file-system`).
   - `expo config --type public` reads the new block correctly. The app's own code adds no native
     code, so it adds no reasons of its own.
-- **A2 (before the first TestFlight upload, T-010).** Add `NSPrivacyCollectedDataTypes` and
+- **A2 (config done 2026-11-13, Q-770; Xcode report still open).** `ios.privacyManifests` now carries
+  `NSPrivacyTracking: false`, no tracking domains and the 11 `NSPrivacyCollectedDataTypes` of
+  `docs/store/app-store-privacy-labels.md` section 3 (all linked, none tracking). The required-reason list was re-read
+  from every `PrivacyInfo.xcprivacy` in `node_modules` on 2026-11-13 (RN 0.86.3 and its pods, AsyncStorage,
+  `expo-application`, `-constants`, `-device`, `-eas-client`, `-file-system`, `-localization`, `-notifications`,
+  view-shot): their union is exactly A1's list. `expo-camera`, `-image-picker`, `-location`, `-secure-store`,
+  `-sharing`, `-haptics`, `-keep-awake` and `react-native-nfc-manager` ship no manifest; a grep of their iOS sources
+  for the required-reason calls finds only `expo-sharing`'s app-group `UserDefaults` (unused here) and `expo-updates`'
+  own `UserDefaults` (`CA92.1`, already listed). **Unverified:** the key names were checked against Expo's
+  `ExpoConfig` type and config plugin, not against Apple's live page or context7; the first archive's privacy report
+  confirms them. Native config: it ships with the next EAS build, never by OTA. Original text: Add `NSPrivacyCollectedDataTypes` and
   `NSPrivacyTracking: false` to `ios.privacyManifests` for the data the app collects by then.
   Archive in Xcode (or read the EAS build's privacy report) and run "Generate Privacy Report".
   Make the App Store nutrition label match it. Apple also emails missing reasons a few minutes

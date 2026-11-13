@@ -272,6 +272,7 @@ export function ProfileScreen({
           ))}
         </View>
         <HowItWorksButton />
+        <Button kind="quiet" label={t("about.title")} onPress={() => router.push("/about")} />
         {state.status === "signed_in" ? (
           <SignedInSection
             me={state.me}

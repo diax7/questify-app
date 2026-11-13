@@ -1,4 +1,5 @@
-import { JOIN_LINK_HOSTS, MESSAGES, type LocalizedText } from "@questify/shared";
+import { MESSAGES, type LocalizedText } from "@questify/shared";
+import { webPageUrl, type WebPage } from "#src/legal/web-pages.ts";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Linking } from "react-native";
@@ -27,8 +28,7 @@ export default function ReacceptScreen() {
     void consentVersions({ client: api.client, store: keyValueStore }).then(setVersions);
   }, []);
 
-  const open = (id: string) =>
-    void Linking.openURL(`https://${JOIN_LINK_HOSTS[0]}/${language}/legal/${id}`);
+  const open = (id: WebPage) => void Linking.openURL(webPageUrl(language, id));
 
   const accept = async () => {
     if (versions === undefined) {

@@ -9253,3 +9253,24 @@ switch, the Firebase file and counsel's privacy policy (T-807) are settled.
 under-disclosure costs the listing (Apple 2.3, 5.1.1; Google User Data and Ads policies). Gaps G1 to G11 are Q-769 to Q-778.
 **Trade-offs:** declaring ads and sharing with the organizer may read worse on the listing than the narrower answers; each is
 one line to change once counsel decides Q-043 and Q-773.
+## ADR-832 - In-app About and privacy screen, privacy-manifest data types, Android permission record (Q-769, Q-770, Q-772)
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-13; review 93; T-806 prep gaps G1, G2, G4 of `docs/store/README.md`).
+**Decision:**
+- **About and privacy (Q-769, FR-1707 app half):** Profile shows "About and privacy" (`/about`) to everyone, signed in or
+  not. It opens on the web, in the app's language, the privacy policy, terms, community guidelines
+  (`/{lang}/legal/{id}`), the contact page (`/{lang}/contact`) and the account-deletion page (`/{lang}/delete-account`).
+  One helper (`apps/app/src/legal/web-pages.ts`) builds every legal link of the app, also those of sign-in, re-accept
+  and the submission composer. The host stays the join-link host (`questify.sa`) until Q-771 picks one web origin; then
+  only that helper changes. The in-app Delete account flow stays; the web page is the extra route the stores ask for.
+- **Privacy manifest (Q-770):** `ios.privacyManifests` declares `NSPrivacyTracking: false`, no tracking domains and the
+  11 collected data types of `docs/store/app-store-privacy-labels.md` section 3, all linked and none tracking. The
+  required-reason list stays as it was: re-read from every library manifest on 2026-11-13, its union is the same
+  (`docs/compliance/EXPO_SDK_CHECK.md` A2). Native config: it ships with the next EAS build, not an OTA update.
+- **Android permissions (Q-772):** STORE_COMPLIANCE 2.7 records what the plugins and library manifests declare
+  (INTERNET, VIBRATE, CAMERA, coarse and fine location, NFC, POST_NOTIFICATIONS, RECEIVE_BOOT_COMPLETED,
+  ACCESS_NETWORK_STATE, plus FCM's own, expected); no permission changed. The merged manifest of the first release
+  bundle, the Firebase file and the notification icon stay open under T-806.
+**Why:** Apple 5.1.1(i) wants the policy reachable inside the app and Google reads the deletion link against it; the
+manifest must agree with the App Privacy label or Xcode's report contradicts it; the store forms need a true permission
+list.

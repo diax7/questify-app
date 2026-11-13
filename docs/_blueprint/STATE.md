@@ -1,5 +1,19 @@
 # Blueprint State — Questify
 
+## About and privacy, privacy-manifest data types, Android permission record (Q-769, Q-770, Q-772; tier B) — 2026-11-13
+
+- **Done:** Profile, "About and privacy" (`apps/app/app/about.tsx`): privacy policy, terms, community guidelines, contact
+  page and web deletion page, opened on the web in the app's language (one link helper, `src/legal/web-pages.ts`, now also
+  used by sign-in, re-accept and the submission composer). `ios.privacyManifests` declares `NSPrivacyTracking: false` and
+  the 11 collected data types of `docs/store/app-store-privacy-labels.md`; the required-reason list was re-read from the
+  libraries and is unchanged. **Native config: it needs the next EAS build, not an OTA update** (RUNBOOK). STORE_COMPLIANCE
+  2.7 lists the Android permissions as the plugins and library manifests declare them; nothing changed in the permissions.
+  ADR-832 (Proposed).
+- **Tests:** apps/app and shared i18n suites 2251 passed; app typecheck, oxlint, `lint:limits` clean. Full suite and
+  `expo export` left to CI.
+- **Next:** Q-771 (one web origin; the About links follow it), the merged manifest and Xcode privacy report on the first
+  release build, the Firebase file and the notification icon (T-806).
+
 ## T-806 store forms prepared (tier C, docs only) — 2026-11-13
 
 - **Written:** `docs/store/` holds the ready-to-paste answers for every store form that needs no account: App Store privacy

@@ -1261,6 +1261,12 @@ export const MESSAGES = {
     en: "The ranking is hidden for this event.",
   },
   "deletion.title": { ar: "حذف الحساب", en: "Delete account" },
+  "about.title": { ar: "عن التطبيق والخصوصية", en: "About and privacy" },
+  "about.body": {
+    ar: "اقرأ سياسة الخصوصية والشروط، أو تواصل معنا، أو احذف حسابك من الموقع. تُفتح الصفحات في المتصفح.",
+    en: "Read the privacy policy and terms, contact us, or delete your account on the website. The pages open in your browser.",
+  },
+  "about.deletionPage": { ar: "حذف الحساب من الموقع", en: "Delete account on the website" },
   // T-708: the player's own data download (FR-1418). Gender-neutral, Western digits.
   "dataExport.title": { ar: "تنزيل بياناتي", en: "Download my data" },
   "dataExport.intro": {

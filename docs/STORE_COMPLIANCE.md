@@ -489,6 +489,11 @@ Analysis (interpretation):
 | Xcode Organizer → archive → "Generate Privacy Report" aggregates all manifests into a PDF that maps to the nutrition label. | https://developer.apple.com/videos/play/wwdc2023/10060/ | [verified 2026-10-16] |
 | React Native / Expo and Flutter ship privacy manifests for their own code in current versions. | context7 at Stage 6 | [NOT verified — check] |
 
+Note 2026-11-13 (Q-770): `apps/app/app.json` `ios.privacyManifests` now declares `NSPrivacyTracking: false`, no
+tracking domains and the collected data types of `docs/store/app-store-privacy-labels.md` section 3; the
+required-reason list was re-read from the libraries (`docs/compliance/EXPO_SDK_CHECK.md` A2). Native config: it reaches
+phones with the next EAS build only. The first archive's privacy report must match the App Privacy answers.
+
 Likely Questify label (planning estimate, to be confirmed against the final SDK list):
 
 | Data type | Linked to user | Purpose |
@@ -693,8 +698,32 @@ in Stage 6 must support it. After upload, confirm the target in Play Console's A
 Watch transitive permissions: an image or camera library may add `READ_MEDIA_IMAGES` to the merged
 manifest. Inspect the merged manifest of every release build.
 
+**Checked 2026-11-13 (Q-772; `npx expo config --type introspect` plus each library's own
+`android/src/main/AndroidManifest.xml` in `node_modules`). This replaces the Android line of 2026-10-21 below.**
+
+| Permission | Comes from | Kind | Why |
+|---|---|---|---|
+| `INTERNET` | Expo template; `expo-file-system` | normal | The API |
+| `VIBRATE` | Expo template; `expo-haptics` | normal | Haptic feedback |
+| `CAMERA` | `expo-camera` plugin and manifest; `expo-image-picker` manifest | runtime | QR scanning, photo quests; asked when the scanner or camera opens |
+| `ACCESS_COARSE_LOCATION`, `ACCESS_FINE_LOCATION` | `expo-location` plugin and manifest | runtime | Check-in quests while the app is open (ADR-072); a QR is always the alternative |
+| `NFC` | `react-native-nfc-manager` plugin and manifest | normal | Reading event stickers; no `uses-feature` is declared, so phones without NFC can install |
+| `POST_NOTIFICATIONS` | `expo-notifications` manifest | runtime (Android 13+) | Push, asked in context, never at launch |
+| `RECEIVE_BOOT_COMPLETED` | `expo-notifications` manifest | normal | Keeps scheduled notifications after a restart |
+| `ACCESS_NETWORK_STATE` | `expo-updates` manifest | normal | EAS Update checks |
+| `com.google.android.c2dm.permission.RECEIVE`, `WAKE_LOCK`, `<package>.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` | Firebase Messaging and AndroidX, pulled by Gradle (not in `node_modules`) | normal / signature | FCM delivery. **Expected, not read:** confirm in the merged manifest |
+
+Blocked (`android.blockedPermissions`, written as `tools:node="remove"`): `READ_EXTERNAL_STORAGE` and
+`WRITE_EXTERNAL_STORAGE` (the Expo template, `expo-file-system` and `expo-image-picker` declare them up to API 32),
+`SYSTEM_ALERT_WINDOW`, `RECORD_AUDIO`, `READ_MEDIA_IMAGES`, `READ_MEDIA_VIDEO`, `ACCESS_BACKGROUND_LOCATION`,
+`FOREGROUND_SERVICE_LOCATION`. Declared by no plugin and no library manifest in `node_modules`: SMS, contacts, `AD_ID`, `ACTIVITY_RECOGNITION` (the
+location plugin's motion option is off), foreground service. **Still to do on the first release bundle:** read the
+merged manifest (`aapt dump permissions` or the Play Console bundle explorer), confirm the Firebase rows and that no
+`READ_MEDIA_*`, SMS, `AD_ID` or background location slipped in, and declare both location types in Data safety.
+
 **Checked 2026-10-21 (T-115, `npx expo config --type introspect`):**
-- **Android asks for** `INTERNET`, `VIBRATE` (haptics) and `CAMERA` only.
+- **Android asked for** `INTERNET`, `VIBRATE` (haptics) and `CAMERA` only (before location, NFC and push; superseded
+  by the 2026-11-13 table above).
 - **Blocked in `apps/app/app.json`** (`android.blockedPermissions`): Expo's default storage and overlay permissions
   (`READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`, `SYSTEM_ALERT_WINDOW`), plus `RECORD_AUDIO`,
   `READ_MEDIA_IMAGES` and `READ_MEDIA_VIDEO`, so no library can add them unnoticed.

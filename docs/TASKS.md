@@ -1674,6 +1674,11 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
     while the labels declare location (Q-775); privacy policy v0.1 and the contact page against the build (Q-776); age-rating
     answers with the photo wall (Q-777); the organizer as "shared with" in Data safety (Q-778). Minor: NFC term in Arabic
     (glossary «بطاقة NFC» against «وسم NFC»), the seller is Dhia personally (Q-078). The box stays unticked.
+  - Note 2026-11-13 (Q-769, Q-770, Q-772 built, tier B, ADR-832): Profile has "About and privacy" (privacy policy, terms,
+    community guidelines, contact, web deletion page); `ios.privacyManifests` declares the collected data types and
+    `NSPrivacyTracking: false` (native: needs the next EAS build); STORE_COMPLIANCE 2.7 lists the Android permissions as
+    declared. Still open here: the merged manifest and Xcode privacy report of the first release build, the Firebase file
+    and the notification icon, and the web origin (Q-771) the About links use.
   - Done when: Both stores accept the submission for review, the RUNBOOK's push go-live checklist has passed, and the
     Android build was made with the Firebase `google-services.json`.
 - [ ] **T-807** Counsel batch and data map: send the batched legal questions and finalize the vendor data map — delivers no FR (infrastructure or quality gate); depends on: none

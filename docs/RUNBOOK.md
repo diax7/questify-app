@@ -1412,6 +1412,9 @@ old builds never get JavaScript that expects native code they lack):
 - `app.json` native fields: name, icon, splash, scheme, bundle id or package, orientation, `plugins`, `ios`/`android`
   blocks, `runtimeVersion`, `updates`;
 - the version and build number themselves.
+- the iOS privacy manifest (`ios.privacyManifests`: collected data types, tracking, required-reason APIs; ADR-832):
+  it is written into the native project at build time, so an update never changes it. Since 2026-11-13 the next EAS
+  build carries the data types; until then installed builds have the old manifest.
 
 Code, copy, styles, images bundled by the app and `EXPO_PUBLIC_*` values can go by update. Store rules still apply to
 updates (bug fixes and modest changes, no new features or quest types, STORE_COMPLIANCE §1.5).

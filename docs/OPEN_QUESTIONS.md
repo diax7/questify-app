@@ -3304,3 +3304,13 @@ make the organizer the first party for event data. Play's "shared" column depend
 **Recommended (developer):** declare the rows the organizer sees (name if asked, username, activity, submissions, photos,
 help requests) as shared with the event's organizer, backed by the join card's consent. Over-disclosure is safe; revisit when
 counsel answers Q-043.
+## Answers to Q-769, Q-770 and Q-772 (developer, 2026-11-13; ADR-832)
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-13; ADR-832). Q-769, Q-770 and Q-772 are answered by this block.
+- **Q-769:** built. Profile, "About and privacy" (`apps/app/app/about.tsx`): privacy policy, terms, community guidelines,
+  contact page and web deletion page, Arabic and English, opened in the browser. The host follows Q-771.
+- **Q-770:** built. `ios.privacyManifests` carries `NSPrivacyTracking: false` and the 11 data types of
+  `docs/store/app-store-privacy-labels.md` section 3; the required-reason list was re-checked and is unchanged. Still
+  open: the Xcode privacy report on the first archive (key names checked against Expo's config type, not Apple's page).
+- **Q-772:** STORE_COMPLIANCE 2.7 rewritten from `app.json`, the plugins and the library manifests. Still open: the merged
+  manifest of the first release bundle (FCM rows), the Firebase file and the notification icon (T-806 Done-when).

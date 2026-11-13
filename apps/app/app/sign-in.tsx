@@ -1,15 +1,9 @@
-import {
-  AVATARS,
-  JOIN_LINK_HOSTS,
-  MESSAGES,
-  type Avatar,
-  type MessageKey,
-  type Theme,
-} from "@questify/shared";
+import { AVATARS, MESSAGES, type Avatar, type MessageKey, type Theme } from "@questify/shared";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useReducer, useRef, useState } from "react";
 import { Linking, Platform, Pressable, ScrollView, View } from "react-native";
 import { deviceLabelOf } from "#src/account/device-label.ts";
+import { webPageUrl, type WebPage } from "#src/legal/web-pages.ts";
 import { loadExpoDevice } from "#src/help/device.ts";
 import { api, keyValueStore } from "#src/api/app-session.ts";
 import { AppText } from "#src/components/AppText.tsx";
@@ -103,8 +97,7 @@ function useSecondsUntil(at: number | null): number {
 
 function ConsentStep({ state, dispatch, close }: StepProps<"consent">) {
   const { t, language } = useI18n();
-  const open = (id: string) =>
-    void Linking.openURL(`https://${JOIN_LINK_HOSTS[0]}/${language}/legal/${id}`);
+  const open = (id: WebPage) => void Linking.openURL(webPageUrl(language, id));
   return (
     <>
       <AppText variant="title">{t("signIn.consentTitle")}</AppText>
