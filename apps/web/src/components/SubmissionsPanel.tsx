@@ -190,6 +190,21 @@ function ItemBody({ language, item }: Readonly<{ language: Language; item: Queue
   );
 }
 
+/** The item's status and flags. */
+function ItemBadges({ language, item }: Readonly<{ language: Language; item: QueueItem }>) {
+  const t = translatorFor(language);
+  return (
+    <>
+      <Badge>{t(statusKey(item.status))}</Badge>
+      {item.auto ? <Badge>{t("submissions.auto")}</Badge> : null}
+      {item.marked ? <Badge>{t("submissions.marked")}</Badge> : null}
+      {item.kind === "photo" && item.onScreen === true ? (
+        <Badge>{t("submissions.onScreen")}</Badge>
+      ) : null}
+    </>
+  );
+}
+
 function ItemRow({
   language,
   eventApi,
@@ -205,12 +220,7 @@ function ItemRow({
         <strong dir="auto">{player}</strong>
         <span dir="auto">{textFor(item.questTitle, language)}</span>
         <span dir="ltr">+{formatNumber(item.points, language)}</span>
-        <Badge>{t(statusKey(item.status))}</Badge>
-        {item.auto ? <Badge>{t("submissions.auto")}</Badge> : null}
-        {item.marked ? <Badge>{t("submissions.marked")}</Badge> : null}
-        {item.kind === "photo" && item.onScreen === true ? (
-          <Badge>{t("submissions.onScreen")}</Badge>
-        ) : null}
+        <ItemBadges language={language} item={item} />
       </Toolbar>
       <ItemBody language={language} item={item} />
       {item.reasonSystem ? <Muted>{t("submissions.left")}</Muted> : null}
