@@ -1,5 +1,17 @@
 # Blueprint State — Questify
 
+## RTL read of the rendered screens (T-808, tier B) — 2026-11-13
+
+- **Done:** the main web pages, the console, the big screen (unpaired, paired, ranking and goal scenes) and the `/play`
+  web build were opened in Arabic at 1440 and 360 wide with a throw-away Playwright script and read as screenshots and
+  page text. Fixed: control room feed and team emails aligned by the Latin text's own direction, the event header's join
+  code line (the whole Arabic sentence was forced left to right), a Latin comma in Arabic date-and-time labels
+  (`withArabicComma`), "@name" shown as "name@" in the player app's profile, the undo arrow not flipping, a long console
+  navigation label wrapping under its icon, three short copy fixes (`وسم NFC`, `مشغل`, `هناك`), and `pnpm e2e:api`
+  (`sharp` external). Details and the list for a person or a device: T-808 note of 2026-11-13 in TASKS.md.
+- **Tests:** `withArabicComma` unit test; shared i18n and time suites, app push suite, types and lint green; desktop browser specs (layout, control room, analytics, organizers, review demo): 12 passed. Phone not rerun.
+- **Next:** T-808 stays open (a person's read of every screen, devices, plural forms of counted nouns).
+
 ## FOLLOWUPS batch, photo and organizer image lines (migration 0196) — 2026-11-13
 
 - **Built (tier B; functions only, no table).** 0196: `export_submissions` carries `kind` (the CSV gains a Kind

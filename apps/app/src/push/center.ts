@@ -1,5 +1,6 @@
 import {
   notificationRoute,
+  withArabicComma,
   type Language,
   type NotificationItem,
   type NotificationList,
@@ -81,7 +82,7 @@ const LOCALES: Readonly<Record<Language, string>> = {
 export function stampOf(createdAt: string, language: Language, timeZone?: string): string {
   const instant = new Date(createdAt);
   if (Number.isNaN(instant.getTime())) return "";
-  return new Intl.DateTimeFormat(LOCALES[language], {
+  const text = new Intl.DateTimeFormat(LOCALES[language], {
     day: "numeric",
     month: "short",
     hour: "2-digit",
@@ -89,4 +90,5 @@ export function stampOf(createdAt: string, language: Language, timeZone?: string
     hourCycle: "h23",
     ...(timeZone === undefined ? {} : { timeZone }),
   }).format(instant);
+  return withArabicComma(text, language);
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { formatNumber, toWesternDigits } from "./digits";
+import { formatNumber, toWesternDigits, withArabicComma } from "./digits";
 
 describe("toWesternDigits", () => {
   it("turns Arabic-Indic digits into 0-9", () => {
@@ -73,5 +73,12 @@ describe("the number formats", () => {
     } finally {
       spy.mockRestore();
     }
+  });
+});
+
+describe("withArabicComma", () => {
+  it("swaps a Latin comma for the Arabic one in Arabic only", () => {
+    expect(withArabicComma("13 نوفمبر, 12:00", "ar")).toBe("13 نوفمبر، 12:00");
+    expect(withArabicComma("13 Nov, 12:00", "en")).toBe("13 Nov, 12:00");
   });
 });

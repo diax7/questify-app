@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { showAlert } from "#src/platform/alert.ts";
 import { api } from "#src/api/app-session.ts";
+import { isolatedLtr } from "#src/auth/sign-in-api.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
@@ -18,7 +19,7 @@ export function BlockButton({
   const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
-  const name = `@${username}`;
+  const name = isolatedLtr(`@${username}`);
   const save = async (blocked: boolean) => {
     setBusy(true);
     const saved = await setBlocked(api.session, username, blocked);
@@ -49,7 +50,7 @@ export function BlockedLine({
   const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
-  const name = `@${username}`;
+  const name = isolatedLtr(`@${username}`);
   return (
     <>
       <AppText accessibilityLiveRegion="polite">{t("block.done", { name })}</AppText>

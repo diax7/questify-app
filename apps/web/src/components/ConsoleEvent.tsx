@@ -14,7 +14,7 @@ import {
 import { HistoryList } from "#src/components/ConsoleOrganizers.tsx";
 import { SuspensionPanel, SupportPanel } from "#src/components/ConsoleOversight.tsx";
 import { readEventOversight, type EventOversight } from "#src/lib/console-organizers.ts";
-import { translatorFor } from "#src/lib/language.ts";
+import { isolate, translatorFor } from "#src/lib/language.ts";
 import { requestJson, type PostResult } from "#src/lib/post-json.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
 import { Button } from "#src/ui/Button.tsx";
@@ -248,7 +248,7 @@ function EventFacts({ language, view }: Readonly<{ language: Language; view: Con
       <PageHeader titleId="console-event-title" title={nameIn(event.name, language)} />
       <Toolbar>
         <Badge>{t(`events.status.${event.statusNow}` as "events.status.draft")}</Badge>
-        <span dir="ltr">{t("events.joinCode", { code: event.joinCode })}</span>
+        <span>{t("events.joinCode", { code: isolate(event.joinCode) })}</span>
       </Toolbar>
       <Muted>{t("console.organizer", { name: event.organizer.name })}</Muted>
       {event.ownerEmail === null ? null : (

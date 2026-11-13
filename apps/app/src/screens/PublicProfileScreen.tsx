@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { api } from "#src/api/app-session.ts";
 import { usePlayer } from "#src/auth/player.tsx";
+import { isolatedLtr } from "#src/auth/sign-in-api.ts";
 import { Avatar } from "#src/components/Avatar.tsx";
 import { AppText } from "#src/components/AppText.tsx";
 import { BackButton } from "#src/components/BackButton.tsx";
@@ -44,7 +45,7 @@ function ProfileDetails({
         }}
       />
       <View style={{ flexDirection: "row", alignItems: "center", gap: theme.spacing.sm }}>
-        <AppText variant="title">@{profile.username}</AppText>
+        <AppText variant="title">{isolatedLtr(`@${profile.username}`)}</AppText>
         <LevelBadge level={profile.level.number} size={32} />
       </View>
       {profile.title === null ? null : (

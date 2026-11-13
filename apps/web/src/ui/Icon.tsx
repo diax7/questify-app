@@ -215,9 +215,12 @@ export type IconName = keyof typeof SHAPES;
 
 /**
  * One icon, 20px by default, in the surrounding text colour. `mirror` flips it in a right-to-left page, for a
- * picture with a direction (the arrow that leaves).
+ * picture with a direction (the arrow that leaves). The undo arrow always flips: it turns back toward the start.
  */
-export function Icon({ name, mirror = false }: Readonly<{ name: IconName; mirror?: boolean }>) {
+export function Icon({
+  name,
+  mirror = name === "undo",
+}: Readonly<{ name: IconName; mirror?: boolean }>) {
   return (
     <svg
       className={mirror ? `${styles.icon} ${styles.mirror}` : styles.icon}

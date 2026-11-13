@@ -247,7 +247,9 @@ function MembersSection({
               key={member.staffUserId}
               main={
                 <>
-                  <span dir="ltr">{member.email}</span>
+                  <span>
+                    <bdi dir="ltr">{member.email}</bdi>
+                  </span>
                   <Badge>
                     {t(`staff.role.${member.role}`)}
                     {member.role === "editor"
@@ -299,7 +301,9 @@ function InvitesSection({
               key={invite.id}
               main={
                 <>
-                  <span dir="ltr">{invite.email}</span>
+                  <span>
+                    <bdi dir="ltr">{invite.email}</bdi>
+                  </span>
                   <Badge>{t(`staff.role.${invite.role}`)}</Badge>
                 </>
               }

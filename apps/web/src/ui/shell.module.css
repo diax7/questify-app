@@ -199,6 +199,12 @@
   border-inline-start: 3px solid transparent;
 }
 
+/* A long label shares the line with its icon and wraps its own words; it drops below the icon only when it has under 6rem. */
+.itemLabel {
+  flex: 1 1 6rem;
+  min-inline-size: 0;
+}
+
 .item:hover {
   background: var(--color-background);
 }

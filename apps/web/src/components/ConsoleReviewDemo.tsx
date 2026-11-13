@@ -23,7 +23,7 @@ import {
   readPrepared,
   readReviewDemo,
 } from "#src/lib/console-review-demo.ts";
-import { translatorFor } from "#src/lib/language.ts";
+import { isolate, translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { useConsoleRead } from "#src/lib/use-console-read.ts";
 import { Button, ButtonLink } from "#src/ui/Button.tsx";
@@ -177,7 +177,7 @@ function StateFacts({ language, demo }: Readonly<{ language: Language; demo: Rea
     <Stack>
       <FactList label={t("console.reviewDemo.event")}>
         <span dir="auto">{nameIn(demo.eventName, language)}</span>
-        <span dir="ltr">{t("console.reviewDemo.joinCode", { code: demo.joinCode })}</span>
+        <span>{t("console.reviewDemo.joinCode", { code: isolate(demo.joinCode) })}</span>
         <span>{t("console.reviewDemo.endsAt", { when: clockOf(demo.endsAt, language) })}</span>
         <span>
           {t("console.reviewDemo.fictional", {

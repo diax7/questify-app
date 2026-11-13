@@ -1,4 +1,4 @@
-import type { Language } from "#src/i18n/digits";
+import { withArabicComma, type Language } from "#src/i18n/digits";
 
 /**
  * Times in an event's own time zone (FR-1728, FR-1714). Every time the dashboard or the app shows for an event is in
@@ -189,7 +189,7 @@ export function formatEventTime(instant: Date, timeZone: string, language: Langu
     minute: "2-digit",
     hourCycle: "h23",
   }).format(instant);
-  return `${text} (${zoneLabel(timeZone, language)})`;
+  return `${withArabicComma(text, language)} (${zoneLabel(timeZone, language)})`;
 }
 
 /**
@@ -244,5 +244,5 @@ export function formatTimeWindow(
     day.format(opens) === day.format(closes)
       ? `${at(opens)}–${clock.format(closes)}`
       : `${at(opens)} – ${at(closes)}`;
-  return `${text} (${zoneLabel(timeZone, language)})`;
+  return `${withArabicComma(text, language)} (${zoneLabel(timeZone, language)})`;
 }

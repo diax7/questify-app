@@ -121,7 +121,7 @@ function MyIdentity({ me }: { me: Me }) {
     <>
       <Avatar name={me.avatar} username={me.username} equipment={me.equipment} size={96} />
       <View style={styles.nameLine}>
-        <AppText variant="title">@{me.username}</AppText>
+        <AppText variant="title">{isolatedLtr(`@${me.username}`)}</AppText>
         {me.questify === undefined ? null : <LevelBadge level={me.questify.level} size={32} />}
       </View>
       {me.equipment?.title == null ? null : (

@@ -27,7 +27,11 @@ export function NavItem({
       {...(current ? { "aria-current": "page" as const } : {})}
     >
       <Icon name={icon} />
-      {children}
+      {typeof children === "string" ? (
+        <span className={styles.itemLabel}>{children}</span>
+      ) : (
+        children
+      )}
     </AppLink>
   );
 }

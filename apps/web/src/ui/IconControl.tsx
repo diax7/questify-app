@@ -28,7 +28,7 @@ export function IconButton({
       {...props}
       className={[styles.control, className].filter(Boolean).join(" ")}
     >
-      <Icon name={icon} mirror={mirror === true} />
+      <Icon name={icon} {...(mirror === undefined ? {} : { mirror })} />
     </button>
   );
 }
@@ -48,7 +48,7 @@ export function IconLink({
       {...props}
       className={[styles.control, className].filter(Boolean).join(" ")}
     >
-      <Icon name={icon} mirror={mirror === true} />
+      <Icon name={icon} {...(mirror === undefined ? {} : { mirror })} />
     </AppLink>
   );
 }

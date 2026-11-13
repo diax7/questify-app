@@ -100,10 +100,12 @@ export function ControlFeed({
         <Row
           key={item.id}
           main={
-            <>
-              <strong dir="auto">{item.username}</strong>{" "}
-              <span dir="auto">{textFor(item.title, language)}</span>
-            </>
+            <span>
+              <strong>
+                <bdi>{item.username}</bdi>
+              </strong>{" "}
+              <bdi>{textFor(item.title, language)}</bdi>
+            </span>
           }
         >
           <Badge>{t(methodLabelOf(item.method))}</Badge>

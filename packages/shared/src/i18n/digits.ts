@@ -26,3 +26,11 @@ export function formatNumber(value: number, language: Language): string {
   formatters[language] ??= new Intl.NumberFormat(LOCALES[language], { numberingSystem: "latn" });
   return formatters[language].format(value);
 }
+
+/**
+ * A date or time the browser formatted, with the Arabic comma between its parts. Some browsers join a date and a time
+ * with a Latin comma ("13 نوفمبر, 12:00"), which Arabic text must not carry.
+ */
+export function withArabicComma(text: string, language: Language): string {
+  return language === "ar" ? text.replace(/,/g, "،") : text;
+}

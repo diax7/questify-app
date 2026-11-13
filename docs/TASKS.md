@@ -1728,6 +1728,37 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
     focus returning after a sheet or modal closes, the `adjustable` basket in the catch game, whether each label means the
     right thing, touch targets as drawn with a real thumb, Reduce Motion on a phone, and the read of every screen in both
     languages.
+  - Note 2026-11-13 (RTL read of the screens, tier B): the rendered Arabic pages were opened with a throw-away Playwright
+    script (not committed; the existing e2e server and a fresh `next build` plus `build:play`) at 1440 and 360 wide and read as
+    screenshots plus page text: sign-in, sign-up, contact, help, pair, scan landing, event not found, events, event form,
+    quests, rewards, players, team, setup, big screen page, codes, control room, analytics, texts, operators, devices,
+    sponsors, the event's public page and rules, the console (queue, catalog, switches, numbers, usage, players, tickets,
+    seasons, health, home, readiness, review demo), the unpaired and paired big screen (ranking, goal bar scenes) and the
+    `/play` web build (join card, sign-in, new account, intro, home, quests, profile). Found and fixed: the control room feed
+    stacked a username and a quest title with `dir="auto"` as separate flex items, so the Latin name sat on the left and the
+    Arabic title on the right of one row (`ControlParts`); the team page's emails the same way (`TeamPanel`); the event
+    header's "Join code" line forced the whole Arabic sentence left to right, so the code came before its label
+    (`EventForm`, `ConsoleEvent`, `ConsoleReviewDemo`: only the code is isolated now); a Latin comma in the analytics chart's
+    hourly label ("13 نوفمبر, 12:00": Chromium's date data joins a date and a time with "," in Arabic, Node's does not;
+    new `withArabicComma` in `@questify/shared` is applied to every date-and-time formatter that joins both: the chart
+    label, `formatEventTime`, the notification stamp and the console's `clockOf`); the player app showed "@name" as "name@"
+    in the profile heading, the public profile and the block confirmation (now `isolatedLtr`, as the rest of the app); the
+    web "undo" arrow (reset-to-default buttons in the console, texts, catalog) did not flip in RTL (`Icon` flips `undo`
+    by default); a long console navigation label ("العرض التجريبي لمراجعة المتجر") wrapped under its icon instead of beside
+    it (`NavItem` gives a text label a flexible span); `control.method.nfc` said «وسم NFC» against «بطاقة NFC» everywhere
+    else; «مشغل» in `console.player.actor.operator` is «مشغّل»; `console.health.reason.stuck` lost its «هناك». The short
+    labels the sweep skipped were read from the catalog (about 2,700 distinct short Arabic texts, all keys of three words or
+    fewer, and every English text that had two Arabic renderings): nothing else needed a change; the open points are still
+    the ones in the glossary (plural-by-number labels such as "250 نقاط" and "{count} نقطة", «حقل», «المشاركة», three words
+    for flags). Also: `pnpm e2e:api` did not start (the esbuild bundle pulled in `sharp`'s `detect-libc`): the script now
+    marks `sharp` external. Checked and fine: back and forward arrows, the exit icon (mirrored), the progress bars and the
+    goal bar (fill from the right), the intro dots (first step on the right), the bottom tabs, Western digits everywhere,
+    the Arabic comma and question mark, the ranking row "نقاط: 150", the paired big screen. Still needs a person or a
+    device: the `datetime-local` fields show the browser's own locale ("11/13/2026, 01:23 PM" in an English-locale browser;
+    only a phone or desktop set to Arabic shows how they really look), the native `<select>` popups, Arabic keyboard entry
+    into the code and phone fields (the code fields are left-aligned left-to-right by design), the player app on iOS and
+    Android (only its web build was read), the event page and big screen on a real TV, print output of the QR sheets and
+    reports, "250 نقاط" style grammar (a product choice for plural forms), and a read of every remaining console page.
   - Done when: Every screen has been read in Arabic and English by a person.
 - [ ] **T-809** Independent penetration test against ASVS L2 (core) and MASVS L1 with open-book access; fix or accept in writing every finding — delivers no FR (infrastructure or quality gate); depends on: T-804, T-805
   - Done when: A written report exists; every high or medium finding is fixed and retested, or accepted in writing by the user.

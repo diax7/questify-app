@@ -294,7 +294,7 @@ export {
 export type { ThemeId } from "./design/themes";
 export { DEFAULT_THEME, THEMES } from "./design/themes";
 export type { Language } from "./i18n/digits";
-export { formatNumber, toWesternDigits } from "./i18n/digits";
+export { formatNumber, toWesternDigits, withArabicComma } from "./i18n/digits";
 export type { MessageKey, Messages } from "./i18n/messages";
 export { MESSAGES } from "./i18n/messages";
 export { interpolate, placeholdersOf } from "./i18n/placeholders";

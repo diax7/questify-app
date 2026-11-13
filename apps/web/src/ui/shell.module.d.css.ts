@@ -9,6 +9,7 @@ declare const styles: {
   readonly group: string;
   readonly groupLabel: string;
   readonly item: string;
+  readonly itemLabel: string;
   readonly logo: string;
   readonly main: string;
   readonly menuButton: string;

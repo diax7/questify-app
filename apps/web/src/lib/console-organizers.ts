@@ -1,3 +1,4 @@
+import { withArabicComma } from "@questify/shared";
 import { readSuspension, type Suspension } from "#src/lib/staff-api.ts";
 
 /** The console's organizers (T-701): its list, one organizer, and an event's suspension and support grants. */
@@ -242,8 +243,12 @@ export function readEventOversight(view: unknown): EventOversight | undefined {
 
 /** A clock time in the viewer's language, Western digits always (ADR-018). */
 export function clockOf(iso: string, language: "ar" | "en"): string {
-  return new Intl.DateTimeFormat(language === "ar" ? "ar-SA-u-nu-latn-ca-gregory" : "en-GB", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(iso));
+  const clock = new Intl.DateTimeFormat(
+    language === "ar" ? "ar-SA-u-nu-latn-ca-gregory" : "en-GB",
+    {
+      dateStyle: "medium",
+      timeStyle: "short",
+    },
+  ).format(new Date(iso));
+  return withArabicComma(clock, language);
 }

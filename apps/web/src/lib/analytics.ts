@@ -1,4 +1,9 @@
-import type { Language, Participation, QuestsAnalytics } from "@questify/shared";
+import {
+  withArabicComma,
+  type Language,
+  type Participation,
+  type QuestsAnalytics,
+} from "@questify/shared";
 import type { Bilingual } from "#src/lib/quests.ts";
 
 /** How many rows a panel lists before "View more" opens the rest (every list panel keeps one size). */
@@ -190,13 +195,14 @@ export function bucketLabel(
   language: Language,
   long: boolean,
 ): string {
-  return new Intl.DateTimeFormat(LOCALES[language], {
+  const text = new Intl.DateTimeFormat(LOCALES[language], {
     timeZone: "UTC",
     day: "numeric",
     month: "short",
     ...(long ? { year: "numeric" } : {}),
     ...(unit === "hour" ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" } : {}),
   }).format(utcOf(at));
+  return withArabicComma(text, language);
 }
 
 /** One point of the players-over-time line. */
