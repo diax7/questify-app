@@ -895,3 +895,14 @@ Dhia (AskUserQuestion): "Build it now". Scope: "When I say browser we mean here 
 ## 2026-11-12 - Phone demo, photo storage, over-the-air updates -> processed (STATE, RUNBOOK "Phone demo builds (EAS)", docs/demo/PHONE_DEMO.md, docs/plans/2026-11-12-photo-storage.md)
 
 Dhia: "tomorrow I would like to be able to try as much as the scope is possible from my Android and my iPhone device. I do have now an Apple developer account ... I will not be there for a few days, so take responsibility with the CTO cycle, work autonomously." iPhone route (AskUserQuestion): "TestFlight"; the App Store Connect key: "I'll do it later today". Photos (Q-149): "I have upgraded my plan with them, so I think we can create a second one". Over-the-air updates: "If this will not slow us down and it is the cost of it is small then it is fine no problem for now at least but for later for sure we must add it". Demo owner: xdhia7+demo@gmail.com (his own address already had a staging account); the sign-up code typed in chat.
+
+## 2026-11-13 - The photo bucket, where it stores files, working while away -> processed (OPEN_QUESTIONS Q-768, STATE)
+
+Dhia created a CranL bucket: "questify-media / Public / Nafes / storage-questify-media.cranl.net ... I created this for
+you. So is it enough, or do you want something else?" Asked to make it Private: "Switch it to Private (Recommended)".
+Keys: "Added them now" (in /home/deploy/.config/questify/s3-staging.env, mode 0600, never in chat). The host answers
+from BunnyCDN (a European edge); asked where the files are stored: "Other region or none". Photos stay off until CranL
+answers in writing (Q-768). Then: "I will not be here for the next few hours. But I would like you to keep working ...
+Remaining tasks that you don't need me, completed, and wait for me to complete my part when I tell you that I am ready
+... you can use Fable model to help you planning or reviewing." The demo event (code NXAPPB) was activated with the owner
+step of the RUNBOOK (a system audit entry), with the big screen add-on.
