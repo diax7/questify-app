@@ -58,9 +58,12 @@ describe("object store client", () => {
     );
     expect((await fetch(`${fake.settings.endpoint}/${fake.settings.bucket}/`)).status).toBe(403);
     const signed = await store.signGet(KEY, 300);
-    expect(
-      (await fetch(signed.url.replace(/X-Amz-Signature=[0-9a-f]/, "X-Amz-Signature=0"))).status,
-    ).toBe(403);
+    // Flip the first hex digit (a fixed "0" left a signature that already began with 0 intact: a 1-in-16 flake).
+    const tampered = signed.url.replace(
+      /X-Amz-Signature=([0-9a-f])/,
+      (_, digit: string) => `X-Amz-Signature=${digit === "0" ? "1" : "0"}`,
+    );
+    expect((await fetch(tampered)).status).toBe(403);
     const otherKey = new URL(signed.url);
     otherKey.pathname = otherKey.pathname.replace("submission", "ticket");
     expect((await fetch(otherKey)).status).toBe(403);

@@ -198,7 +198,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("exports over HTTP", () => {
         "Username,Quest,Category,Completed at,Time number,Method,Removed by the team",
       ],
       ["redemptions", "Username,Reward,Price,Status,Reserved at,Closed at"],
-      ["submissions", "Username,Quest,Sent at,Status,Answer"],
+      ["submissions", "Username,Quest,Sent at,Status,Kind,Answer"],
       ["surveys", "Quest,Question,Type,Answer,Count"],
     ] as const) {
       const answer = await exportFile(ev, kind);
