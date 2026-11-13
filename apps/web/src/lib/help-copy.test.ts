@@ -60,6 +60,7 @@ const HELP_LINES: readonly string[] = [
   "events.endedHint",
   "events.liveHint",
   "events.streak.datesHint",
+  "flags.integrity.note",
   "flags.note",
   "flags.pausedNote",
   "flags.removeHelp",
