@@ -1,5 +1,15 @@
 # Blueprint State — Questify
 
+## ASVS L2 sheet brought up to date (T-810, tier C, docs only) — 2026-11-13
+
+- **Done:** `docs/security/ASVS_L2.md` now covers the work since 2026-11-08. Counts: Met 166, Partly 21, Not met 0, N/A 66
+  (was 163 / 19 / 0 / 71). File controls V5.1.1, V5.2.2, V5.3.1 and V5.3.2 are Met (photos and organizer images); V5.4.3 and
+  V14.2.1 are Partly; V6.4.1 and gap 18 are rewritten for ADR-814. Evidence added for the admin re-check (0189, 0191), the
+  suspension walls, resend buckets and locks, the touch fix (T-599c), key ids and per-organizer marks, T-812 and the privacy
+  manifest. Six stale test titles in older rows were fixed. Gaps 23 to 26 added (bucket location and keys: Q-768 and T-811;
+  no malware scan; signed photo URLs; the device check's live proof: Q-781). Every cited test title was checked by a script
+  that reads the sheet. T-810 stays unticked (it depends on T-809).
+
 ## About and privacy, privacy-manifest data types, Android permission record (Q-769, Q-770, Q-772; tier B) — 2026-11-13
 
 - **Done:** Profile, "About and privacy" (`apps/app/app/about.tsx`): privacy policy, terms, community guidelines, contact

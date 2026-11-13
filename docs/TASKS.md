@@ -1788,6 +1788,10 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
   - Note 2026-11-06 (tier C): gaps 15 to 17 written, no code. SECURITY.md has "Cryptographic inventory and key policy" and
     "Sign-in pathways and their strength", SLO.md section 6 the log inventory. V11.1.2 and V6.1.3 Met; V11.1.1 and V16.1.1
     stay Partly (Q-700; Q-443, Q-084); Q-701 added (159 Met, 23 Partly, 0 Not met).
+  - Note 2026-11-13 (tier C): the sheet is brought up to date for the work since 2026-11-08 (audit hardening, the admin re-check,
+    photo storage and organizer images, the photo wall, resend buckets, T-812, the About screen): 166 Met, 21 Partly, 0 Not met,
+    66 N/A. Gaps 23 to 26 added. Controls that rest on outside facts are marked: the bucket's location and keys (Q-768, T-811),
+    the device check's setup (Q-781) and the upload probing (T-809). T-810 stays open until T-809's findings are in.
 - [x] **T-810b** (tier A) Close the ASVS L2 code gaps from T-810 (`docs/security/ASVS_L2.md`, "Gaps and what to do" 1 to 8) — delivers no FR (infrastructure or quality gate); depends on: none
   - (1) `Strict-Transport-Security`, `X-Content-Type-Options: nosniff` and `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'` on every `/v1` answer (conventions `onSend`), passed through `apps/web/src/lib/forward.ts`; tests for both and an HSTS assertion on the page headers.
   - (2) `redirect: "error"` on every outside `fetch` (`players/sms.ts`, `auth/breached.ts`, `auth/email/resend.ts`, `auth/email/gmail.ts`, `auth/google-token.ts`), a test per client.
