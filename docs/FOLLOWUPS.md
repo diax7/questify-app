@@ -118,3 +118,4 @@ Format: `- <date> <task>: <what and where> (<source>)`
 - 2026-11-12 organizer images review (MINOR, NIT; the rest was cleared 2026-11-12, the two migration items in 0196 on 2026-11-13): `e2e/layout-editor.spec` has no image.
 
 - 2026-11-12 T-504b photo wall: drop the four- and five-argument `submit_quest` once no old API can call them; the poll scene's option images; the console report HTTP path for `media` is tested at the database level only (`admin_report_media_key`), add a route test; the browser `big-screen.spec` has no photo scene case (needs the S3 double in the e2e server).
+- 2026-11-13 photo followups review (92; NIT): the player door `media_release` (0192:237) keeps `state <> 'attached'`, the shape just fixed for organizers in 0196; `storeUpload` short-circuits a stored slot so nothing deletes today. Align it next time media is touched. `useQueue`'s `load` could be a `useCallback` on `[eventApi, filter]`.

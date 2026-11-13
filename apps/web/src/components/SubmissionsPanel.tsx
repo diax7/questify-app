@@ -33,6 +33,8 @@ function useQueue(eventApi: string, filter: QueueFilter, onFailure: (body: unkno
   const [items, setItems] = useState<QueueItem[] | null>(null);
   const [next, setNext] = useState<string | null>(null);
   const loadedFor = useRef<string | null>(null);
+  /** Pages past the first that the reviewer loaded: a timed refresh would drop them, so it waits. */
+  const morePages = useRef(0);
   const load = async (cursor: string | null) => {
     const query = `?filter=${filter}${cursor === null ? "" : `&cursor=${encodeURIComponent(cursor)}`}`;
     const result = await requestJson("GET", `${eventApi}/submissions${query}`);
@@ -40,7 +42,11 @@ function useQueue(eventApi: string, filter: QueueFilter, onFailure: (body: unkno
       onFailure(result.body);
       return;
     }
+    if (loadedFor.current !== filter) {
+      return; // the reviewer switched filter while this read was in flight
+    }
     const page = result.body as { submissions: QueueItem[]; nextCursor: string | null };
+    morePages.current = cursor === null ? 0 : morePages.current + 1;
     setItems((current) =>
       cursor === null ? page.submissions : [...(current ?? []), ...page.submissions],
     );
@@ -59,7 +65,7 @@ function useQueue(eventApi: string, filter: QueueFilter, onFailure: (body: unkno
   // dashboard shows a fresh link instead of "the link expired".
   useEffect(() => {
     const wait = photoRefreshDelay(items, Date.now());
-    if (wait === null) return;
+    if (wait === null || morePages.current > 0) return;
     const timer = setTimeout(() => void load(null), wait);
     return () => clearTimeout(timer);
   }, [items]);
