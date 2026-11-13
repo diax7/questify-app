@@ -9276,7 +9276,7 @@ manifest must agree with the App Privacy label or Xcode's report contradicts it;
 list.
 ## ADR-833 - Device integrity: verified on the server, recorded as a flag, never blocking
 
-**Status:** Proposed (T-812, 2026-11-13; plan `docs/plans/2026-11-13-device-integrity.md`). Builds on ADR-153 and
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-13; CTO review 87, MAJOR fixed).
 ADR-154. Q-779, Q-781.
 **Decision:**
 - **Two doors for the player:** `POST /v1/me/device-integrity/challenge` and `POST /v1/me/device-integrity`, both on
@@ -9302,7 +9302,7 @@ cost the player nothing, while the team still sees it next to the other signals.
 
 ## ADR-834 - Device checks are kept per install and flag the accounts that played on it
 
-**Status:** Proposed (T-812, 2026-11-13). Q-780.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-13; CTO review 87, MAJOR fixed).
 **Decision:**
 - `device_check` keeps the latest verdict per install (platform, passed or failed, reason codes, the account that sent
   it, when); `app_attest_key` keeps an attested key's public key and counter for its install. Both RLS forced with no
@@ -9317,7 +9317,7 @@ install keeps the scan path to one primary-key read.
 
 ## ADR-835 - The app's side of the device check waits for a native module and a new build
 
-**Status:** Proposed (T-812, 2026-11-13). Q-781.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-13; CTO review 87, MAJOR fixed).
 **Decision:** no package is added now. Neither App Attest (`DCAppAttestService`) nor Play Integrity
 (`IntegrityManager`) is reachable from JavaScript, so the app needs a native module and a new build (RUNBOOK "Needs a
 new build"). The plan, in T-812's notes: Expo's `@expo/app-integrity` if it is in the SDK 57 set (both platforms, one
