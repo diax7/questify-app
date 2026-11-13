@@ -14,7 +14,7 @@
 - **Tests:** new `test/auth/console-surface.int.test.ts` (both modes, route inventory, cookie and CORS),
   `test/db/staff-session-surface.int.test.ts`, unit tests for config, staff routes, console-host, proxy hosts, forwarder;
   security, auth, rehearsal, team alerts and all API unit suites 4,798 passed; app and web units 4,153 passed; browser
-  `layout`, `console-home`, `console-host` (second server pair) passed. Types, lint, format, lint:limits (none new) green.
+  `layout`, `console-home`, `console-host` (second server pair), desktop and phone: 11 passed, then `console-host` 4 passed. Types, lint, format, lint:limits (none new) green.
   Full suite left to the coordinator. CI 0 minutes (not pushed).
 - **Next:** code review (tier A), then mutation (`staff-guard.ts`, `session.ts`, `activation/routes.ts`,
   `organizers/routes.ts`, `apps/web/src/lib/console-host.ts`). T-810d stays open for Q-783 and the RUNBOOK probes.
