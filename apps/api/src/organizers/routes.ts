@@ -389,6 +389,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
         pool: deps.pool,
         codeKey: deps.rewardCodeKey,
         settings: deps.settings,
+        photos: deps.storage !== undefined,
       });
       registerSetupRoutes(scope, { pool: deps.pool });
       registerHeldPrizesTeamRoute(scope, { pool: deps.pool });

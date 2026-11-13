@@ -15,6 +15,8 @@ export type RunContext = Readonly<{
   pool: Pool;
   codeKey: RewardCodeKeyring;
   settings: Pick<SettingsService, "forEvent">;
+  /** Whether this server has a photo bucket (T-301b): without one, a photo submission quest is refused. */
+  photos?: boolean;
   actor: Actor;
   caller: Caller;
   eventId: string;
@@ -33,7 +35,8 @@ export type After =
   | Readonly<{ ok: true; view: JsonObject | null; name: Bilingual }>
   | Readonly<{ ok: false; problem: ApiErrorEnvelope }>;
 
-export type Reader = Readonly<{ client: PoolClient; event: BuilderEvent }>;
+/** `photos`: whether this server has a photo bucket; only a preview's reader carries it (absent means none). */
+export type Reader = Readonly<{ client: PoolClient; event: BuilderEvent; photos?: boolean }>;
 
 /**
  * One kind of target (quest, category or reward): how to read it, check a body, say what an item would leave, and run

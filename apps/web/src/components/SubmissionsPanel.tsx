@@ -10,6 +10,7 @@ import { textFor } from "#src/lib/quests.ts";
 import {
   FILTERS,
   canGiveReason,
+  photoRefreshDelay,
   showsEmpty,
   showsMarkSeen,
   statusKey,
@@ -54,6 +55,14 @@ function useQueue(eventApi: string, filter: QueueFilter, onFailure: (body: unkno
     setItems(null);
     void load(null);
   });
+  // A photo's signed URL lasts 5 minutes: the list is read again just before the soonest one runs out (T-301b), so the
+  // dashboard shows a fresh link instead of "the link expired".
+  useEffect(() => {
+    const wait = photoRefreshDelay(items, Date.now());
+    if (wait === null) return;
+    const timer = setTimeout(() => void load(null), wait);
+    return () => clearTimeout(timer);
+  }, [items]);
   return {
     items,
     /**
@@ -193,6 +202,9 @@ function ItemRow({
         <Badge>{t(statusKey(item.status))}</Badge>
         {item.auto ? <Badge>{t("submissions.auto")}</Badge> : null}
         {item.marked ? <Badge>{t("submissions.marked")}</Badge> : null}
+        {item.kind === "photo" && item.onScreen === true ? (
+          <Badge>{t("submissions.onScreen")}</Badge>
+        ) : null}
       </Toolbar>
       <ItemBody language={language} item={item} />
       {item.reasonSystem ? <Muted>{t("submissions.left")}</Muted> : null}

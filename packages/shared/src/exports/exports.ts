@@ -87,6 +87,8 @@ export const submissionRowSchema = z.strictObject({
   quest: text,
   submittedAt: moment,
   status: z.string(),
+  /** What the player sent (migration 0196): a photo's own file is never in the export, only its caption. */
+  kind: z.enum(["text", "photo"]),
   answer: z.string().nullable(),
 });
 export const playerPageSchema = pageOf(playerRowSchema, z.uuid());
@@ -199,6 +201,7 @@ export function submissionsTable(
       t("exports.csv.quest"),
       t("exports.csv.submittedAt"),
       t("exports.csv.status"),
+      t("exports.csv.kind"),
       t("exports.csv.answer"),
     ],
     cells: (row) => [
@@ -206,6 +209,7 @@ export function submissionsTable(
       pick(row.quest, language),
       row.submittedAt,
       row.status,
+      t(row.kind === "photo" ? "exports.csv.kindPhoto" : "exports.csv.kindText"),
       row.answer ?? "",
     ],
   };

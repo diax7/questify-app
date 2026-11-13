@@ -475,8 +475,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("photo storage (database)", () 
         kind: "photo",
         photo_key: slot.key,
         photo_gone: false,
+        on_screen: false,
         body: null,
       });
+      // The player's "allowed on screen" choice reaches the team's queue (migration 0196).
+      await owner("UPDATE submission SET on_screen = true WHERE id = $1", [sent.submission_id]);
+      const [allowed] = await query<Row>(
+        teamA(),
+        "SELECT * FROM event_submissions($1, 'pending', NULL, 50)",
+        [event],
+      );
+      expect(allowed).toMatchObject({ on_screen: true });
       const [own] = await query<Row>({ playerId: player }, "SELECT * FROM own_submissions($1)", [
         event,
       ]);

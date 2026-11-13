@@ -471,16 +471,19 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("exports (database)", () => {
       const photo = await quest(event, "Describe it");
       const writer = await member(event);
       const gone = await member(event);
-      for (const [who, body, erased] of [
-        [writer, "= big idea", false],
-        [gone, null, true],
+      const snapper = await member(event);
+      for (const [who, kind, body, erased] of [
+        [writer, "text", "= big idea", false],
+        [gone, "text", null, true],
+        [snapper, "photo", null, false],
       ] as const) {
         await f.owner(
           `INSERT INTO submission (organizer_id, event_id, enrollment_id, quest_id, kind, body, points, status,
-                                   idempotency_key, erased_at)
-           SELECT organizer_id, id, $2, $3, 'text', $4, 5, 'pending', $5, CASE WHEN $6 THEN now() END
+                                   idempotency_key, erased_at, photo_gone_at)
+           SELECT organizer_id, id, $2, $3, $7, $4, 5, 'pending', $5, CASE WHEN $6 THEN now() END,
+                  CASE WHEN $7 = 'photo' THEN now() END
            FROM event WHERE id = $1`,
-          [event, who.enrollment, photo, body, randomUUID(), erased],
+          [event, who.enrollment, photo, body, randomUUID(), erased, kind],
         );
       }
       // Sent at the same moment: the id keeps them in order, in pages of one.
@@ -492,12 +495,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("exports (database)", () => {
         username: string;
         answer: string | null;
         status: string;
+        kind: string;
       }>("export_submissions", event, 1, 0);
-      expect(rows.map((row) => [row.username, row.answer, row.status])).toEqual([
-        [writer.username, "= big idea", "pending"],
-        [gone.username, null, "pending"],
+      // Migration 0196: each row says its kind, so a photo with no caption reads "photo", not a blank answer.
+      expect(rows.map((row) => [row.username, row.kind, row.answer, row.status])).toEqual([
+        [writer.username, "text", "= big idea", "pending"],
+        [gone.username, "text", null, "pending"],
+        [snapper.username, "photo", null, "pending"],
       ]);
-      expect(pages).toBe(3);
+      expect(pages).toBe(4);
     });
 
     it("lists the event's survey quests with no player in their results", async () => {

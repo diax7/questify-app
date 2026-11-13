@@ -261,6 +261,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer images (database)", 
       expect(await exists(slot.id)).toBe(false);
     });
 
+    it("never releases a stored slot, which a retry's first try may have stored (migration 0196)", async () => {
+      const event = await newEvent();
+      const slot = await reserve(event);
+      await store(slot);
+      expect(await query(teamA(), "SELECT media_image_release($1) AS ok", [slot.id])).toEqual([
+        { ok: false },
+      ]);
+      expect(await exists(slot.id)).toBe(true);
+      await owner("DELETE FROM media_object WHERE id = $1", [slot.id]);
+    });
+
     it("keeps the player doors closed to an organizer image (no null owner slips through)", async () => {
       const event = await newEvent();
       const slot = await reserve(event);
@@ -703,6 +714,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer images (database)", 
       expect(await refusal(game("catch", { items: Array(6).fill(id) }))).toBe("23514");
       expect(await refusal(game("tap_rush", { items: [id] }))).toBe("23514");
       expect(await refusal(game("catch", { items: ["not-an-id"] }))).toBe("23514");
+      // Migration 0196: an empty images object, on any game, is refused (false, never a null the CHECK lets through).
+      for (const name of ["memory_match", "slide_puzzle", "catch", "tap_rush"]) {
+        expect(await refusal(game(name, {}))).toBe("23514");
+      }
+      expect(
+        await owner(
+          `SELECT quest_images_ok('game', '{"game": "catch", "images": {}}') AS a,
+                  quest_images_ok('game', '{"images": {}}') AS b,
+                  quest_images_ok('game', '{"game": "memory_match", "images": {"faces": null}}') AS c`,
+        ),
+      ).toEqual([{ a: false, b: false, c: false }]);
       const vote = (pic: unknown) =>
         owner(
           `INSERT INTO quest (event_id, category_id, type, title_en, points, type_config)

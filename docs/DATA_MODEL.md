@@ -1294,6 +1294,10 @@ staff_user SET NULL, picked_at)`, unique `(event_id, position)`, `(submission_id
 by `own_photo_on_screen` (off) and the trigger `submission_wall_forget` (the photo let go). `photo_wall_ok` is checked at
 every read. `content_hold.kind` and `content_report.target_kind` take `media` (the `media_object` id). The data export's
 submissions carry `onScreen`. `big_screen.scenes` may hold `photo` (up to four scenes).
+**Migration 0196 (photo followups, functions only):** the team's queue readers (`queue_rows`, `event_submissions`,
+`operator_submissions`) carry `on_screen`; `export_submissions` carries each row's `kind`; `quest_images_ok` answers
+false, never null (a game's `images: {}` is refused by the CHECK); `media_image_release` gives back a `reserved` slot
+only, never a stored image.
 
 ### big_screen (migration 0083, T-504, ADR-365)
 **Built:** `big_screen (event_id primary key, organizer_id, scenes text[], updated_at, updated_by → staff_user SET NULL)`, `(event_id,

@@ -1969,6 +1969,31 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("keeps the queue's rows internal behind its two seat-checked readers (restated by 0196)", async () => {
+      const functions = await rows<{
+        proname: string;
+        app: boolean;
+        outsider: boolean;
+        definer: boolean;
+      }>(
+        `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+          has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider, prosecdef AS definer
+          FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+          WHERE n.nspname = 'public' AND proname IN ('queue_rows', 'event_submissions', 'operator_submissions')
+          ORDER BY proname`,
+      );
+      expect(functions).toEqual([
+        { proname: "event_submissions", app: true, outsider: false, definer: true },
+        { proname: "operator_submissions", app: true, outsider: false, definer: true },
+        { proname: "queue_rows", app: false, outsider: false, definer: false },
+      ]);
+      await expect(
+        db.outsider.query(
+          "SELECT * FROM public.queue_rows(gen_random_uuid(), 'pending', NULL, 1, NULL)",
+        ),
+      ).rejects.toThrow(/permission denied/);
+    });
+
     it("cannot vote, play a quiz or read either (T-302)", async () => {
       for (const sql of [
         "SELECT * FROM public.vote_quest(gen_random_uuid(), '{a}', 'k')",

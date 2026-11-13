@@ -37,6 +37,8 @@ export type ChangeSetDeps = Readonly<{
   pool: Pool;
   codeKey: RewardCodeKeyring;
   settings: Pick<SettingsService, "forEvent">;
+  /** Whether this server has a photo bucket (T-301b), as the builder's routes are told. */
+  photos?: boolean;
 }>;
 
 /** Why a change set call was refused; each maps to one HTTP answer. */
@@ -226,7 +228,7 @@ export function readChangeSet(
     }
     const views: ItemView[] = [];
     for (const item of await readItems(client, set.id)) {
-      views.push(await viewOf({ client, event }, item, set.status));
+      views.push(await viewOf({ client, event, photos: deps.photos === true }, item, set.status));
     }
     return done({ ...set, items: views });
   });

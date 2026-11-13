@@ -326,6 +326,8 @@ export type QueueItem = Readonly<{
   photoUrl: string | null;
   photoExpiresAt: Date | null;
   photoGone: boolean;
+  /** The player allowed this photo on the event's screen (T-504b); false for text. */
+  onScreen: boolean;
   points: number;
   status: OwnSubmission["status"];
   auto: boolean;
@@ -358,6 +360,7 @@ type QueueRow = {
   kind: SubmissionKind;
   photo_key: string | null;
   photo_gone: boolean;
+  on_screen: boolean;
 };
 
 /** One queue row; its photo URL is signed here, only for the key the seat-checked reader returned. */
@@ -372,6 +375,7 @@ const itemOf = async (deps: SubmissionDeps, row: QueueRow): Promise<QueueItem> =
   text: row.body,
   ...(await signedPhoto(deps.storage, row.photo_key)),
   photoGone: row.photo_gone,
+  onScreen: row.on_screen,
   points: row.points,
   status: row.status,
   auto: row.auto,

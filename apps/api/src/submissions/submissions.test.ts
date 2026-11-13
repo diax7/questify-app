@@ -229,6 +229,7 @@ describe("the queue, removal and seen marks", () => {
         kind: "text",
         photo_key: null,
         photo_gone: false,
+        on_screen: true,
       },
     ]);
     const queue = await staffQueue(pool.deps, STAFF, { ...PAGE, filter: "pending" });
@@ -247,6 +248,7 @@ describe("the queue, removal and seen marks", () => {
           photoUrl: null,
           photoExpiresAt: null,
           photoGone: false,
+          onScreen: true,
           points: 150,
           status: "pending",
           auto: false,

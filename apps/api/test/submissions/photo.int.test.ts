@@ -372,4 +372,66 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("photo submissions over HTTP", 
     });
     expect([locked.statusCode, locked.json().code]).toEqual([409, "accepts_locked"]);
   });
+
+  it("refuses a change set's photo quest without a bucket, as the builder does", async () => {
+    const event = await newEvent();
+    const quest = await newQuest(event, ["text"]);
+    const [category] = await owner<{ id: string }>(
+      "SELECT id FROM category WHERE event_id = $1 LIMIT 1",
+      [event],
+    );
+    const photoAccepts = { config: { accepts: ["text", "photo"] } };
+    const items = [
+      {
+        op: "add",
+        target: "quest",
+        body: {
+          categoryId: category?.id,
+          type: "submission",
+          title: { en: "Snap" },
+          points: 5,
+          ...photoAccepts,
+        },
+      },
+      { op: "edit", target: "quest", targetId: quest, body: photoAccepts },
+      { op: "edit", target: "quest", targetId: quest, body: { title: { en: "Renamed" } } },
+    ];
+    type Opened = { items: { id: string; state: string; problem: { code: string } | null }[] };
+    const openOn = async (on: TestApp) => {
+      const made = await dashboard("POST", `/events/${event}/change-sets`, { items }, on);
+      expect(made.statusCode, made.body).toBe(201);
+      const set = made.json<{ changeSet: { id: string } }>().changeSet.id;
+      const opened = await dashboard("GET", `/events/${event}/change-sets/${set}`, undefined, on);
+      return { set, opened: opened.json<{ changeSet: Opened }>().changeSet };
+    };
+    const off1 = await openOn(off);
+    expect(off1.opened.items.map((item) => [item.state, item.problem?.code ?? null])).toEqual([
+      ["invalid", "submission_kind_unavailable"],
+      ["invalid", "submission_kind_unavailable"],
+      ["ready", null],
+    ]);
+    const on1 = await openOn(test);
+    expect(on1.opened.items.map((item) => item.state)).toEqual(["ready", "ready", "ready"]);
+    // An apply on the server with no bucket refuses the photo items and applies the rest.
+    const offIds = off1.opened.items.map((item) => item.id);
+    const applied = await dashboard(
+      "POST",
+      `/events/${event}/change-sets/${off1.set}/apply`,
+      { itemIds: offIds },
+      off,
+    );
+    expect(applied.statusCode, applied.body).toBe(200);
+    expect(
+      applied.json<{ results: { status: string; error: { code: string } | null }[] }>().results,
+    ).toMatchObject([
+      { status: "failed", error: { code: "submission_kind_unavailable" } },
+      { status: "failed", error: { code: "submission_kind_unavailable" } },
+      { status: "applied" },
+    ]);
+    const [stored] = await owner<{ accepts: string[] }>(
+      "SELECT type_config -> 'accepts' AS accepts FROM quest WHERE id = $1",
+      [quest],
+    );
+    expect(stored?.accepts).toEqual(["text"]);
+  });
 });

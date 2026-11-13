@@ -1,7 +1,7 @@
-import { isQuestType, type ApiErrorEnvelope } from "@questify/shared";
+import { isQuestType, unavailableSubmissionKind, type ApiErrorEnvelope } from "@questify/shared";
 import { z } from "zod";
 import type { ItemOp } from "#src/change-sets/store";
-import { invalidQuest, platformFeatureOff } from "#src/auth/http-errors";
+import { invalidQuest, platformFeatureOff, submissionKindUnavailable } from "#src/auth/http-errors";
 import {
   envelopeOf,
   parseWith,
@@ -43,6 +43,16 @@ const problem = (field: string): After => ({
   problem: invalidQuest({ field }).envelope,
 });
 
+/**
+ * The builder routes' refusal of a config that asks for photos on a server with no bucket (T-301b), so a change set
+ * cannot save what the route would refuse; only a config the item sends is checked.
+ */
+function photosOff(config: unknown, photos: boolean | undefined): ApiErrorEnvelope | null {
+  return unavailableSubmissionKind(config, photos === true) === "photo"
+    ? submissionKindUnavailable({ asked: "photo" }).envelope
+    : null;
+}
+
 async function read({ client, event }: Reader, id: string): Promise<Seen | undefined> {
   const quest = await readQuest(client, event.id, id);
   return quest === undefined
@@ -54,9 +64,13 @@ function parse(op: ItemOp, body: Record<string, unknown>): Parsed {
   return parseWith(op === "add" ? questBody : op === "edit" ? questPatch : deleteChoice, body);
 }
 
-async function addAfter({ client, event }: Reader, input: AddInput): Promise<After> {
+async function addAfter({ client, event, photos }: Reader, input: AddInput): Promise<After> {
   if (!isQuestType(input.type)) {
     return problem("type");
+  }
+  const off = photosOff(input.config, photos);
+  if (off !== null) {
+    return { ok: false, problem: off };
   }
   if ((await readCategory(client, event.id, input.categoryId)) === undefined) {
     return problem("categoryId");
@@ -73,10 +87,14 @@ async function addAfter({ client, event }: Reader, input: AddInput): Promise<Aft
 }
 
 async function editAfter(
-  { client, event }: Reader,
+  { client, event, photos }: Reader,
   current: QuestRecord,
   input: EditInput,
 ): Promise<After> {
+  const off = photosOff(input.config, photos);
+  if (off !== null) {
+    return { ok: false, problem: off };
+  }
   if (
     input.categoryId !== undefined &&
     (await readCategory(client, event.id, input.categoryId)) === undefined
@@ -126,10 +144,17 @@ export const questKind: TargetKind = {
       if (body.type === "location" && !(await locationQuestsOn(context.settings))) {
         return platformFeatureOff().envelope;
       }
-      return refusalOf(await createQuest({ pool, guard }, actor, eventId, body, caller));
+      return (
+        photosOff(body.config, context.photos) ??
+        refusalOf(await createQuest({ pool, guard }, actor, eventId, body, caller))
+      );
     }
     const target = { eventId, id: item.targetId as string };
     if (item.op === "edit") {
+      const off = photosOff((input as EditInput).config, context.photos);
+      if (off !== null) {
+        return off;
+      }
       const edit = { ...(input as EditInput), confirm: true };
       const keyed = { ...target, key: `cs:${item.id}` };
       return refusalOf(await updateQuest({ pool, guard }, actor, keyed, edit, caller));

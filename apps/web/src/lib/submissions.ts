@@ -21,7 +21,11 @@ export type QueueItem = Readonly<{
   /** A photo submission (T-301b): its 5-minute signed URL, null once deleted; absent from an older API. */
   kind?: "text" | "photo";
   photoUrl?: string | null;
+  /** When the signed URL runs out (ISO time); the list is read again just before (`photoRefreshDelay`). */
+  photoExpiresAt?: string | null;
   photoGone?: boolean;
+  /** The player allowed this photo on the event's screen (T-504b); absent from an older API. */
+  onScreen?: boolean;
   points: number;
   status: SubmissionStatus;
   auto: boolean;
@@ -52,6 +56,23 @@ export const showsMarkSeen = (
   items: readonly QueueItem[] | null,
   marking: boolean,
 ): boolean => filter === "unseen" && ((items?.length ?? 0) > 0 || marking);
+
+/** How long before a photo's signed URL runs out the list is read again, and the shortest wait between two reads. */
+export const PHOTO_REFRESH = { aheadMs: 15_000, leastMs: 30_000 } as const;
+
+/**
+ * How long to wait before reading the list again so no photo link runs out on screen: until just before the soonest
+ * `photoExpiresAt`, never less than `leastMs` (a clock far off the server's cannot make it read in a loop); null when
+ * no item carries a link that runs out.
+ */
+export function photoRefreshDelay(items: readonly QueueItem[] | null, now: number): number | null {
+  const ends = (items ?? []).flatMap((item) => {
+    const at = typeof item.photoExpiresAt === "string" ? Date.parse(item.photoExpiresAt) : NaN;
+    return Number.isNaN(at) ? [] : [at];
+  });
+  if (ends.length === 0) return null;
+  return Math.max(Math.min(...ends) - now - PHOTO_REFRESH.aheadMs, PHOTO_REFRESH.leastMs);
+}
 
 /** The queue without the items named: what the "unseen" tab shows at once while the server is told they were read. */
 export const withoutItems = (items: readonly QueueItem[], ids: readonly string[]): QueueItem[] =>

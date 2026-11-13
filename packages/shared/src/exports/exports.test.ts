@@ -5,6 +5,8 @@ import {
   exportBodySchema,
   playersTable,
   sponsorRows,
+  submissionPageSchema,
+  submissionsTable,
   surveysRows,
   type ExportStart,
   type SurveyExport,
@@ -107,6 +109,41 @@ const survey = (total: number): SurveyExport => ({
       },
     ],
   },
+});
+
+const sent = (kind: "text" | "photo", answer: string | null) => ({
+  username: "sara",
+  quest: { ar: "صورة", en: "Snap" },
+  submittedAt: "2026-11-12 10:00",
+  status: "pending",
+  kind,
+  answer,
+});
+const sentPage = (kind: string) => ({ rows: [{ ...sent("text", "x"), kind }], next: null });
+
+describe("the submissions file", () => {
+  it("says each row's kind, so a photo with no caption is not a blank answer", () => {
+    const table = submissionsTable("en", english);
+    expect(table.header).toEqual(["Username", "Quest", "Sent at", "Status", "Kind", "Answer"]);
+    expect(table.cells(sent("photo", null))).toEqual([
+      "sara",
+      "Snap",
+      "2026-11-12 10:00",
+      "pending",
+      "Photo",
+      "",
+    ]);
+    expect(table.cells(sent("text", "Hi"))[4]).toBe("Text");
+    expect(submissionsTable("ar", arabic).cells(sent("photo", "عند المسرح")).slice(4)).toEqual([
+      "صورة",
+      "عند المسرح",
+    ]);
+  });
+
+  it("takes only the two kinds from the database", () => {
+    expect(submissionPageSchema.safeParse(sentPage("photo")).success).toBe(true);
+    expect(submissionPageSchema.safeParse(sentPage("video")).success).toBe(false);
+  });
 });
 
 describe("the surveys file", () => {

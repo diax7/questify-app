@@ -1,5 +1,17 @@
 # Blueprint State — Questify
 
+## FOLLOWUPS batch, photo and organizer image lines (migration 0196) — 2026-11-13
+
+- **Built (tier B; functions only, no table).** 0196: `export_submissions` carries `kind` (the CSV gains a Kind
+  column, Text or Photo); `quest_images_ok` coalesces to false (`images: {}` refused); `media_image_release` releases a
+  `reserved` slot only; `queue_rows` and its two readers carry `on_screen`, and the dashboard queue shows an "Allowed on
+  screen" badge. A change set's quest add or edit asking for photos is refused without a bucket
+  (`submission_kind_unavailable`, at preview and apply, as the builder routes). The dashboard queue reads itself again
+  15 s before the soonest `photoExpiresAt` (at least 30 s apart). Device-only and later lines left in FOLLOWUPS.
+- **Tests:** touched suites (exports, media, organizer images, photo wall, submissions, change sets), security and
+  rehearsal suites, shared and web units, types, lint, format green; full suite left to the coordinator.
+- **Next:** the full suite and push.
+
 ## Photo phase 2 part B, T-504b photo wall (migration 0195) — 2026-11-12
 
 - **Built (tier A; plan `docs/plans/2026-11-12-organizer-images.md` sections 4 and 7, as built in section 9; code review

@@ -2,7 +2,9 @@ import { MESSAGES } from "@questify/shared";
 import { describe, expect, it } from "vitest";
 import {
   FILTERS,
+  PHOTO_REFRESH,
   canGiveReason,
+  photoRefreshDelay,
   showsEmpty,
   showsMarkSeen,
   statusKey,
@@ -68,5 +70,38 @@ describe("the submissions queue", () => {
     expect(withoutItems(items, ["a", "c"]).map(({ id }) => id)).toEqual(["b"]);
     expect(withoutItems(items, []).map(({ id }) => id)).toEqual(["a", "b", "c"]);
     expect(withoutItems(items, ["zzz"])).toHaveLength(3);
+  });
+});
+
+const photo = (id: string, photoExpiresAt: string | null): QueueItem => ({
+  ...item(id),
+  kind: "photo",
+  photoExpiresAt,
+});
+
+describe("photoRefreshDelay", () => {
+  const NOW = Date.parse("2026-11-12T10:00:00Z");
+
+  it("reads the list again 15 s before the soonest link runs out", () => {
+    const items = [
+      photo("a", "2026-11-12T10:05:00Z"),
+      photo("b", "2026-11-12T10:03:00Z"),
+      photo("c", null),
+    ];
+    expect(photoRefreshDelay(items, NOW)).toBe(3 * 60_000 - PHOTO_REFRESH.aheadMs);
+  });
+
+  it("waits at least 30 s, so a link already run out cannot make it read in a loop", () => {
+    expect(photoRefreshDelay([photo("a", "2026-11-12T09:00:00Z")], NOW)).toBe(
+      PHOTO_REFRESH.leastMs,
+    );
+    expect(photoRefreshDelay([photo("a", "2026-11-12T10:00:40Z")], NOW)).toBe(
+      PHOTO_REFRESH.leastMs,
+    );
+  });
+
+  it("is null with no list, no photo link, or a time it cannot read", () => {
+    expect(photoRefreshDelay(null, NOW)).toBeNull();
+    expect(photoRefreshDelay([item("a"), photo("c", "soon")], NOW)).toBeNull();
   });
 });
