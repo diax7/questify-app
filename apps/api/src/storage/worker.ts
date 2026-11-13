@@ -10,6 +10,15 @@ const CLAIM_SIZE = 50;
 const ROUNDS_PER_RUN = 10;
 const PURGE_BATCH = 500;
 const JITTER = 0.2;
+/**
+ * A claim's lease is 5 minutes (0192 `media_delete_claim`) and one key's delete can take ~31 s (three 10 s attempts
+ * plus back-off), so a round starts no delete after 4 minutes: the last one and the done call end inside the lease, so
+ * no second replica claims a key while this one is still calling the bucket. Keys not started keep their lease and come
+ * back once it ends.
+ */
+const LEASE_MS = 5 * 60_000;
+const KEY_WORST_MS = 31_000;
+export const ROUND_BUDGET_MS = LEASE_MS - KEY_WORST_MS - 29_000;
 
 export type MediaWorkerDeps = Readonly<{
   pool: Pool;
@@ -17,6 +26,8 @@ export type MediaWorkerDeps = Readonly<{
   intervalMs: number;
   log: (level: "info" | "error", fields: Record<string, unknown>) => void;
   random?: () => number;
+  /** Milliseconds clock for the round's lease budget (for tests). */
+  now?: () => number;
 }>;
 
 export type MediaTotals = Readonly<{
@@ -59,6 +70,8 @@ const codeOf = (error: unknown): string =>
 async function deleteRound(
   deps: MediaWorkerDeps,
 ): Promise<{ deleted: number; failed: number; more: boolean }> {
+  const now = deps.now ?? Date.now;
+  const startedAt = now();
   const claimed = await system(deps.pool, async (client) => {
     const { rows } = await client.query<Claimed>("SELECT * FROM media_delete_claim($1)", [
       CLAIM_SIZE,
@@ -67,7 +80,12 @@ async function deleteRound(
   });
   const done: string[] = [];
   let failed = 0;
+  let cut = false;
   for (const row of claimed) {
+    if (now() - startedAt >= ROUND_BUDGET_MS) {
+      cut = true;
+      break;
+    }
     try {
       await deps.store.delete(row.key);
       done.push(row.id);
@@ -82,7 +100,8 @@ async function deleteRound(
   if (done.length > 0 && token !== undefined) {
     await scalar(deps.pool, "SELECT media_delete_done($1::bigint[], $2) AS n", [done, token]);
   }
-  return { deleted: done.length, failed, more: claimed.length === CLAIM_SIZE };
+  // A round cut short ends the run: the bucket is slow, and the next run comes soon enough.
+  return { deleted: done.length, failed, more: !cut && claimed.length === CLAIM_SIZE };
 }
 
 /**

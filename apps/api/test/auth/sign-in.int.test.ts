@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import * as passwordModule from "#src/auth/password";
 import { createAuthKeys } from "#src/auth/keys";
-import { BUCKETS } from "#src/auth/throttle";
+import { BUCKETS, lockId } from "#src/auth/throttle";
 import { testConfig } from "#test/support/auth-app";
 import {
   PASSWORD,
@@ -79,6 +79,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sign-in flow", () => {
       headers: browserHeaders({ "x-forwarded-for": address }),
       payload: { challengeToken: "C".repeat(43) },
     });
+  /** Holds an advisory lock id in the owner's own transaction while `work` runs, as a concurrent request would. */
+  const whileLocked = async <T>(lock: string, work: () => Promise<T>): Promise<T> => {
+    await db.owner.query("BEGIN");
+    try {
+      await db.owner.query("SELECT pg_advisory_xact_lock($1::bigint)", [lock]);
+      return await work();
+    } finally {
+      await db.owner.query("ROLLBACK");
+    }
+  };
 
   describe("the three steps", () => {
     it("opens a session only after the password and then the emailed code", async () => {
@@ -632,6 +642,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sign-in flow", () => {
       );
       expect(rows[0]?.n).toBe(30);
       expect((await resendFrom(freshIp())).statusCode).toBe(410);
+    });
+
+    it("locks an address per bucket: a sign-up resend from the same address at the same moment does not refuse it", async () => {
+      const ip = freshIp();
+      const address = keys.addressKey(ip);
+      const otherBucket = await whileLocked(lockId(address, BUCKETS.signupResendAddress), () =>
+        resendFrom(ip),
+      );
+      expect(otherBucket.statusCode).toBe(410);
+      const bare = await whileLocked(lockId(address), () => resendFrom(ip));
+      expect(bare.statusCode).toBe(410);
+      const sameBucket = await whileLocked(lockId(address, BUCKETS.signInResendAddress), () =>
+        resendFrom(ip),
+      );
+      expect(sameBucket.statusCode).toBe(429);
+      expect(sameBucket.headers["retry-after"]).toBe("1");
     });
 
     it("refuses a resend for an unknown or dead challenge", async () => {

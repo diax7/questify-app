@@ -36,22 +36,23 @@ export const DEVICE_LIMITS = {
 } as const satisfies Readonly<Record<string, DeviceLimit>>;
 
 /**
- * Locks the first key: waits for it when `queue`, else says no at once if it is held. No key, nothing to lock. A
- * `false` answer means the key was busy and the caller decides what that means.
+ * Locks the first key in its bucket: waits for it when `queue`, else says no at once if it is held. No key, nothing to
+ * lock. A `false` answer means the key was busy and the caller decides what that means. Keyed by bucket too, so one
+ * address (an office, a venue's NAT) in two buckets at the same moment is never refused for the other's lock.
  */
 async function lockFirst(
   client: PoolClient,
-  first: Readonly<{ key: Buffer }> | undefined,
+  first: Readonly<{ limit: DeviceLimit; key: Buffer }> | undefined,
   queue: boolean,
 ): Promise<boolean> {
   if (first === undefined) {
     return true;
   }
   if (queue) {
-    await waitLock(client, first.key);
+    await waitLock(client, first.key, first.limit.bucket);
     return true;
   }
-  return tryLock(client, first.key);
+  return tryLock(client, first.key, first.limit.bucket);
 }
 
 /**

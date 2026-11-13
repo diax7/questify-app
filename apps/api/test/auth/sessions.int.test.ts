@@ -224,6 +224,56 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sessions", () => {
       }
     });
 
+    it("lets an older request's touch wait for a newer one still open, then re-check and lose, without an error", async () => {
+      const user = await createStaff(db.owner, { email: newEmail() });
+      const quiet = await seedSession(user, { idleMinutes: 5 });
+      const lookup = { kind: "session", tokenHash: hashToken(tokenOf(quiet.cookie)) } as const;
+      const first = new Client({ connectionString: db.appUrl });
+      const second = new Client({ connectionString: db.appUrl });
+      await Promise.all([first.connect(), second.connect()]);
+      try {
+        const pid = (await first.query<{ pid: number }>("SELECT pg_backend_pid() AS pid")).rows[0]
+          ?.pid;
+        const firstBegan = latch();
+        const secondTouched = latch();
+        const secondMayCommit = latch();
+        const older = withPreIdentityContext(first, lookup, async () => {
+          firstBegan.resolve();
+          await secondTouched.promise;
+          await touchSession(first, quiet.id);
+        });
+        await firstBegan.promise;
+        // A later transaction start, so the second request's now() is the newer one.
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        let newerNow = 0;
+        const newer = withPreIdentityContext(second, lookup, async () => {
+          await touchSession(second, quiet.id);
+          const { rows } = await second.query<{ at: Date }>("SELECT now() AS at");
+          newerNow = rows[0]?.at.getTime() ?? -1;
+          secondTouched.resolve();
+          await secondMayCommit.promise;
+        });
+        await secondTouched.promise;
+        // The older touch is queued behind the newer one's row lock before that one commits.
+        let waiting = false;
+        for (let tries = 0; tries < 500 && !waiting; tries += 1) {
+          const { rows } = await db.owner.query<{ n: number }>(
+            "SELECT count(*)::int AS n FROM pg_locks WHERE pid = $1 AND NOT granted",
+            [pid],
+          );
+          waiting = (rows[0]?.n ?? 0) > 0;
+          if (!waiting) await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+        expect(waiting).toBe(true);
+        secondMayCommit.resolve();
+        await newer;
+        await expect(older).resolves.toBeUndefined();
+        expect((await stateOf(quiet.id))?.last_seen_at.getTime()).toBe(newerNow);
+      } finally {
+        await Promise.all([first.end(), second.end()]);
+      }
+    });
+
     it("answers 401 for a cookie that is not a token at all", async () => {
       for (const value of ["", "x", "a".repeat(44), `${"a".repeat(42)}!`]) {
         expect((await me(`${COOKIE_NAME}=${value}`)).statusCode).toBe(401);

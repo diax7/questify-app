@@ -55,6 +55,8 @@ type Claim = Readonly<{
   link: string;
   name_ar: string | null;
   name_en: string | null;
+  /** The claimed row's campaign (0197), for the operator's warning; not personal data. */
+  campaign_id: string;
 }>;
 
 const codeOf = (error: unknown): unknown => (error as { code?: unknown } | undefined)?.code ?? null;
@@ -99,7 +101,7 @@ type Warned = { parts: boolean };
 /**
  * Sends one claimed message and acknowledges it; contact and text never reach a log. A text over `SMS_MAX_PARTS` is
  * still sent (the approved name and the real links can run past what the saved template allowed) and warned about once
- * per run, with the part count only.
+ * per run, with its campaign id and the part count only.
  */
 async function sendOne(
   deps: InvitationTickDeps,
@@ -118,7 +120,12 @@ async function sendOne(
     const parts = smsParts(text);
     if (parts > SMS_MAX_PARTS) {
       warned.parts = true;
-      deps.log("warn", { event: "invitation.sms_parts_over", parts, max: SMS_MAX_PARTS });
+      deps.log("warn", {
+        event: "invitation.sms_parts_over",
+        campaignId: claim.campaign_id,
+        parts,
+        max: SMS_MAX_PARTS,
+      });
     }
   }
   const result = text === undefined ? RENDER_FAILED : await sendText(sender, claim.phone, text);

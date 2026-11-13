@@ -1298,6 +1298,8 @@ submissions carry `onScreen`. `big_screen.scenes` may hold `photo` (up to four s
 `operator_submissions`) carry `on_screen`; `export_submissions` carries each row's `kind`; `quest_images_ok` answers
 false, never null (a game's `images: {}` is refused by the CHECK); `media_image_release` gives back a `reserved` slot
 only, never a stored image.
+**Migration 0197 (invitation claim, functions only):** `invitation_claim_at` and its door `invitation_claim` return each
+claimed row's `campaign_id` as a last column (not personal data), for the tick's `invitation.sms_parts_over` warning.
 
 ### big_screen (migration 0083, T-504, ADR-365)
 **Built:** `big_screen (event_id primary key, organizer_id, scenes text[], updated_at, updated_by → staff_user SET NULL)`, `(event_id,

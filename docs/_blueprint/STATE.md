@@ -1,5 +1,19 @@
 # Blueprint State — Questify
 
+## FOLLOWUPS batch, media lease, lock keys, touch race, campaign id (migration 0197) — 2026-11-13
+
+- **Built (tier B on core code; no table).** The media worker starts no bucket delete after 4 minutes of a round
+  (`ROUND_BUDGET_MS`), so a claim of 50 slow keys (~31 s each) ends inside its 5-minute lease; keys not started keep
+  their lease and the run ends. `tryLock` and `waitLock` take an optional bucket (`lockId`: a hash of bucket and key);
+  the sign-in and sign-up resends and `holdBack` lock per bucket, so one office address in two buckets is no longer
+  refused 429 for the other's lock (no `holdBack` caller shares a later limit across first buckets). 0197:
+  `invitation_claim_at` and `invitation_claim` return `campaign_id`; `invitation.sms_parts_over` logs `campaignId`.
+  Test only: the staff session touch race's lock-wait case. Left: the sign-in sweep's `SKIP LOCKED` for families with
+  no device row (not small: `replaced_by` chains; reason in FOLLOWUPS).
+- **Tests:** media worker, staff sign-in, staff sessions, invitation sending, tick and limits units, security and
+  rehearsal suites; types and lint green. Full suite left to the coordinator.
+- **Next:** the full suite and push.
+
 ## RTL read of the rendered screens (T-808, tier B) — 2026-11-13
 
 - **Done:** the main web pages, the console, the big screen (unpaired, paired, ranking and goal scenes) and the `/play`

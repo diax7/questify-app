@@ -540,7 +540,7 @@ export async function admitResend(
   const address = deps.keys.addressKey(addressBucket(caller.address));
   return withConnection(deps.pool, (client) =>
     withRequestContext(client, {}, async () => {
-      if (!(await tryLock(client, address))) {
+      if (!(await tryLock(client, address, bucket))) {
         return { kind: "throttled", retryAfterSeconds: 1 } as const;
       }
       const recent = await countRecent(client, bucket, address, limit.windowSeconds);

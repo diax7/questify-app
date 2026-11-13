@@ -1640,6 +1640,9 @@ react-native-web dependency, which T-502 does not add. No EAS build or real vend
   fall back to the default art). Clear the holder first, always: a setting, quest or change set that still names a
   deleted id is refused with 422 `image_unknown` at its next save (the branding page resends its logo), until the id is
   removed from it.
+- **Invitation claim names its campaign (migration 0197).** Functions only: `invitation_claim_at` and `invitation_claim`
+  are dropped and created again in one transaction with `campaign_id` as a last column (grants as before). Either order
+  is safe: the old API reads the claim with `SELECT *` and ignores the extra column; the new API only logs it.
 - **Photo follow-ups (migration 0196).** Functions only. Order: migrate, then the new API at once. Between the two (and
   after an API rollback) the old API's submissions export answers 500 (its strict row schema refuses the new `kind`);
   the queue readers are safe on the old API (it reads rows by name). Before deploying, as the owner,

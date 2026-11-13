@@ -1,7 +1,7 @@
 import { Pool, type Client } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createObjectStore, type ObjectStore } from "#src/storage/client";
-import { startMediaWorker } from "#src/storage/worker";
+import { ROUND_BUDGET_MS, startMediaWorker } from "#src/storage/worker";
 import { startFakeS3, type FakeS3 } from "#test/storage/fake-s3";
 import {
   TEST_DATABASE_URL,
@@ -103,5 +103,34 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("media worker", () => {
     await running.stop();
     expect(fake.objects.has(KEY(4))).toBe(false);
     expect(JSON.stringify(lines)).not.toContain("k4.jpg");
+  });
+  it("starts no delete past the round's budget, so a slow bucket never outlasts the 5-minute lease", async () => {
+    const keys = Array.from({ length: 50 }, (_, n) => `o/x/e/x/submission/slow${n}.jpg`);
+    await queue(...keys);
+    let clock = 0;
+    const slow: ObjectStore = {
+      ...store,
+      delete: async (key) => {
+        clock += 31_000;
+        await store.delete(key);
+      },
+    };
+    const running = startMediaWorker({
+      pool,
+      store: slow,
+      intervalMs: 3_600_000,
+      log: (_level, fields) => lines.push(fields),
+      now: () => clock,
+    });
+    const started = Math.ceil(ROUND_BUDGET_MS / 31_000);
+    expect(await running.runOnce()).toEqual({ swept: 0, purged: 0, deleted: started, failed: 0 });
+    await running.stop();
+    // The last delete started before the budget and ended inside the lease.
+    expect(started * 31_000).toBeLessThan(5 * 60_000);
+    const { rows } = await db.owner.query<{ n: number; leased: number; tried: number }>(
+      `SELECT count(*)::int AS n, count(*) FILTER (WHERE lease_until > now())::int AS leased,
+              count(*) FILTER (WHERE attempts > 0)::int AS tried FROM media_delete`,
+    );
+    expect(rows[0]).toEqual({ n: 50 - started, leased: 50 - started, tried: 0 });
   });
 });

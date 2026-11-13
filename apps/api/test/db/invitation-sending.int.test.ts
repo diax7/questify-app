@@ -61,7 +61,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("invitation sending (database)"
       }
     });
 
-    it("leases at most 5 with fresh tokens, the contact and language read fresh and the copied names", async () => {
+    it("leases at most 5 with fresh tokens, the contact and language read fresh, the copied names and the campaign", async () => {
       const { campaign, players } = await f.launch(50, { language: "en" });
       const claimed = await f.claimAt(9);
       expect(claimed).toHaveLength(5);
@@ -74,6 +74,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("invitation sending (database)"
           language: "en",
           name_ar: row.name_ar,
           name_en: row.name_en,
+          campaign_id: campaign,
         });
         expect(one.phone).toMatch(/^\+9665[0-9]{8}$/);
       }

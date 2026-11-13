@@ -62,6 +62,7 @@ export type Claimed = Readonly<{
   link: string;
   name_ar: string | null;
   name_en: string | null;
+  campaign_id: string;
 }>;
 
 /** A request body: the smallest size, and any field replaced. */

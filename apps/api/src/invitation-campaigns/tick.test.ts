@@ -60,6 +60,7 @@ const claimRow = (n: number) => ({
   link: `33333333-0000-4000-8000-${String(n).padStart(12, "0")}`,
   name_ar: "مهرجان الرياض",
   name_en: "Riyadh Festival",
+  campaign_id: `44444444-0000-4000-8000-${String(Math.ceil(n / 2)).padStart(12, "0")}`,
 });
 
 /** A pool answering the tick's statements from `script`, recording each statement and its values. */
@@ -226,6 +227,7 @@ describe("startInvitationTick", () => {
     expect(warnings).toHaveLength(1);
     expect(warnings[0]?.fields).toMatchObject({
       event: "invitation.sms_parts_over",
+      campaignId: claimRow(1).campaign_id,
       max: SMS_MAX_PARTS,
     });
     expect(warnings[0]?.fields["parts"]).toBeGreaterThan(SMS_MAX_PARTS);

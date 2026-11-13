@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { Client, PoolClient } from "pg";
 
 type Db = Client | PoolClient;
@@ -111,23 +112,36 @@ export type Bucket = (typeof BUCKETS)[keyof typeof BUCKETS];
 export type Window = Readonly<{ count: number; retryAfterSeconds: number }>;
 
 /**
- * Takes a lock on a key for the rest of the transaction, or says no without waiting. Counting and
- * recording under this lock cannot race, and a flood of requests for one key never parks pooled connections.
+ * The advisory lock id of a key: its first 8 bytes, or with `bucket` those of a hash of both, so callers of one key
+ * (an office's address) in different buckets never hold each other up while each bucket's count still cannot race.
  */
-export async function tryLock(db: Db, key: Buffer): Promise<boolean> {
+export const lockId = (key: Buffer, bucket?: Bucket): string =>
+  (bucket === undefined
+    ? key
+    : createHash("sha256").update(bucket).update("\n").update(key).digest()
+  )
+    .readBigInt64BE(0)
+    .toString();
+
+/**
+ * Takes a lock on a key (in `bucket`, when given) for the rest of the transaction, or says no without waiting. Counting
+ * and recording under this lock cannot race, and a flood of requests for one key never parks pooled connections.
+ */
+export async function tryLock(db: Db, key: Buffer, bucket?: Bucket): Promise<boolean> {
   const { rows } = await db.query<{ locked: boolean }>(
     "SELECT pg_try_advisory_xact_lock($1::bigint) AS locked",
-    [key.readBigInt64BE(0).toString()],
+    [lockId(key, bucket)],
   );
   return rows[0]?.locked === true;
 }
 
 /**
- * Takes a lock on a key for the rest of the transaction, waiting for it under the pool's lock timeout. Only for callers
- * that are already signed in and whose second call is not an attack (a console page reading several tabs at once).
+ * Takes a lock on a key (in `bucket`, when given) for the rest of the transaction, waiting for it under the pool's lock
+ * timeout. Only for callers that are already signed in and whose second call is not an attack (a console page reading
+ * several tabs at once).
  */
-export async function waitLock(db: Db, key: Buffer): Promise<void> {
-  await db.query("SELECT pg_advisory_xact_lock($1::bigint)", [key.readBigInt64BE(0).toString()]);
+export async function waitLock(db: Db, key: Buffer, bucket?: Bucket): Promise<void> {
+  await db.query("SELECT pg_advisory_xact_lock($1::bigint)", [lockId(key, bucket)]);
 }
 
 /** How many attempts a key has in the window, and how long until the oldest one leaves it. */
