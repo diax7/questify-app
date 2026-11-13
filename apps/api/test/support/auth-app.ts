@@ -51,6 +51,7 @@ export function testConfig(
     redisUrl: undefined,
     push: { apns: undefined, fcm: undefined },
     storage: undefined,
+    integrity: { play: undefined, appAttest: undefined },
   };
 }
 
@@ -174,6 +175,7 @@ export async function startApp(
       | "promoSmsSender"
       | "push"
       | "storage"
+      | "integrity"
     >
   > & { rewardCodes?: AppConfig["rewardCodes"] } = {},
 ): Promise<TestApp> {

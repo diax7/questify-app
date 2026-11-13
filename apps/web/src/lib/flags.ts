@@ -10,7 +10,14 @@ import type { Translate } from "#src/lib/language.ts";
 /** One case as the list answers it (`GET …/flags`, FR-335). */
 export type FlagLine = Readonly<{
   id: string;
-  kind: "shared_device" | "burst" | "far_from_venue" | "impossible_speed" | "minigame" | "nfc_copy";
+  kind:
+    | "shared_device"
+    | "burst"
+    | "far_from_venue"
+    | "impossible_speed"
+    | "minigame"
+    | "nfc_copy"
+    | "device_integrity";
   status: "open" | "cleared" | "confirmed";
   resolution: "cleared" | "points_removed" | "banned" | null;
   raisedAt: string | null;
@@ -55,6 +62,12 @@ export type GameRoundLine = Readonly<{
   /** For an unlikely round, the count that tripped it (T-305c): lucky matches, foreseen catches or quick hits. */
   count?: Readonly<{ key: MessageKey; n: number }> | null;
 }>;
+/** A failed device-integrity check (T-812): the platform and the server's reason codes, never a vendor payload. */
+export type IntegrityLine = Readonly<{
+  platform: "ios" | "android" | null;
+  reasons: readonly string[];
+  checkedAt: string | null;
+}>;
 export type WaitingItem = Readonly<{ name: string; reservedUntil: string | null }>;
 export type Removal = Readonly<{
   entryId: string;
@@ -77,6 +90,8 @@ export type FlagDetail = FlagLine &
     burstScans: readonly Scan[];
     /** Mini-game: each flagged round, oldest first (T-305). */
     gameRounds: readonly GameRoundLine[];
+    /** Device integrity: the platform and why the phone's check failed (T-812); null for every other kind. */
+    integrity: IntegrityLine | null;
     waitingItems: readonly WaitingItem[];
     removals: readonly Removal[];
   }>;
@@ -102,13 +117,39 @@ const SCAN_KINDS = {
 } as const;
 
 /**
- * What the list row says the case is: "Same phone, 2 accounts", "10 scans in a short time", "Far from the venue (3)"
- * or "Moved impossibly fast (2)".
+ * What the list row says the case is: "Same phone, 2 accounts", "10 scans in a short time", "Far from the venue (3)",
+ * "Moved impossibly fast (2)" or "Phone failed the integrity check".
  */
 export function flagSummary(line: FlagLine): Readonly<{ key: MessageKey; count: number }> {
+  if (line.kind === "device_integrity") {
+    return { key: "flags.kind.deviceIntegrity", count: 0 };
+  }
   return line.kind === "shared_device"
     ? { key: "flags.kind.sharedDevice", count: line.accounts ?? 2 }
     : { key: SCAN_KINDS[line.kind], count: line.scans ?? 0 };
+}
+
+/** The words for each reason code of a failed check, grouped by what the team can tell from it. */
+const INTEGRITY_REASONS: Readonly<Record<string, MessageKey>> = {
+  device: "flags.integrity.reason.device",
+  app: "flags.integrity.reason.app",
+  package: "flags.integrity.reason.otherApp",
+  rp_id: "flags.integrity.reason.otherApp",
+  nonce: "flags.integrity.reason.reused",
+  stale: "flags.integrity.reason.reused",
+  counter: "flags.integrity.reason.reused",
+};
+
+/** The lines a device-integrity case shows: the platform, then each reason once (an unknown code reads "unverified"). */
+export function integrityNotes(line: IntegrityLine, t: Translate): readonly string[] {
+  const platform =
+    line.platform === null
+      ? []
+      : [t(line.platform === "ios" ? "flags.integrity.ios" : "flags.integrity.android")];
+  const keys = line.reasons.map(
+    (code) => INTEGRITY_REASONS[code] ?? "flags.integrity.reason.unverified",
+  );
+  return [...platform, ...[...new Set(keys)].map((key) => t(key))];
 }
 
 /** A distance in words: metres under a kilometre, else kilometres to one decimal ("2.4 km"). Western digits. */
@@ -206,18 +247,36 @@ const removalsOf = (value: unknown): Removal[] =>
     reason: text(row["reason"]),
   }));
 
-/** A case's evidence read by its kind: a shared phone's accounts, a mini-game's rounds, otherwise a burst's scans. */
+const integrityOf = (evidence: readonly Row[]): IntegrityLine | null => {
+  const [row] = evidence;
+  if (row === undefined) {
+    return null;
+  }
+  const platform =
+    row["platform"] === "ios" || row["platform"] === "android" ? row["platform"] : null;
+  const reasons = Array.isArray(row["reasons"])
+    ? row["reasons"].filter((code) => typeof code === "string")
+    : [];
+  return { platform, reasons, checkedAt: text(row["checkedAt"]) };
+};
+
+/**
+ * A case's evidence read by its kind: a shared phone's accounts, a mini-game's rounds, a failed device check, otherwise
+ * a burst's scans.
+ */
 function evidenceOf(
   flag: Row,
   language: Language,
-): Pick<FlagDetail, "phoneAccounts" | "gameRounds" | "burstScans"> {
+): Pick<FlagDetail, "phoneAccounts" | "gameRounds" | "burstScans" | "integrity"> {
   const evidence = rows(flag["evidence"]);
   const sharedDevice = flag["kind"] === "shared_device";
   const minigame = flag["kind"] === "minigame";
+  const integrity = flag["kind"] === "device_integrity";
   return {
     phoneAccounts: sharedDevice ? phoneAccountsOf(evidence) : [],
     gameRounds: minigame ? gameRoundsOf(evidence, language) : [],
-    burstScans: sharedDevice || minigame ? [] : burstScansOf(evidence, language),
+    burstScans: sharedDevice || minigame || integrity ? [] : burstScansOf(evidence, language),
+    integrity: integrity ? integrityOf(evidence) : null,
   };
 }
 

@@ -4256,6 +4256,39 @@ export const MESSAGES = {
     ar: "قد تكون البطاقة منسوخة ({count})",
     en: "Tag may be copied ({count})",
   },
+  "flags.kind.deviceIntegrity": {
+    ar: "لم يجتز الجهاز فحص السلامة",
+    en: "Phone failed the integrity check",
+  },
+  "flags.integrity.note": {
+    ar: "فحص تُجريه Apple أو Google عند فتح التطبيق. لا يمنع اللاعب من اللعب أو الاستلام، وقد يعني أن الجهاز معدَّل أو أن التطبيق ليس الرسمي.",
+    en: "A check by Apple or Google when the app opens. It never stops the player playing or collecting; it can mean the phone is modified or the app is not the official one.",
+  },
+  "flags.integrity.ios": { ar: "آيفون (Apple App Attest)", en: "iPhone (Apple App Attest)" },
+  "flags.integrity.android": {
+    ar: "أندرويد (Google Play Integrity)",
+    en: "Android (Google Play Integrity)",
+  },
+  "flags.integrity.reason.device": {
+    ar: "الجهاز معدَّل (روت أو كسر حماية) أو محاكٍ",
+    en: "The phone is rooted, jailbroken or an emulator",
+  },
+  "flags.integrity.reason.app": {
+    ar: "التطبيق ليس النسخة الرسمية من المتجر",
+    en: "The app is not the store's official copy",
+  },
+  "flags.integrity.reason.otherApp": {
+    ar: "الفحص صادر لتطبيق آخر",
+    en: "The check was made for another app",
+  },
+  "flags.integrity.reason.reused": {
+    ar: "الفحص مُعاد أو قديم",
+    en: "The check was reused or out of date",
+  },
+  "flags.integrity.reason.unverified": {
+    ar: "تعذّر التحقق من الفحص",
+    en: "The check could not be verified",
+  },
   "quests.verification.screenQr": {
     ar: "رمز QR على شاشة (يتغير كل 30 ثانية)",
     en: "QR on a screen (changes every 30 seconds)",
@@ -9194,6 +9227,7 @@ export const MESSAGES = {
   "console.player.flag.impossibleSpeed": { ar: "تنقل سريع جدًا", en: "Impossible speed" },
   "console.player.flag.minigame": { ar: "نتيجة لعبة مريبة", en: "Unlikely game score" },
   "console.player.flag.nfcCopy": { ar: "بطاقة NFC منسوخة", en: "Copied NFC tag" },
+  "console.player.flag.deviceIntegrity": { ar: "فشل فحص سلامة الجهاز", en: "Failed device check" },
   "console.player.flag.open": { ar: "مفتوحة", en: "Open" },
   "console.player.flag.cleared": { ar: "مُغلقة دون إجراء", en: "Cleared" },
   "console.player.flag.confirmed": { ar: "مؤكدة", en: "Confirmed" },
@@ -10344,6 +10378,7 @@ export const MESSAGES = {
   "console.flags.kind.impossibleSpeed": { ar: "سرعة مستحيلة", en: "Impossible speed" },
   "console.flags.kind.minigame": { ar: "لعبة مصغرة", en: "Mini-game" },
   "console.flags.kind.nfcCopy": { ar: "بطاقة NFC منسوخة", en: "Copied NFC tag" },
+  "console.flags.kind.deviceIntegrity": { ar: "سلامة الجهاز", en: "Device integrity" },
   "console.report.reported": { ar: "ما أُبلغ عنه", en: "As reported" },
   "console.report.now": { ar: "الآن", en: "Now" },
   "console.report.gone": { ar: "حُذف.", en: "Removed." },

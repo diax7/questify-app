@@ -77,6 +77,7 @@ describe("loadConfig", () => {
       redisUrl: undefined,
       push: { apns: undefined, fcm: undefined },
       storage: undefined,
+      integrity: { play: undefined, appAttest: undefined },
     });
   });
 
@@ -606,6 +607,94 @@ describe("loadConfig", () => {
       expect(errorOf({ FCM_SERVICE_ACCOUNT: "bm90IGpzb24=" })).toContain(
         "FCM_SERVICE_ACCOUNT is not valid JSON",
       );
+    });
+  });
+
+  describe("device integrity (T-812)", () => {
+    let account: Record<string, string>;
+    beforeAll(() => {
+      account = {
+        type: "service_account",
+        client_email: "integrity@questify-prod.iam.gserviceaccount.com",
+        private_key: pem("rsa"),
+        token_uri: "https://oauth2.googleapis.com/token",
+      };
+    });
+    const play = () => ({
+      PLAY_INTEGRITY_SERVICE_ACCOUNT: JSON.stringify(account),
+      PLAY_INTEGRITY_PACKAGE: "app.questify.mobile",
+    });
+    const apple = { APP_ATTEST_TEAM_ID: "ABCDE12345", APP_ATTEST_BUNDLE_ID: "app.questify.mobile" };
+
+    it("is off for both platforms without keys", () => {
+      expect(loadConfig(REQUIRED).integrity).toEqual({ play: undefined, appAttest: undefined });
+    });
+
+    it("reads Play Integrity as JSON or base64, and App Attest with development keys off by default", () => {
+      const json = play();
+      const base64 = {
+        ...json,
+        PLAY_INTEGRITY_SERVICE_ACCOUNT: Buffer.from(json.PLAY_INTEGRITY_SERVICE_ACCOUNT).toString(
+          "base64",
+        ),
+      };
+      for (const env of [json, base64]) {
+        expect(loadConfig({ ...REQUIRED, ...env }).integrity.play).toMatchObject({
+          packageName: "app.questify.mobile",
+          key: {
+            clientEmail: account["client_email"],
+            tokenUri: "https://oauth2.googleapis.com/token",
+          },
+        });
+      }
+      expect(loadConfig({ ...REQUIRED, ...apple }).integrity.appAttest).toEqual({
+        appId: "ABCDE12345.app.questify.mobile",
+        development: false,
+      });
+      expect(
+        loadConfig({ ...REQUIRED, ...apple, APP_ATTEST_DEVELOPMENT: "true" }).integrity.appAttest
+          ?.development,
+      ).toBe(true);
+    });
+
+    it("wants each pair all or none, and names the setting, never its value", () => {
+      expect(errorOf({ PLAY_INTEGRITY_PACKAGE: "app.questify.mobile" })).toBe(
+        "PLAY_INTEGRITY_SERVICE_ACCOUNT, PLAY_INTEGRITY_PACKAGE are required together for Play Integrity; missing: PLAY_INTEGRITY_SERVICE_ACCOUNT.",
+      );
+      expect(errorOf({ APP_ATTEST_TEAM_ID: "ABCDE12345" })).toBe(
+        "APP_ATTEST_TEAM_ID, APP_ATTEST_BUNDLE_ID are required together for App Attest; missing: APP_ATTEST_BUNDLE_ID.",
+      );
+      expect(errorOf({ ...play(), PLAY_INTEGRITY_PACKAGE: "questify" })).toBe(
+        "PLAY_INTEGRITY_PACKAGE must be the app's Android package, like app.questify.mobile.",
+      );
+      const refuse = (change: Record<string, string>) =>
+        errorOf({
+          ...play(),
+          PLAY_INTEGRITY_SERVICE_ACCOUNT: JSON.stringify({ ...account, ...change }),
+        });
+      expect(refuse({ private_key: pem("ec") })).toContain("private_key is not an RSA private key");
+      expect(refuse({ token_uri: "https://evil.test/token" })).toBe(
+        "PLAY_INTEGRITY_SERVICE_ACCOUNT's token_uri must be https://oauth2.googleapis.com/token.",
+      );
+      expect(errorOf({ ...apple, APP_ATTEST_TEAM_ID: "abc" })).toContain(
+        "APP_ATTEST_TEAM_ID must be",
+      );
+      expect(errorOf({ ...apple, APP_ATTEST_BUNDLE_ID: "questify" })).toContain(
+        "APP_ATTEST_BUNDLE_ID must be",
+      );
+      expect(errorOf({ ...apple, APP_ATTEST_DEVELOPMENT: "yes" })).toBe(
+        'APP_ATTEST_DEVELOPMENT must be "true" or "false".',
+      );
+      expect(
+        errorOf({
+          ...apple,
+          ...REDIS,
+          ...MSEGAT,
+          NODE_ENV: "production",
+          TRUST_PROXY_HOPS: "1",
+          APP_ATTEST_DEVELOPMENT: "true",
+        }),
+      ).toBe("APP_ATTEST_DEVELOPMENT cannot be true in production.");
     });
   });
 });

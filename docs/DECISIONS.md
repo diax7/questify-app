@@ -9274,3 +9274,54 @@ one line to change once counsel decides Q-043 and Q-773.
 **Why:** Apple 5.1.1(i) wants the policy reachable inside the app and Google reads the deletion link against it; the
 manifest must agree with the App Privacy label or Xcode's report contradicts it; the store forms need a true permission
 list.
+## ADR-833 - Device integrity: verified on the server, recorded as a flag, never blocking
+
+**Status:** Proposed (T-812, 2026-11-13; plan `docs/plans/2026-11-13-device-integrity.md`). Builds on ADR-153 and
+ADR-154. Q-779, Q-781.
+**Decision:**
+- **Two doors for the player:** `POST /v1/me/device-integrity/challenge` and `POST /v1/me/device-integrity`, both on
+  the request's own X-Device-Id, 10 an hour per player. The challenge is stateless (an HMAC over player, install and
+  expiry under a key derived from `AUTH_SECRET`, 10 minutes, 50 base64url characters) and is the Play Integrity
+  `nonce` or `requestHash`, and the App Attest client data (`clientDataHash = SHA-256(challenge)`).
+- **Android:** Google's `decodeIntegrityToken` with a service account (scope `playintegrity`); a pass needs
+  `MEETS_DEVICE_INTEGRITY`, `PLAY_RECOGNIZED`, our package, our challenge and a token under 10 minutes old. A token
+  Google calls invalid (400) is a failure. **iOS:** Apple's attestation checks in house (CBOR and DER, no new
+  dependency), Apple's root pinned in code, production keys only unless `APP_ATTEST_DEVELOPMENT=true` (refused in
+  production); then assertions with the stored key and a counter that must rise.
+- **Never blocking:** no outcome refuses a scan, a sign-in or a redemption; the answer is `done`, `attest` or `later`
+  and never says whether the phone passed (ADR-154: flags stay private to the team).
+- **Outside calls (rule 5):** 4 s per call to Google, one retry on a 5xx, 429, 401 (with a new token) or network
+  failure; still nothing means no verdict and no flag (`later`), and the app asks again next launch. A 403 (our
+  account) stops at once and is logged.
+- **Off without keys:** each platform all or none (`PLAY_INTEGRITY_*`, `APP_ATTEST_*`); without them the challenge
+  answers `enabled: false` and the check does nothing, so the API behaves as before.
+- **Logs:** platform, outcome and reason codes only; never the install id, player, token, key or challenge.
+- **Not flagged:** a phone that sends no check (Q-779).
+**Why:** FR-334 asks for a flag, not a gate: a false failure (an emulator at a booth, a sideloaded test build) must
+cost the player nothing, while the team still sees it next to the other signals.
+
+## ADR-834 - Device checks are kept per install and flag the accounts that played on it
+
+**Status:** Proposed (T-812, 2026-11-13). Q-780.
+**Decision:**
+- `device_check` keeps the latest verdict per install (platform, passed or failed, reason codes, the account that sent
+  it, when); `app_attest_key` keeps an attested key's public key and counter for its install. Both RLS forced with no
+  grant, written by definers on the active player seat, erased when the sending account becomes a tombstone.
+- A failure flags every account (not removed) that scanned from that install in a live event, and the
+  `quest_completion` trigger flags a later scan from it; `device_integrity` is once per account and install, like
+  `shared_device`: a cleared case stays cleared, an open one takes the newest evidence. A later pass closes nothing.
+- The Flags page shows "Phone failed the integrity check" with the platform and the reasons in words; the console
+  lists the kind.
+**Why:** integrity belongs to the phone, not the account, and a shared phone is already a signal (FR-330); keying by
+install keeps the scan path to one primary-key read.
+
+## ADR-835 - The app's side of the device check waits for a native module and a new build
+
+**Status:** Proposed (T-812, 2026-11-13). Q-781.
+**Decision:** no package is added now. Neither App Attest (`DCAppAttestService`) nor Play Integrity
+(`IntegrityManager`) is reachable from JavaScript, so the app needs a native module and a new build (RUNBOOK "Needs a
+new build"). The plan, in T-812's notes: Expo's `@expo/app-integrity` if it is in the SDK 57 set (both platforms, one
+API), else a small local Expo module; called once a day after sign-in behind `EXPO_PUBLIC_DEVICE_INTEGRITY`; the key
+id in the secure store; never on the scan path.
+**Why:** a native dependency ships only with a new store build, and the server side can be built and tested offline
+first.

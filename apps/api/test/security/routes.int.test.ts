@@ -226,6 +226,10 @@ const ROUTES: Readonly<Record<string, string>> = {
     "sends a code only to the calling player's own contact, read in start_player_reauth; masked in the answer; the sign-in send windows and budget (test/players/devices)",
   "POST /v1/me/reauth/verify":
     "confirms only a code asked on this family, bound to the request's own access token; 3 tries; the failure windows (test/db/signed-in-devices, test/players/devices)",
+  "POST /v1/me/device-integrity/challenge":
+    "a challenge bound by HMAC to the calling player and the request's own X-Device-Id; no player id taken; nothing stored; 10 an hour per player (test/integrity/routes, src/integrity/codecs)",
+  "POST /v1/me/device-integrity":
+    "records a verdict only for the calling active player's own install (record_device_check on the player seat; a challenge of another player or install answers later and records nothing); an App Attest key is read and counted only for that install; the answer never says the verdict; 10 an hour per player; nothing personal logged (test/integrity/routes, test/db/device-integrity)",
   "DELETE /v1/me/push-device":
     "removes only the device of the request's own sign-in through push_device_remove; idempotent (push-store, push/routes)",
   "GET /v1/me/notifications":

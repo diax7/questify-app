@@ -92,6 +92,11 @@ export type AuthKeys = Readonly<{
    * purpose of its own, so it can never match a sign-in, deletion or contact code.
    */
   reviewerCodeHash: (code: string) => Buffer;
+  /**
+   * The tag of a device-integrity challenge (T-812, ADR-833): over the player, the install, the expiry and the random
+   * part, under a purpose of its own, so a challenge is good only for the player and install it was made for.
+   */
+  integrityChallengeTag: (value: string) => Buffer;
 }>;
 
 /** The opt-out key's id, and the previous secret with its id while a rotation keeps old links working (w2-crypto 4). */
@@ -165,6 +170,7 @@ export function createAuthKeys(
   const emailChangeCode = derive("email-change-code");
   const emailChangeLink = keyed("email-change-link");
   const reviewerCode = keyed("reviewer-code");
+  const integrityChallenge = keyed("device-integrity-challenge");
   return {
     emailKey: email,
     addressKey: address,
@@ -192,5 +198,6 @@ export function createAuthKeys(
     emailChangeToken: (changeId, purpose) =>
       emailChangeLink(`${purpose}\n${changeId}`).toString("base64url"),
     reviewerCodeHash: reviewerCode,
+    integrityChallengeTag: integrityChallenge,
   };
 }

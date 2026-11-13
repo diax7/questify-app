@@ -3,6 +3,7 @@ import {
   flagDetailOf,
   flagSummary,
   gameRoundText,
+  integrityNotes,
   lengthText,
   locationNotes,
   methodLabel,
@@ -43,6 +44,65 @@ describe("flagSummary for a copied NFC tag (T-308)", () => {
       key: "flags.kind.nfcCopy",
       count: 2,
     });
+  });
+});
+
+describe("a failed device check (T-812)", () => {
+  const t = translatorFor("en");
+  it("names the case without a count and reads its evidence", () => {
+    expect(flagSummary({ ...LINE, kind: "device_integrity", scans: null })).toEqual({
+      key: "flags.kind.deviceIntegrity",
+      count: 0,
+    });
+    const detail = flagDetailOf(
+      {
+        flag: {
+          ...LINE,
+          kind: "device_integrity",
+          evidence: [
+            {
+              platform: "android",
+              reasons: ["device", "app", 4],
+              checkedAt: "2030-01-01T10:00:00Z",
+            },
+          ],
+        },
+      },
+      "en",
+    );
+    expect(detail?.integrity).toEqual({
+      platform: "android",
+      reasons: ["device", "app"],
+      checkedAt: "2030-01-01T10:00:00Z",
+    });
+    expect(detail?.burstScans).toEqual([]);
+    expect(
+      flagDetailOf({ flag: { ...LINE, kind: "device_integrity", evidence: [] } }, "en")?.integrity,
+    ).toBeNull();
+    expect(flagDetailOf({ flag: LINE }, "en")?.integrity).toBeNull();
+  });
+
+  it("says the platform and each reason once, an unknown code as unverified", () => {
+    expect(
+      integrityNotes(
+        { platform: "ios", reasons: ["counter", "nonce", "chain"], checkedAt: null },
+        t,
+      ),
+    ).toEqual([
+      "iPhone (Apple App Attest)",
+      "The check was reused or out of date",
+      "The check could not be verified",
+    ]);
+    expect(
+      integrityNotes({ platform: null, reasons: ["device", "rp_id", "app"], checkedAt: null }, t),
+    ).toEqual([
+      "The phone is rooted, jailbroken or an emulator",
+      "The check was made for another app",
+      "The app is not the store's official copy",
+    ]);
+    expect(
+      integrityNotes({ platform: "android", reasons: [], checkedAt: null }, translatorFor("ar")),
+    ).toEqual(["أندرويد (Google Play Integrity)"]);
   });
 });
 

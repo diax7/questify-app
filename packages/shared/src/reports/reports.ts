@@ -159,6 +159,7 @@ export const CHEAT_FLAG_KINDS = [
   "impossible_speed",
   "minigame",
   "nfc_copy",
+  "device_integrity",
 ] as const;
 
 /** One event with open flags, as the console's Flags page lists it. */

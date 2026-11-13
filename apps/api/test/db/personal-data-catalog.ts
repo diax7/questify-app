@@ -54,6 +54,16 @@ export const CATALOG: Readonly<Record<string, CatalogEntry>> = {
     rows: P("player_id"),
     why: PIDS,
   },
+  app_attest_key: {
+    links: ["player_id"],
+    personal: ["install_id"],
+    export: {
+      excluded:
+        "an App Attest public key and counter, device security data, not shown to the player (Q-780)",
+    },
+    erasure: "delete",
+    rows: P("player_id"),
+  },
   audit_log: {
     links: ["target_id", "actor_id"],
     export: "history",
@@ -150,6 +160,15 @@ export const CATALOG: Readonly<Record<string, CatalogEntry>> = {
     erasure: "delete",
     rows: E("enrollment_id"),
     why: "sales to the player are deleted; a sale the player offered as operator keeps the id only (withdrawn)",
+  },
+  device_check: {
+    links: ["player_id"],
+    personal: ["install_id"],
+    export: {
+      excluded: "the install's integrity verdict, a fraud signal like the flags (Q-442, Q-780)",
+    },
+    erasure: "delete",
+    rows: P("player_id"),
   },
   enrollment: {
     links: ["player_id"],

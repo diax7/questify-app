@@ -78,6 +78,20 @@ export type AppConfig = Readonly<{
    * are off.
    */
   storage: StorageSettings | undefined;
+  /**
+   * The device-integrity checks (T-812, ADR-833), each platform all or none: without one, that platform's challenge
+   * answers `enabled: false` and nothing is checked or flagged.
+   */
+  integrity: IntegritySettings;
+}>;
+
+/** Play Integrity: the Google Cloud service account allowed to decode tokens, and the Android package it checks. */
+export type PlayIntegritySettings = Readonly<{ key: ServiceAccountKey; packageName: string }>;
+/** App Attest: `TEAMID.bundle.id`, and whether development keys (a development build) are taken too. */
+export type AppAttestConfig = Readonly<{ appId: string; development: boolean }>;
+export type IntegritySettings = Readonly<{
+  play: PlayIntegritySettings | undefined;
+  appAttest: AppAttestConfig | undefined;
 }>;
 
 /** The APNs token-based key (`.p8`) and the app it sends for. */
@@ -279,6 +293,7 @@ export function loadConfig(env: Env): AppConfig {
     redisUrl: redisUrl(env, nodeEnv),
     push: { apns: apns(env), fcm: fcm(env) },
     storage: storageSettings(env, nodeEnv),
+    integrity: { play: playIntegrity(env), appAttest: appAttest(env) },
   };
 }
 
@@ -499,5 +514,83 @@ function fcm(env: Env): FcmSettings | undefined {
   return {
     projectId: fields.project_id,
     key: { clientEmail: fields.client_email, privateKey, tokenUri: fields.token_uri },
+  };
+}
+
+const PLAY_NAMES = ["PLAY_INTEGRITY_SERVICE_ACCOUNT", "PLAY_INTEGRITY_PACKAGE"] as const;
+const APP_ATTEST_NAMES = ["APP_ATTEST_TEAM_ID", "APP_ATTEST_BUNDLE_ID"] as const;
+const ANDROID_PACKAGE = /^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$/;
+
+/** Whether `names` are all set (true) or none (false); some set is an error naming the missing ones. */
+function allOrNone(env: Env, names: readonly string[], what: string): boolean {
+  const missing = names.filter((name) => optional(env, name) === undefined);
+  if (missing.length === names.length) {
+    return false;
+  }
+  if (missing.length > 0) {
+    throw new Error(
+      `${names.join(", ")} are required together for ${what}; missing: ${missing.join(", ")}.`,
+    );
+  }
+  return true;
+}
+
+/**
+ * The Play Integrity settings (T-812): a Google Cloud service account key file (JSON or its base64) with Google's own
+ * token address, and the app's Android package. None: Android phones are not checked and the server still starts.
+ * Errors name the setting, never its value.
+ */
+function playIntegrity(env: Env): PlayIntegritySettings | undefined {
+  if (!allOrNone(env, PLAY_NAMES, "Play Integrity")) {
+    return undefined;
+  }
+  const fields = readServiceAccount(
+    plainOrBase64(required(env, "PLAY_INTEGRITY_SERVICE_ACCOUNT"), "{"),
+    "PLAY_INTEGRITY_SERVICE_ACCOUNT",
+    ["client_email", "private_key", "token_uri"],
+  );
+  const privateKey = privateKeyOf(fields.private_key, "rsa");
+  if (privateKey === null) {
+    throw new Error(
+      "PLAY_INTEGRITY_SERVICE_ACCOUNT's private_key is not an RSA private key in PEM: download the key file again.",
+    );
+  }
+  if (fields.token_uri !== GOOGLE_TOKEN_URI) {
+    throw new Error(`PLAY_INTEGRITY_SERVICE_ACCOUNT's token_uri must be ${GOOGLE_TOKEN_URI}.`);
+  }
+  const packageName = required(env, "PLAY_INTEGRITY_PACKAGE").trim();
+  if (!ANDROID_PACKAGE.test(packageName)) {
+    throw new Error(
+      "PLAY_INTEGRITY_PACKAGE must be the app's Android package, like app.questify.mobile.",
+    );
+  }
+  return {
+    key: { clientEmail: fields.client_email, privateKey, tokenUri: fields.token_uri },
+    packageName,
+  };
+}
+
+/**
+ * The App Attest settings (T-812): the Apple Developer team id and the app's bundle id, and APP_ATTEST_DEVELOPMENT=true
+ * to take development keys too (never in production). None: iPhones are not checked and the server still starts.
+ */
+function appAttest(env: Env): AppAttestConfig | undefined {
+  if (!allOrNone(env, APP_ATTEST_NAMES, "App Attest")) {
+    return undefined;
+  }
+  const bundle = required(env, "APP_ATTEST_BUNDLE_ID").trim();
+  if (!BUNDLE_ID.test(bundle)) {
+    throw new Error("APP_ATTEST_BUNDLE_ID must be the app's bundle id, like app.questify.mobile.");
+  }
+  const development = optional(env, "APP_ATTEST_DEVELOPMENT");
+  if (development !== undefined && development !== "true" && development !== "false") {
+    throw new Error('APP_ATTEST_DEVELOPMENT must be "true" or "false".');
+  }
+  if (development === "true" && env["NODE_ENV"] === "production") {
+    throw new Error("APP_ATTEST_DEVELOPMENT cannot be true in production.");
+  }
+  return {
+    appId: `${appleId(env, "APP_ATTEST_TEAM_ID")}.${bundle}`,
+    development: development === "true",
   };
 }

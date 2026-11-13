@@ -2301,6 +2301,24 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot read a device check or an App Attest key or reach the integrity doors and helpers (T-812)", async () => {
+      const bytes = "'\\x" + "00".repeat(32) + "'::bytea";
+      for (const sql of [
+        "SELECT * FROM public.device_check",
+        "SELECT * FROM public.app_attest_key",
+        "SELECT public.record_device_check(gen_random_uuid(), 'ios', false, ARRAY['device'])",
+        `SELECT public.app_attest_key_add(${bytes}, gen_random_uuid(), ${bytes}, false)`,
+        `SELECT * FROM public.app_attest_key_for(${bytes}, gen_random_uuid())`,
+        `SELECT public.app_attest_key_count(${bytes}, gen_random_uuid(), 1)`,
+        "SELECT public.raise_integrity_flag(NULL::public.enrollment, NULL::public.device_check)",
+        "SELECT public.integrity_evidence(NULL::public.device_check)",
+        "SELECT public.raise_integrity_on_completion()",
+        "SELECT public.forget_device_checks()",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+    });
+
     it("cannot read a pairing request or a device or reach the device doors and helpers (T-309)", async () => {
       const bytes = "'\\x" + "00".repeat(32) + "'::bytea";
       for (const sql of [

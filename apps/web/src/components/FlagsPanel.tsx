@@ -10,6 +10,7 @@ import {
   flagDetailOf,
   flagSummary,
   gameRoundText,
+  integrityNotes,
   locationNotes,
   methodLabel,
   resolutionKey,
@@ -59,7 +60,10 @@ function MethodNote({ method, t }: Readonly<{ method: string | null; t: Translat
   return label === null ? null : <li dir="auto">{t(label)}</li>;
 }
 
-/** What the case shows as its evidence (FR-335): the accounts on the phone, or each scan of the burst. */
+/**
+ * What the case shows as its evidence (FR-335): the accounts on the phone, a failed device check (T-812), or each scan
+ * of the burst.
+ */
 function Evidence({ flag, shared }: Readonly<{ flag: FlagDetail; shared: Shared }>) {
   const t = useTranslator(shared.language);
   const at = (iso: string | null) => when(iso, shared.timeZone, shared.language);
@@ -67,7 +71,15 @@ function Evidence({ flag, shared }: Readonly<{ flag: FlagDetail; shared: Shared 
     <>
       <SubHeading as="h4">{t("flags.evidence")}</SubHeading>
       {flag.kind === "impossible_speed" ? <Muted>{t("flags.speedNote")}</Muted> : null}
+      {flag.integrity === null ? null : <Muted>{t("flags.integrity.note")}</Muted>}
       <BulletList>
+        {flag.integrity === null
+          ? null
+          : integrityNotes(flag.integrity, t).map((note) => (
+              <li key={note} dir="auto">
+                {note}
+              </li>
+            ))}
         {flag.phoneAccounts.map((account) => (
           <li key={account.enrollmentId} dir="auto">
             {t("flags.account", { name: account.username, date: at(account.lastScanAt) })}

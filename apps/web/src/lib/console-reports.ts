@@ -21,6 +21,7 @@ export const FLAG_KIND_KEYS = {
   impossible_speed: "console.flags.kind.impossibleSpeed",
   minigame: "console.flags.kind.minigame",
   nfc_copy: "console.flags.kind.nfcCopy",
+  device_integrity: "console.flags.kind.deviceIntegrity",
 } as const satisfies Record<(typeof CHEAT_FLAG_KINDS)[number], MessageKey>;
 export const OUTCOME_KEYS = {
   dismissed: "console.report.outcome.dismissed",

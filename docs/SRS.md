@@ -1026,7 +1026,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-331 | F-114 | Should | built (T-303b) |
 | FR-332 | F-114 | Should | built (T-303b) |
 | FR-333 | F-114 | Should | pending |
-| FR-334 | F-115 | Could | pending |
+| FR-334 | F-115 | Could | partly built (T-812: the server side, off until keys are set; the app needs a native module and a new build, ADR-835): `test/db/device-integrity.int`, `test/integrity/routes.int`, `src/integrity/*.test` |
 | FR-335 | F-116 | Should | pending |
 | FR-336 | F-116 | Should | pending |
 | FR-337 | F-118 | Should | built (T-310: text, from a quest or the event; T-301b: the optional photo, ADR-828): `test/db/tickets.int`, `test/tickets/routes.int`, `test/submissions/photo.int`, `apps/app/src/event/help.test.ts` |

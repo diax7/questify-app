@@ -1072,6 +1072,10 @@ const SHARED: Readonly<Record<string, string>> = {
     "no direct API rights; written only by the caller-bound send_cheer (the player's own active enrollment, a live moment, the per-minute limit); read only by the paired big screen of that event as counts and sequence numbers through screen_cheers, never a player; no team door reads it (cheers database and HTTP suites)",
   notification:
     "no direct API rights; the notification center: written only by the system-only fan-out, read and marked only by the caller-bound own_notifications, own_unread_notifications and mark_notifications_read for the calling player (tested below, push-store, push/routes)",
+  device_check:
+    "no right and no policy for the API role at all; belongs to no tenant: one row per app install, written only by record_device_check for the calling active player's own X-Device-Id, read by the completion trigger for the scanning install only and by record_device_check, which raises flags only in the events of that install's own completions; erased with the sending account (test/db/device-integrity)",
+  app_attest_key:
+    "no right and no policy for the API role at all; belongs to no tenant: written by app_attest_key_add for the calling active player's own install, read and counted by app_attest_key_for and app_attest_key_count only for the same key and install; erased with the attesting account (test/db/device-integrity)",
   push_device:
     "no direct API rights; one row per sign-in, written only by push_device_register and push_device_remove for the calling player's own live session (the bearer token's hash), read by the system-only claim; no organizer read exists (push-store, push/routes)",
   push_topic_mute:

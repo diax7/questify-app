@@ -41,6 +41,21 @@
 - **Tests:** media worker, staff sign-in, staff sessions, invitation sending, tick and limits units, security and
   rehearsal suites; types and lint green. Full suite left to the coordinator.
 - **Next:** the full suite and push.
+## T-812 device-integrity flag, server side (migration 0198) — 2026-11-13
+
+- **Built (tier B; plan `docs/plans/2026-11-13-device-integrity.md`):** 0198 (`device_check` per install,
+  `app_attest_key`, flag kind `device_integrity` once per account and install, raised by `record_device_check` for the
+  install's accounts in live events and by a completion trigger for later scans, erased with the account, `flag_detail`
+  restated). `src/integrity`: stateless challenge, Play Integrity decoder (4 s timeout, one retry, no verdict when Google
+  is down), App Attest attestation and assertion with Apple's root pinned, CBOR and DER readers (no new dependency).
+  `POST /v1/me/device-integrity/challenge` and `POST /v1/me/device-integrity`; off without `PLAY_INTEGRITY_*` /
+  `APP_ATTEST_*`. Never blocking; the answer never says the verdict. Dashboard Flags page and console learn the kind.
+  ADR-833 to ADR-835, Q-779 to Q-781.
+- **Tests:** offline only (a local fake of Google's token and decode endpoints, an App Attest chain under a test root):
+  integrity units, config, DB and route suites, security suites, flags and personal-data catalog; types, lint, limits.
+- **Waiting on Dhia (Q-781):** the Google Cloud project linked in Play Console with a service account, the App Attest
+  capability and ids, the go-ahead for the native module and a new build (ADR-835, plan in T-812's notes), then a
+  test on real phones. T-812 stays unticked until then.
 
 ## RTL read of the rendered screens (T-808, tier B) — 2026-11-13
 

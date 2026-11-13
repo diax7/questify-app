@@ -1850,6 +1850,23 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
 - [ ] **T-812** Device-integrity flag: Apple App Attest and Google Play Integrity as one more flag kind, never blocking — delivers FR 334; depends on: T-209, T-806
   - Done when: A phone that fails the check raises a flag on the Flags page and its player can still play and redeem.
   - Note 2026-10-23 (T-209, ADR-153): moved here from T-209; needs Dhia's Apple developer and Google Cloud/Play Console setup and a native module. Add the kind to `flag` and the trigger (migration 0031).
+  - Server side built 2026-11-13 (tier B; plan `docs/plans/2026-11-13-device-integrity.md`), left unticked: it needs
+    Dhia's keys (Q-781), the app's native module and a new build, and a test on real phones. Migration 0198
+    (`device_check`, `app_attest_key`, flag kind `device_integrity`, `record_device_check` and the completion trigger,
+    `flag_detail` restated), `src/integrity` (challenge, Play Integrity decoder, App Attest attestation and assertion,
+    CBOR and DER readers, no new dependency), `POST /v1/me/device-integrity/challenge` and `POST /v1/me/device-integrity`,
+    `PLAY_INTEGRITY_*` and `APP_ATTEST_*` settings (off without them), the dashboard's Flags page and the console learn the
+    kind. Tests offline: a local fake of Google's token and decode endpoints, an App Attest chain built under a test root.
+    ADR-833 to ADR-835, Q-779 to Q-781.
+  - App plan (ADR-835; not built, a native change needs a new build, RUNBOOK "Needs a new build"): (1) the module:
+    Expo's own integrity module if SDK 57 ships one for both platforms (check `@expo/app-integrity`), else a local Expo
+    module (`modules/device-integrity`) wrapping `DCAppAttestService` (iOS 14+, App Attest entitlement
+    `com.apple.developer.devicecheck.appattest-environment` = `production`) and Play's `IntegrityManager` (classic
+    request with the challenge as nonce; the Google Cloud project number in the build). (2) `src/api/integrity.ts`: once a
+    day after sign-in, only when `EXPO_PUBLIC_DEVICE_INTEGRITY=1` and the challenge answers `enabled: true`; iOS keeps its
+    key id in the secure store, attests on `next: "attest"` or no key, otherwise asserts; Android sends the token;
+    `later` waits for the next launch; every failure is silent and never on the scan path. (3) A new `version` in
+    `app.json` and a new build; then the device test in Q-781 (4).
 - [x] **T-813** Performance audit of the player app, the dashboard and the console, by `docs/PERFORMANCE_AUDIT.md` (Dhia,
   2026-11-06); run when the features stop changing, before launch
   - Done when: each of the twelve items is applied or has a stated reason to skip, and the before-and-after numbers are

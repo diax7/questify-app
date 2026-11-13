@@ -109,6 +109,8 @@ import { createSettingsService, type SettingsService } from "#src/settings/servi
 import { registerTranslationRoutes } from "#src/translations/routes";
 import { createTranslationService, type TranslationService } from "#src/translations/service";
 import type { IdempotencyStore } from "#src/idempotency-store";
+import { registerIntegrityRoutes } from "#src/integrity/routes";
+import { integrityVerifiers, type IntegrityVerifiers } from "#src/integrity/service";
 
 export type AppOptions = Readonly<{
   config: AppConfig;
@@ -165,6 +167,8 @@ export type AppOptions = Readonly<{
   storage?: ObjectStore;
   /** How often the media worker sweeps, purges and deletes (T-301b); off when not given (tests call `runOnce`). */
   mediaIntervalMs?: number;
+  /** The device-integrity verifiers (T-812); built from the settings when not given (tests give local fakes). */
+  integrity?: IntegrityVerifiers;
 }>;
 
 declare module "fastify" {
@@ -574,7 +578,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     myKey: createMyCodeKey(config.qrSecret),
     keys: signInDeps.keys,
   });
-  registerPlayDoors(app, config, {
+  registerPlayDoors(app, options, {
     pool: options.pool,
     keys: signInDeps.keys,
     settings,
@@ -695,9 +699,10 @@ type PlayDoorDeps = Readonly<{
 
 /**
  * The player's play doors beside the scan: operator awards, submissions, help tickets, votes and quizzes, meet, games,
- * the App Review demo's code picker (T-710b) and NFC taps.
+ * the App Review demo's code picker (T-710b), NFC taps and the device-integrity check (T-812).
  */
-function registerPlayDoors(app: FastifyInstance, config: AppConfig, deps: PlayDoorDeps): void {
+function registerPlayDoors(app: FastifyInstance, options: AppOptions, deps: PlayDoorDeps): void {
+  const { config } = options;
   const { pool, keys, settings, ranking, firstBonus, storage } = deps;
   registerOperatorAwardRoutes(app, { pool, keys });
   registerSubmissionPlayerRoutes(app, { pool, ranking, storage });
@@ -720,6 +725,8 @@ function registerPlayDoors(app: FastifyInstance, config: AppConfig, deps: PlayDo
     dashboardOrigin: origin,
     ranking,
   });
+  const verifiers = options.integrity ?? integrityVerifiers(config.integrity);
+  registerIntegrityRoutes(app, { pool, keys, authKeys: keys, verifiers });
 }
 
 /** The public reads of platform data: the configuration, the legal texts and help articles, and the shipped texts. */

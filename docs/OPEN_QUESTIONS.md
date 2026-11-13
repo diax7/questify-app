@@ -3314,3 +3314,25 @@ counsel answers Q-043.
   open: the Xcode privacy report on the first archive (key names checked against Expo's config type, not Apple's page).
 - **Q-772:** STORE_COMPLIANCE 2.7 rewritten from `app.json`, the plugins and the library manifests. Still open: the merged
   manifest of the first release bundle (FCM rows), the Firebase file and the notification icon (T-806 Done-when).
+## Q-779 - Should a scan from an install that never sent a device check become a flag? (ADR-833, T-812)
+
+**Status:** open; recommended: no, not until a build that sends the check has been the minimum app version for a
+while. Today only a failed check flags; a phone that sends none (an old build, an unconfigured platform, or a cheater
+who strips the call) is not flagged. Once every supported build checks at launch, "no check from this install in 24
+hours of scanning" could become a separate, softer kind.
+**Question:** is that kind wanted later, and with what wording on the Flags page?
+
+## Q-780 - Does the player's data export list their device checks? (ADR-834, T-812)
+
+**Status:** open; recommended: yes, as "device checks: platform, result, reason codes, when", in the next change to
+`export_player_data` (not restated here to keep 0198 small). The rows are erased with the account already.
+**Question:** confirm the export should carry them (PDPL right of access) and in which section.
+
+## Q-781 - Play Console, Google Cloud and Apple setup for the device check (ADR-833, ADR-835, T-812)
+
+**Status:** open; waiting on Dhia. The server side is built and off until set.
+**Needed:** (1) a Google Cloud project linked to the app in Play Console (App integrity → Play Integrity API), the API
+enabled, and a service account with permission to decode tokens; its key file as `PLAY_INTEGRITY_SERVICE_ACCOUNT` and
+the package as `PLAY_INTEGRITY_PACKAGE`; (2) the App Attest capability on the app id in the Apple Developer account
+and the team id and bundle id as `APP_ATTEST_TEAM_ID` and `APP_ATTEST_BUNDLE_ID`; (3) the go-ahead for the native
+module and new build in ADR-835; (4) a test on one real iPhone and one Android phone, then one rooted or emulated phone.

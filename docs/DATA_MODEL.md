@@ -1993,3 +1993,22 @@ list, compared with the shared package by a test), `player_intro_default()`, `pl
   below REPEATABLE READ (ED500 `needs_repeatable_read`). `manual_awards` also answers the `adjust` lines of the event's past points
   changes, one per completion whose points moved (no reason, the staff member who changed the quest); `balanceDelta` shows
   a line that moved only the balance.
+
+## Device integrity (T-812, migration 0198; ADR-833 to ADR-835)
+
+- `device_check (install_id uuid PK, platform ios|android, verdict passed|failed, reasons text[] (short codes, at most 8,
+  empty exactly when passed), player_id → player (the account that sent it last), checked_at)`: the latest verdict per
+  app install. `app_attest_key (key_id bytea(32) PK, install_id, player_id → player, public_key (SPKI DER), sign_count
+  0..2^32-1, development, created_at, used_at)`: an attested App Attest key and its counter. Both: RLS forced, no policy,
+  no grant; erased by the `player_forget_device_checks` trigger when the sending account becomes a tombstone; not in the
+  data export yet (Q-780).
+- `flag.kind` takes `device_integrity` (with `device_id`, the install; `flag_device_kind` now pairs `device_id` with both
+  `shared_device` and `device_integrity`; `flag_integrity_once` one case per account and install, evidence
+  `{platform, reasons, checkedAt}`, refreshed while open). Raised by `record_device_check` for the install's accounts (not
+  removed) that scanned in a live event, and by the `quest_completion_integrity_flag` trigger (`WHEN device_id IS NOT
+  NULL`, one primary-key read) for a later scan, not for a manual or system-paid completion. `flag_detail` restated from
+  0114 with the evidence as one line.
+- Doors (granted to `questify_app`, active player seat via `push_player`, PN401 otherwise): `record_device_check(install,
+  platform, passed, reasons)` (DI400 without an install), `app_attest_key_add`, `app_attest_key_for` (locks the key's row
+  for the assertion), `app_attest_key_count` (only forward). Internal: `integrity_evidence`, `raise_integrity_flag`,
+  `raise_integrity_on_completion`, `forget_device_checks`.

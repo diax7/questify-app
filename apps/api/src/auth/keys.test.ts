@@ -181,6 +181,7 @@ describe("createAuthKeys", () => {
         "pairedDeviceKey",
         "eventKey",
         "reviewerCodeHash",
+        "integrityChallengeTag",
       ] as const) {
         expect(rotated[name](value).equals(plain[name](value)), name).toBe(true);
       }
