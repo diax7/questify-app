@@ -1834,6 +1834,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("flash quests and boosts (datab
     });
 
     it("reads the boost by one probe of its category index", async () => {
+      // Fresh statistics: with stale ones (other suites' boosts in the shared database) the planner once preferred a
+      // bitmap scan of boost_starts_idx and the full suite failed while the file alone passed.
+      await owner("ANALYZE boost");
       await owner("SET enable_seqscan = off");
       try {
         const plan = await owner<{ "QUERY PLAN": string }>(
