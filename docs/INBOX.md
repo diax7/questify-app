@@ -906,3 +906,12 @@ answers in writing (Q-768). Then: "I will not be here for the next few hours. Bu
 Remaining tasks that you don't need me, completed, and wait for me to complete my part when I tell you that I am ready
 ... you can use Fable model to help you planning or reviewing." The demo event (code NXAPPB) was activated with the owner
 step of the RUNBOOK (a system audit entry), with the big screen add-on.
+
+## 2026-11-14 - Apple key later, console DNS done, photo bucket outside Saudi Arabia accepted, one web origin
+
+Asked "why are you stopped ... Do you need anything from me? Or keep going, please." Answers:
+- Apple API key for TestFlight: "Later today".
+- Console DNS record and CranL domain (Q-783): "done, just did it".
+- Where the photo bucket stores files (Q-768): "files outside ksa, but thats fine, we dont have personal photos, we can
+  go with cranl option".
+- One web origin for the store version and printed QR codes (Q-771): "questify.nafes.com".

@@ -3373,7 +3373,7 @@ host. The RUNBOOK checklist and the ASVS row (Partly until the staging probes) k
 
 ## Q-783 - Dhia: the console's DNS record and CranL domain (T-810d, ASVS V3.5.4)
 
-**Status:** Open (for Dhia, 2026-11-13). The code is ready and safe to deploy with the setting off.
+**Status:** Answered (Dhia, 2026-11-14: "done, just did it"). DNS added by Dhia; the CranL domain added by the coordinator through the API; `CONSOLE_ORIGIN` set on both apps and the probes pass.
 **Needs Dhia:** (1) Cloudflare, zone `nafes.com`: a `CNAME` `console.questify` to the same target as `questify`, proxy
 off (DNS only); (2) CranL, web app `questify-web-staging`: add the domain `console.questify.nafes.com` and wait for its
 certificate. Then the coordinator sets `CONSOLE_ORIGIN` on both apps, redeploys and runs the probes (RUNBOOK "The

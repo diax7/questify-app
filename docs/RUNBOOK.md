@@ -398,7 +398,7 @@ or adds a contact, sends a code, moves points or merges accounts (ADR-421, ADR-4
 
 ## The console on its own host (T-810d, migration 0199, ADR-720 to ADR-724)
 
-- **Off until set.** With `CONSOLE_ORIGIN` unset on both apps (the default) everything is as before: one host, the
+- **Staging: on since 2026-11-14** (Dhia's DNS record; the CranL domain added through the API; probes passed). **Off until set.** With `CONSOLE_ORIGIN` unset on both apps (the default) everything is as before: one host, the
   console at `/{lang}/console`. Migration 0199 and the code are safe to deploy first.
 - **Hosts, once set.** One web app (`questify-web-staging`) answers on both: `questify.nafes.com` (event pages, sign-in,
   the dashboard, `/play`) and `console.questify.nafes.com` (the console, sign-in and the account page only). The public
@@ -417,7 +417,7 @@ or adds a contact, sends a code, moves points or merges accounts (ADR-421, ADR-4
   4. Every existing staff session is a dashboard session: each platform admin signs in once on
      `https://console.questify.nafes.com/en/sign-in`. An admin giving support signs in on the public host too (Q-692).
   5. Probes (no CI minutes):
-     `curl -s -o /dev/null -w "%{http_code}" https://questify.nafes.com/en` -> 200;
+     `curl -s -o /dev/null -w "%{http_code}" https://questify.nafes.com/en` -> 307 to `/en/sign-in` (as before the switch);
      `curl -sI https://questify.nafes.com/en/console` -> 308, `location: https://console.questify.nafes.com/en/console`;
      `curl -sI https://console.questify.nafes.com/en/organizers` -> 308 to `https://questify.nafes.com/en/organizers`;
      `curl -s -o /dev/null -w "%{http_code}" https://console.questify.nafes.com/en/sign-in` -> 200;

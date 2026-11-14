@@ -1823,11 +1823,15 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
     (`docs/plans/2026-11-09-sign-in-lock-order.md`; code review 91 GO, its minors folded in). Hand mutants: 15 run, 14
     killed, 1 equivalent (the re-auth code delete not limited). End-others' `ORDER BY` is not equivalent: it is the
     lock order's I2 and dies to the descending-id crossing with an erasure (test 22). Not pushed.
-- [ ] **T-810d** (tier A, admin powers) The console on its own hostname (`console.<domain>`) through the same CranL web
+- [x] **T-810d** (tier A, admin powers) The console on its own hostname (`console.<domain>`) through the same CranL web
   app: the console answers only there, its `__Host-` cookie is never set on the public origin, and the public hostname
   redirects console paths — delivers no FR (ASVS V3.5.4); depends on: T-810; Q-663 (Dhia, 2026-11-05). Needs Dhia to add
   the DNS record and the CranL domain once the code is ready (asked with AskUserQuestion then).
   - Done when: the console and the public pages are on different origins on staging and the sheet's row moves to Met.
+  - Done 2026-11-14: Dhia added the DNS record; the coordinator added `console.questify.nafes.com` to the web app through
+    the CranL API, set `CONSOLE_ORIGIN` on both apps (also in `ops/cranl/staging.json`) and restarted them; the RUNBOOK probes
+    pass (old console links 308 to the console host, dashboard pages 308 back, `POST /v1/admin/*` on the public host 404).
+    ASVS gap 12 and V3.5.4 are Met. Platform admins sign in again once on the console host.
   - Note 2026-11-13 (port of the unmerged 2026-11-05 branch `t-810d-console-hostname`, plan
     `docs/plans/2026-11-13-console-host.md`): code side built on today's main with `CONSOLE_ORIGIN` optional (unset is
     the app exactly as before; ADR-723 amended, Q-769). Migration 0199 (`staff_session.surface`, the four-argument

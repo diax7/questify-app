@@ -40,6 +40,7 @@
         "QR_SECRET": { "secret": "generate" },
         "REWARD_CODE_SECRET": { "secret": "generate" },
         "DASHBOARD_ORIGIN": "https://questify.nafes.com",
+        "CONSOLE_ORIGIN": "https://console.questify.nafes.com",
         "TRUST_PROXY_HOPS": "1",
         "MAIL_FROM": "questify@nafes.com",
         "GMAIL_ACT_AS": "system@nafes.com",
@@ -72,6 +73,7 @@
         "NODE_ENV": "production",
         "API_ORIGIN": { "template": "http://{api.host}:3000" },
         "DASHBOARD_ORIGIN": "https://questify.nafes.com",
+        "CONSOLE_ORIGIN": "https://console.questify.nafes.com",
         "PLAYER_WEB_SESSION": "on",
         "MEDIA_HOST": { "secret": "operator" }
       }
