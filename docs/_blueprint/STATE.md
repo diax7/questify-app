@@ -1,5 +1,14 @@
 # Blueprint State — Questify
 
+## One web origin and the store build profiles (Q-771, ADR-838) — 2026-11-14
+
+- **Origin:** Dhia chose `questify.nafes.com` (ADR-838, Accepted). Join links, invitation and opt-out links, the About
+  links and the event page's canonical and share URLs are built on `JOIN_LINK_HOST`; `questify.sa` and `www.questify.sa`
+  are still read (old printed links). No associated domains or Android intent filters exist in `app.json` (scheme only).
+- **EAS:** `production` build (iOS store, Android app bundle, image `sdk-57`) and submit profiles. Its API URL is staging
+  until Dhia gives the production one (Q-784); `ascAppId` is still the placeholder. RUNBOOK "Store builds".
+- **Next:** Q-784 (production API URL) and the App Store Connect id, then the first `production` build.
+
 ## Staging 0198 and 0199, OTA, security write-ups, phone e2e, followups batch — 2026-11-14
 
 - **Deployed to staging:** 0198 (device integrity; 11,807 tests passed) and 0199 (T-810d console host, setting off;
@@ -55,7 +64,7 @@
   ADR-832 (Proposed).
 - **Tests:** apps/app and shared i18n suites 2251 passed; app typecheck, oxlint, `lint:limits` clean. Full suite and
   `expo export` left to CI.
-- **Next:** Q-771 (one web origin; the About links follow it), the merged manifest and Xcode privacy report on the first
+- **Next:** Q-784 (production API URL), the merged manifest and Xcode privacy report on the first
   release build, the Firebase file and the notification icon (T-806).
 
 ## T-806 store forms prepared (tier C, docs only) — 2026-11-13

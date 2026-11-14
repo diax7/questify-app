@@ -9,6 +9,12 @@
 /** At most this many UTF-16 units of the event's name go into a message, then `...` (ADR-331 (3)). */
 export const INVITATION_NAME_UNITS = 40;
 
+/**
+ * The same for the SMS, whose two links name `questify.nafes.com` (ADR-838): 7 units longer each than on `questify.sa`,
+ * so a 40-unit name no longer fits 3 UCS-2 parts (201 units). The worst case, English with a cut Arabic name, is 201.
+ */
+export const INVITATION_SMS_NAME_UNITS = 28;
+
 /** Why a name cannot go into an invitation. */
 export type InvitationNameIssue = "control_characters" | "looks_like_address" | "looks_like_phone";
 
@@ -32,15 +38,13 @@ const PHONE_RUN = /\p{Nd}{9,}/u;
 const isHighSurrogate = (code: number): boolean => code >= 0xd800 && code <= 0xdbff;
 
 /**
- * The name as a message carries it: trimmed, then cut to at most 40 UTF-16 units without splitting a surrogate pair,
- * with `...` when it was cut.
+ * The name as a message carries it: trimmed, then cut to at most `units` (40, or 28 for the SMS) UTF-16 units without
+ * splitting a surrogate pair, with `...` when it was cut.
  */
-export function trimName(name: string): string {
+export function trimName(name: string, units: number = INVITATION_NAME_UNITS): string {
   const text = name.trim();
-  if (text.length <= INVITATION_NAME_UNITS) return text;
-  const cut = isHighSurrogate(text.charCodeAt(INVITATION_NAME_UNITS - 1))
-    ? INVITATION_NAME_UNITS - 1
-    : INVITATION_NAME_UNITS;
+  if (text.length <= units) return text;
+  const cut = isHighSurrogate(text.charCodeAt(units - 1)) ? units - 1 : units;
   return `${text.slice(0, cut)}...`;
 }
 
@@ -65,5 +69,9 @@ export function textIssue(text: string): InvitationNameIssue | null {
  * exactly as sent, each in its NFKC form.
  */
 export function invitationNameIssue(name: string): InvitationNameIssue | null {
-  return textIssue(name) ?? textIssue(trimName(name));
+  return (
+    textIssue(name) ??
+    textIssue(trimName(name)) ??
+    textIssue(trimName(name, INVITATION_SMS_NAME_UNITS))
+  );
 }

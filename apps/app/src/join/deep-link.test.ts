@@ -18,7 +18,11 @@ describe("routeForIncoming", () => {
     [`https://app.questify.sa/op#${TOKEN}`, "/"],
     [`https://app.questify.sa/op#invite=${TOKEN}`, "/"],
     // A join link as a full https URL: the code is upper-cased, a query or fragment is dropped.
+    ["https://questify.nafes.com/en/e/ABCD", "/join/ABCD?via=link"],
+    ["https://questify.nafes.com/ar/e/ABCD2345?x=1", "/join/ABCD2345?via=link"],
+    // Links printed before ADR-838 name questify.sa and still open the join card.
     ["https://questify.sa/en/e/ABCD", "/join/ABCD?via=link"],
+    ["https://www.questify.sa/en/e/ABCD", "/join/ABCD?via=link"],
     ["https://questify.sa/ar/e/ABCD2345?x=1", "/join/ABCD2345?via=link"],
     ["https://questify.sa/ar/e/ABCD2345#frag", "/join/ABCD2345?via=link"],
     ["https://questify.sa/en/e/abc234", "/join/ABC234?via=link"],
@@ -35,6 +39,7 @@ describe("routeForIncoming", () => {
     ["https://questify.sa/fr/e/ABCD", "/"],
     ["https://questify.sa/en/e/AB", "/"],
     ["http://questify.sa/en/e/ABCD", "/"],
+    ["https://questify.nafes.com.evil.test/en/e/ABCD", "/"],
     ["/fr/e/ABCD", "/"],
     ["ABCD", "/"],
     ["/join/ABCD", "/"],

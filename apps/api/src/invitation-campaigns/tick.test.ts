@@ -212,7 +212,7 @@ describe("startInvitationTick", () => {
     await tick.stop();
     const row = claimRow(1);
     expect(sent).toEqual([{ to: row.phone, text: messageOf({ keys }, row as never) }]);
-    expect(sent[0]?.text).toContain(`https://questify.sa/en/i#${invitationToken(row.link)}`);
+    expect(sent[0]?.text).toContain(`https://questify.nafes.com/en/i#${invitationToken(row.link)}`);
     expect(sent[0]?.text).toContain("Invitation to Riyadh Festival: ");
     expect(JSON.stringify(logged)).not.toContain(row.phone);
   });

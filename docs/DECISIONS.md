@@ -9330,8 +9330,7 @@ one line to change once counsel decides Q-043 and Q-773.
   not. It opens on the web, in the app's language, the privacy policy, terms, community guidelines
   (`/{lang}/legal/{id}`), the contact page (`/{lang}/contact`) and the account-deletion page (`/{lang}/delete-account`).
   One helper (`apps/app/src/legal/web-pages.ts`) builds every legal link of the app, also those of sign-in, re-accept
-  and the submission composer. The host stays the join-link host (`questify.sa`) until Q-771 picks one web origin; then
-  only that helper changes. The in-app Delete account flow stays; the web page is the extra route the stores ask for.
+  and the submission composer. The host is the join-link host, `questify.nafes.com` since ADR-838 (Q-771); only that helper changes it. The in-app Delete account flow stays; the web page is the extra route the stores ask for.
 - **Privacy manifest (Q-770):** `ios.privacyManifests` declares `NSPrivacyTracking: false`, no tracking domains and the
   11 collected data types of `docs/store/app-store-privacy-labels.md` section 3, all linked and none tracking. The
   required-reason list stays as it was: re-read from every library manifest on 2026-11-13, its union is the same
@@ -9419,3 +9418,21 @@ image is sent with `Referrer-Policy: no-referrer` (`apps/web/src/lib/security-he
 Proxying every photo through the API would put image bytes on the API's CPU and bandwidth during live events.
 **Trade-offs:** a withdrawn photo's already-issued link can still load until it expires (at most two minutes on the
 wall, five for the team). Revisit if a link must die at once or if links start appearing in logs.
+
+## ADR-838 - One public web origin: `questify.nafes.com` (Q-771, G3)
+
+**Status:** Accepted (Dhia, 2026-11-14).
+**Decision:** the one public web origin for the store version and every printed QR code is `https://questify.nafes.com`.
+Join links, invitation and opt-out links, the app's About and legal links, and the event page's canonical and share URLs
+are built on it (`JOIN_LINK_HOST` in `packages/shared/src/join/link.ts`). `questify.sa` and `www.questify.sa` are still
+accepted when a link is read (`JOIN_LINK_HOSTS`), so join links printed or sent before this day keep opening the join card.
+The EAS `production` profiles use the same origin as `EXPO_PUBLIC_QUEST_CODE_ORIGIN`, as the demo profiles already did.
+**Why:** it is the domain Dhia owns and runs on CranL and Cloudflare today (ADR-112); a second origin (`questify.sa`) would
+need its own domain, DNS and certificate and would make the app's QR origin differ from the join-link host.
+**Trade-offs:** an SMS link is 7 characters longer (`questify.nafes.com` against `questify.sa`), 14 in an invitation with
+its opt-out link. A 40-unit Arabic name then needed 4 UCS-2 parts, over the 3-part limit (`SMS_MAX_PARTS`), so the
+invitation SMS cuts the event name at `INVITATION_SMS_NAME_UNITS` = 28 (the worst case, an English message with a cut
+Arabic name, is exactly 201 units) while the push keeps 40 (`INVITATION_NAME_UNITS`); the name rule checks both cuts
+(ADR-331 (3)). The promotional-SMS check now counts the opt-out link 7 units longer (its test moved by 7 units). The app config declares no associated domains or Android intent
+filters (only the `questify` scheme), so there is no universal-link entry to change; the day they are added they name
+this host.

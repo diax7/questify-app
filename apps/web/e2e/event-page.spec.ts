@@ -21,7 +21,7 @@ test("shows a live event by its code, with what the organizer sees and the link 
   await page.getByRole("button", { name: "انسخ رابط الفعالية" }).click();
   await expect(page.getByRole("status")).toContainText("نسخنا رابط الفعالية");
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
-    "https://questify.sa/ar/e/NAJD1",
+    "https://questify.nafes.com/ar/e/NAJD1",
   );
 
   await page.goto("/en/e/NAJD1");
@@ -34,10 +34,10 @@ test("writes a link preview and keeps private events out of search", async ({ pa
   const meta = (name: string) =>
     page.locator(`head meta[property="${name}"], head meta[name="${name}"]`);
   await expect(meta("og:title")).toHaveAttribute("content", "Tech Fest");
-  await expect(meta("og:url")).toHaveAttribute("content", "https://questify.sa/en/e/NAJD1");
+  await expect(meta("og:url")).toHaveAttribute("content", "https://questify.nafes.com/en/e/NAJD1");
   await expect(meta("og:locale")).toHaveAttribute("content", "en_US");
   const image = await meta("og:image").getAttribute("content");
-  expect(image).toMatch(/^https:\/\/questify\.sa\/.+opengraph-image/);
+  expect(image).toMatch(/^https:\/\/questify\.nafes\.com\/.+opengraph-image/);
   // The image's path answers here too (the absolute URL names production).
   expect((await request.get(new URL(image ?? "").pathname)).status()).toBe(200);
   await expect(meta("robots")).toHaveAttribute("content", /^index/);
@@ -56,7 +56,7 @@ test("gives a link-preview bot the tags in the page's head, without JavaScript (
   const html = await response.text();
   const head = html.slice(0, html.indexOf("</head>"));
   expect(head).toContain('<meta property="og:title" content="Tech Fest"/>');
-  expect(head).toMatch(/<meta property="og:image" content="https:\/\/questify\.sa\/[^"]+"/);
+  expect(head).toMatch(/<meta property="og:image" content="https:\/\/questify\.nafes\.com\/[^"]+"/);
 });
 
 test("says an unknown or malformed code is not available, in the language of the address", async ({

@@ -1,5 +1,5 @@
 import {
-  JOIN_LINK_HOSTS,
+  JOIN_LINK_HOST,
   MARKETING_CHANNELS,
   type Language,
   type MarketingChannel,
@@ -66,5 +66,5 @@ export function readOptOutToken(keys: OptOutSigner, token: string): OptOut | nul
 
 /** The page a promotional message links to, in the message's language. */
 export function optOutUrl(keys: OptOutSigner, target: OptOut, language: Language): string {
-  return `https://${JOIN_LINK_HOSTS[0]}/${language}/opt-out?t=${optOutToken(keys, target)}`;
+  return `https://${JOIN_LINK_HOST}/${language}/opt-out?t=${optOutToken(keys, target)}`;
 }

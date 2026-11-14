@@ -403,7 +403,7 @@ or adds a contact, sends a code, moves points or merges accounts (ADR-421, ADR-4
 - **Hosts, once set.** One web app (`questify-web-staging`) answers on both: `questify.nafes.com` (event pages, sign-in,
   the dashboard, `/play`) and `console.questify.nafes.com` (the console, sign-in and the account page only). The public
   host sends `/{lang}/console/**` to the console host (308, old links keep working); the console host sends every other
-  page back (308). Production later: `console.questify.sa` beside `questify.sa`, the same steps.
+  page back (308). Production later: the console host beside the public host, the same steps.
 - **Checklist (Dhia's steps 1 and 2, Q-783; nothing in this repo touches CranL):**
   1. Cloudflare, zone `nafes.com`: add `CNAME` `console.questify` -> the same target as the `questify` record (the
      staging web app, `questify-web-staging-4ecphq.cranl.net`, or what CranL's domain screen asks for), proxy off (DNS
@@ -1315,8 +1315,9 @@ the first step of that rerun.
 - Optional settings `APP_STORE_URL` (https on `apps.apple.com`) and `PLAY_STORE_URL` (https on `play.google.com`): the
   store pages for the event web page `/{lang}/e/{CODE}` (T-112). Unset, the page shows no store buttons and says the
   app is coming soon; any other value stops the app at start. The Play link gets the install referrer `join=CODE`.
-- The event page's link preview names `https://questify.sa` (the join link's host) for its canonical and share image,
-  on staging too: a preview of a staging link points at production until the domain serves the web app.
+- The event page's link preview names `https://questify.nafes.com` (the join link's host, ADR-838) for its canonical and
+  share image, on staging too. Join links printed before ADR-838 name `questify.sa`; the app and `parseJoinLink` still
+  read them, but the web page for that host is not served by this deployment.
 
 ## The full phone demo on staging (2026-11-12)
 
@@ -1368,6 +1369,20 @@ Connect (App Information → General → Apple ID, about 10 digits), which exist
 EAS reads it only from `eas.json` (it is not taken from the environment) and needs it in non-interactive mode; until it
 is set, `eas submit` stops with "Invalid ... ascAppId ... should consist only of digits". Replace it in a normal
 commit once known; it is not a secret.
+
+### Store builds (`production`, ADR-838, Q-771)
+
+| `apps/app/eas.json` | What it makes | Channel |
+|---|---|---|
+| build `production` | iOS store build and Android app bundle (`app-bundle`), both on the pinned image `sdk-57` (never `latest`); build number auto-incremented by EAS | `production` |
+| submit `production` | iOS: App Store Connect with the `$EXPO_ASC_*` key; Android: Google Play internal track as a draft, with the service-account key file named by `$EXPO_GOOGLE_SERVICE_ACCOUNT_KEY_PATH` | - |
+
+- The one public web origin is `https://questify.nafes.com` (`EXPO_PUBLIC_QUEST_CODE_ORIGIN`, the join link and the printed
+  QR codes). Old `questify.sa` links are still read by the app.
+- **Not ready to submit:** `EXPO_PUBLIC_API_URL` in `production` is the **staging** API, because no production API exists
+  yet (Q-784; `eas.json` allows no comments, so the warning lives here). `ascAppId` is the placeholder
+  `SET_ASC_APP_ID_DIGITS` until Dhia sends it; the Android Firebase file and notification icon are still unset (Q-772).
+  Change the API URL and `ascAppId` in a normal commit before the first `eas build --profile production`.
 
 ### Secrets and environment (never echoed, never committed)
 

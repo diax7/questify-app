@@ -76,7 +76,7 @@ describe("scanDecision", () => {
       { kind: "read", id: ID, token: token(0x07) },
     ],
     ["another player's meet code", MEET, { kind: "read", id: "meet", token: MEET }],
-    ["a join link", "https://questify.sa/ar/e/NAJD1", { kind: "join", code: "NAJD1" }],
+    ["a join link", "https://questify.nafes.com/ar/e/NAJD1", { kind: "join", code: "NAJD1" }],
     [
       "a personal operator code",
       `https://questify.sa/ar/op#${INVITE}`,

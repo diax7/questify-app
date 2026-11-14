@@ -1,5 +1,5 @@
 import {
-  JOIN_LINK_HOSTS,
+  JOIN_LINK_HOST,
   type Language,
   type MessageKey,
   type PlayerDocumentId,
@@ -14,7 +14,7 @@ export type WebPage = PlayerDocumentId | "contact" | "delete-account";
 
 export function webPageUrl(language: Language, page: WebPage): string {
   const path = page === "contact" || page === "delete-account" ? page : `legal/${page}`;
-  return `https://${JOIN_LINK_HOSTS[0]}/${language}/${path}`;
+  return `https://${JOIN_LINK_HOST}/${language}/${path}`;
 }
 
 /** The About and privacy screen's rows, in the order shown. */

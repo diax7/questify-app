@@ -1,4 +1,11 @@
-import { JOIN_LINK_HOSTS, type Language, renderNotice, smsParts, trimName } from "@questify/shared";
+import {
+  INVITATION_SMS_NAME_UNITS,
+  JOIN_LINK_HOST,
+  type Language,
+  renderNotice,
+  smsParts,
+  trimName,
+} from "@questify/shared";
 
 /**
  * The invitation SMS (ADR-331 (3)): a fixed template, no organizer text, no brand prefix (the "-AD" sender name says it
@@ -33,7 +40,7 @@ export function readInvitationToken(token: string): string | null {
 
 /** The landing page a message links to, in the message's language, the token in the fragment. */
 export function invitationUrl(language: Language, token: string): string {
-  return `https://${JOIN_LINK_HOSTS[0]}/${language}/i#${token}`;
+  return `https://${JOIN_LINK_HOST}/${language}/i#${token}`;
 }
 
 /** The approved name in the message's language, else the other one; the approval guarantees one of them. */
@@ -43,7 +50,7 @@ function nameFor(names: ApprovedNames, language: Language): string {
   const chosen = own === "" ? other : own;
   if (chosen === "")
     throw new Error("An invitation needs an approved event name in either language.");
-  return trimName(chosen);
+  return trimName(chosen, INVITATION_SMS_NAME_UNITS);
 }
 
 export type InvitationText = Readonly<{
@@ -76,7 +83,7 @@ export function previewInvitation(
     language,
     names,
     link: invitationUrl(language, PLACEHOLDER_LINK),
-    optOut: `https://${JOIN_LINK_HOSTS[0]}/${language}/opt-out?t=${PLACEHOLDER_OPT_OUT}`,
+    optOut: `https://${JOIN_LINK_HOST}/${language}/opt-out?t=${PLACEHOLDER_OPT_OUT}`,
   });
   return { text, parts: smsParts(text) };
 }

@@ -1,4 +1,4 @@
-import { INVITATION_NAME_UNITS, smsParts } from "@questify/shared";
+import { INVITATION_SMS_NAME_UNITS, smsParts } from "@questify/shared";
 import { describe, expect, it } from "vitest";
 import { createAuthKeys } from "#src/auth/keys";
 import {
@@ -22,7 +22,8 @@ const real = (language: "ar" | "en", names: { ar: string | null; en: string | nu
     optOut: optOutUrl(keys, { playerId: PLAYER, channel: "sms" }, language),
   });
 
-const linkOf = (language: string) => `https://questify.sa/${language}/i#${invitationToken(LINK)}`;
+const linkOf = (language: string) =>
+  `https://questify.nafes.com/${language}/i#${invitationToken(LINK)}`;
 const optOutOf = (language: "ar" | "en") =>
   optOutUrl(keys, { playerId: PLAYER, channel: "sms" }, language);
 
@@ -49,8 +50,12 @@ describe("the invitation token", () => {
   });
 
   it("puts the token in the fragment of the language's landing page", () => {
-    expect(invitationUrl("ar", "T".repeat(22))).toBe(`https://questify.sa/ar/i#${"T".repeat(22)}`);
-    expect(invitationUrl("en", "T".repeat(22))).toBe(`https://questify.sa/en/i#${"T".repeat(22)}`);
+    expect(invitationUrl("ar", "T".repeat(22))).toBe(
+      `https://questify.nafes.com/ar/i#${"T".repeat(22)}`,
+    );
+    expect(invitationUrl("en", "T".repeat(22))).toBe(
+      `https://questify.nafes.com/en/i#${"T".repeat(22)}`,
+    );
   });
 });
 
@@ -74,26 +79,27 @@ describe("renderInvitation", () => {
     expect(() => real("en", { ar: " ", en: null })).toThrow(/approved event name/);
   });
 
-  it("cuts a long name to 40 units and adds ...", () => {
+  it("cuts a long name to 28 units and adds ...", () => {
     const long = "ق".repeat(60);
     expect(real("ar", { ar: long, en: null })).toContain(
-      `دعوة إلى ${"ق".repeat(INVITATION_NAME_UNITS)}...: `,
+      `دعوة إلى ${"ق".repeat(INVITATION_SMS_NAME_UNITS)}...: `,
     );
   });
 
-  it("stays within 3 SMS parts for every 40-unit name in either script", () => {
-    const fortyArabic = "ف".repeat(INVITATION_NAME_UNITS);
-    const fortyLatin = "W".repeat(INVITATION_NAME_UNITS);
-    const fortyExtended = "[".repeat(INVITATION_NAME_UNITS);
-    const fortyEmoji = "\u{1F389}".repeat(INVITATION_NAME_UNITS);
+  it("stays within 3 SMS parts for every 28-unit name in either script", () => {
+    const fortyArabic = "ف".repeat(INVITATION_SMS_NAME_UNITS);
+    const fortyLatin = "W".repeat(INVITATION_SMS_NAME_UNITS);
+    const fortyExtended = "[".repeat(INVITATION_SMS_NAME_UNITS);
+    const fortyEmoji = "\u{1F389}".repeat(INVITATION_SMS_NAME_UNITS);
     for (const name of [fortyArabic, fortyLatin, fortyExtended, fortyEmoji, `${fortyArabic}more`]) {
       for (const language of ["ar", "en"] as const) {
         const text = real(language, { ar: name, en: name });
         expect(smsParts(text), `${language}: ${text.length}`).toBeLessThanOrEqual(3);
       }
     }
-    // The longest Arabic case is about 190 UTF-16 units, inside 3 UCS-2 parts (201).
-    expect(real("ar", { ar: fortyArabic, en: null }).length).toBeLessThanOrEqual(201);
+    // The longest text is the English message with a cut Arabic name (28 units and "...") at exactly 201 UTF-16 units,
+    // the end of 3 UCS-2 parts (ADR-838 sized the name cut by it).
+    expect(real("en", { ar: null, en: `${fortyArabic}more` }).length).toBeLessThanOrEqual(201);
   });
 });
 
@@ -103,7 +109,7 @@ describe("previewInvitation", () => {
     for (const language of ["ar", "en"] as const) {
       const preview = previewInvitation(names, language);
       const sent = real(language, names);
-      expect(preview?.text).toContain(`https://questify.sa/${language}/i#${"X".repeat(22)}`);
+      expect(preview?.text).toContain(`https://questify.nafes.com/${language}/i#${"X".repeat(22)}`);
       expect(preview?.text).toContain(`opt-out?t=${"X".repeat(46)}`);
       expect(preview?.text.length).toBe(sent.length);
       expect(preview?.parts).toBe(smsParts(sent));

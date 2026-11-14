@@ -477,8 +477,9 @@ describe("joining", () => {
 describe("routeForIncoming", () => {
   it("opens the join card for the join link, as a full URL or a path", () => {
     for (const incoming of [
+      "https://questify.nafes.com/ar/e/abc234",
       "https://questify.sa/ar/e/abc234",
-      "https://questify.sa/en/e/ABC234/",
+      "https://questify.nafes.com/en/e/ABC234/",
       "https://questify.sa/en/e/ABC234?utm_source=poster",
       "/ar/e/abc234",
       "/en/e/ABC234/",

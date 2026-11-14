@@ -18,7 +18,15 @@ describe("parseJoinLink", () => {
 
   it("makes links it reads back", () => {
     expect(parseJoinLink(joinLink("ABC234", "ar"))).toBe("ABC234");
-    expect(joinLink("ABC234", "en")).toBe("https://questify.sa/en/e/ABC234");
+    expect(joinLink("ABC234", "en")).toBe("https://questify.nafes.com/en/e/ABC234");
+  });
+
+  it("builds links on questify.nafes.com and still reads the old questify.sa ones (ADR-838)", () => {
+    expect(JOIN_LINK_HOSTS[0]).toBe("questify.nafes.com");
+    expect(JOIN_LINK_HOSTS).toEqual(["questify.nafes.com", "questify.sa", "www.questify.sa"]);
+    expect(parseJoinLink("https://questify.sa/ar/e/NAJD1")).toBe("NAJD1");
+    expect(parseJoinLink("https://www.questify.sa/en/e/NAJD1")).toBe("NAJD1");
+    expect(parseJoinLink("https://questify.nafes.com.evil.test/ar/e/NAJD1")).toBeNull();
   });
 
   it("is not a Questify join code otherwise", () => {

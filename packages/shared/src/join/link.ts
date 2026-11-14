@@ -1,5 +1,15 @@
-/** The hosts whose `/{ar|en}/e/{code}` links are Questify join links (the QR and the invite link carry the same one). */
-export const JOIN_LINK_HOSTS: readonly string[] = ["questify.sa", "www.questify.sa"];
+/** The one public web origin's host: join links, printed QR codes and the store pages are built on it (ADR-838, Q-771). */
+export const JOIN_LINK_HOST = "questify.nafes.com";
+
+/**
+ * The hosts whose `/{ar|en}/e/{code}` links are Questify join links (the QR and the invite link carry the same one).
+ * Links are built on `JOIN_LINK_HOST`; the `questify.sa` hosts are only read, for links printed before ADR-838.
+ */
+export const JOIN_LINK_HOSTS: readonly string[] = [
+  JOIN_LINK_HOST,
+  "questify.sa",
+  "www.questify.sa",
+];
 
 const CODE = /^[A-Za-z0-9]{4,12}$/;
 const PATH = /^\/(?:ar|en)\/e\/([A-Za-z0-9]{4,12})\/?$/;
@@ -27,5 +37,5 @@ export function parseJoinLink(text: string): string | null {
 
 /** The join link for a code, in the page's language (T-112 serves it; the join QR encodes it). */
 export function joinLink(code: string, language: "ar" | "en"): string {
-  return `https://${JOIN_LINK_HOSTS[0]}/${language}/e/${code}`;
+  return `https://${JOIN_LINK_HOST}/${language}/e/${code}`;
 }

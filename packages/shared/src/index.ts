@@ -431,7 +431,7 @@ export {
 } from "./join/names";
 export type { JoinFieldKind } from "./join/fields";
 export { JOIN_FIELD_KINDS, joinFieldKindKey, joinFieldLabel } from "./join/fields";
-export { JOIN_LINK_HOSTS, joinLink, parseJoinLink } from "./join/link";
+export { JOIN_LINK_HOST, JOIN_LINK_HOSTS, joinLink, parseJoinLink } from "./join/link";
 export type { JoinOption, JoinOptionInput } from "./join/options";
 export {
   JOIN_OPTION_LABEL_MAX,
@@ -726,6 +726,7 @@ export type {
 } from "./invitation-campaigns/invitations";
 export {
   INVITATION_NAME_UNITS,
+  INVITATION_SMS_NAME_UNITS,
   invitationNameIssue,
   textIssue,
   trimName,

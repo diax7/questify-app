@@ -169,7 +169,7 @@ describe("readScan", () => {
   });
 
   it("reads a join link as a join, and never a bare word", () => {
-    expect(readScan("https://questify.sa/ar/e/NAJD1", null)).toEqual({
+    expect(readScan("https://questify.nafes.com/ar/e/NAJD1", null)).toEqual({
       kind: "join",
       code: "NAJD1",
     });

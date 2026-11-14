@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { JOIN_LINK_HOSTS } from "#src/join/link";
+import { JOIN_LINK_HOST } from "#src/join/link";
 import { ARABIC_LETTER, adminText } from "#src/legal/admin";
 import { smsParts } from "#src/messaging/sms";
 
@@ -42,7 +42,7 @@ export const SMS_MAX_PARTS = 3;
 
 /** The values a preview and the part count stand in for a placeholder with: the real lengths, never a real value. */
 const SAMPLE_OPT_OUT = (language: "ar" | "en"): string =>
-  `https://${JOIN_LINK_HOSTS[0]}/${language}/opt-out?t=${"X".repeat(46)}`;
+  `https://${JOIN_LINK_HOST}/${language}/opt-out?t=${"X".repeat(46)}`;
 const SAMPLE_VALUES: Readonly<Record<string, (language: "ar" | "en") => string>> = {
   code: () => "123456",
   optOutUrl: SAMPLE_OPT_OUT,

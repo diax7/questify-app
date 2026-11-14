@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   INVITATION_NAME_UNITS,
+  INVITATION_SMS_NAME_UNITS,
   invitationNameIssue,
   trimName,
 } from "#src/invitation-campaigns/name-rule";
@@ -105,6 +106,20 @@ describe("invitationNameIssue (Finding 1 (b))", () => {
     const atTheDot = `${"b".repeat(INVITATION_NAME_UNITS - 12)} example.community`;
     expect(trimName(atTheDot)).toBe(`${"b".repeat(INVITATION_NAME_UNITS - 12)} example.com...`);
     expect(invitationNameIssue(trimName(atTheDot))).toBe("looks_like_address");
+  });
+});
+
+describe("the SMS cut", () => {
+  it("is shorter than the push cut, and its cut text is checked too (ADR-838)", () => {
+    expect(INVITATION_SMS_NAME_UNITS).toBeLessThan(INVITATION_NAME_UNITS);
+    const name = `${"c".repeat(INVITATION_SMS_NAME_UNITS - 12)} example.com and more words`;
+    expect(trimName(name, INVITATION_SMS_NAME_UNITS)).toBe(
+      `${"c".repeat(INVITATION_SMS_NAME_UNITS - 12)} example.com...`,
+    );
+    expect(invitationNameIssue(name)).toBe("looks_like_address");
+    expect(trimName("y".repeat(INVITATION_SMS_NAME_UNITS + 2), INVITATION_SMS_NAME_UNITS)).toBe(
+      `${"y".repeat(INVITATION_SMS_NAME_UNITS)}...`,
+    );
   });
 });
 

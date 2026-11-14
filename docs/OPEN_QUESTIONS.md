@@ -3255,7 +3255,10 @@ first archive. A build change, so it goes through a worker, not this docs task.
 
 ## Q-771 - No store build profile in EAS, and two web origins (T-806 prep, EXPO_SDK_CHECK A4)
 
-**Status:** Proposed (developer, 2026-11-13); gap G3.
+**Status:** Answered (Dhia, 2026-11-14; ADR-838): the one origin is `questify.nafes.com`; built 2026-11-14. The `production`
+profiles exist in `apps/app/eas.json` (SDK 57 image, app bundle on Android, submit profile); their API URL is the staging
+one until Q-784 is answered, and `ascAppId` stays the placeholder until Dhia sends it. (Original entry follows.)
+Gap G3.
 `apps/app/eas.json` has `development`, `preview` and `demo-ios` only: no `production` profile for iOS or an Android app
 bundle, no Google submit profile; `demo-ios` targets the staging API host and `ascAppId` is the placeholder
 `SET_ASC_APP_ID_DIGITS`. The profiles set `EXPO_PUBLIC_QUEST_CODE_ORIGIN` to `questify.nafes.com` while the join-link host in
@@ -3378,3 +3381,11 @@ host. The RUNBOOK checklist and the ASVS row (Partly until the staging probes) k
 off (DNS only); (2) CranL, web app `questify-web-staging`: add the domain `console.questify.nafes.com` and wait for its
 certificate. Then the coordinator sets `CONSOLE_ORIGIN` on both apps, redeploys and runs the probes (RUNBOOK "The
 console on its own host").
+
+## Q-784 - Dhia: the production API URL for the store build (Q-771, ADR-838)
+
+**Status:** Open (for Dhia, 2026-11-14). The `production` build profile in `apps/app/eas.json` sets
+`EXPO_PUBLIC_API_URL` to the staging API (`https://questify-api-staging-3ez01s.cranl.net`) because no production API
+exists yet. JSON allows no comment in that file, so this entry and the RUNBOOK ("Store builds") carry the warning.
+**Needs Dhia:** the production API's address when it exists. Until then a `production` build talks to staging and must not
+be submitted for review as is. The `ascAppId` placeholder (`SET_ASC_APP_ID_DIGITS`) is waiting for his App Store Connect id.

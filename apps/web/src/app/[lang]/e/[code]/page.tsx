@@ -53,7 +53,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .join(" · ");
   const canonical = joinLink(upper, lang);
   return {
-    // The share image's absolute URL: crawlers ignore relative ones (on staging it still names questify.sa).
+    // The share image's absolute URL: crawlers ignore relative ones.
     metadataBase: new URL(new URL(canonical).origin),
     title,
     description,
