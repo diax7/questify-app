@@ -9394,3 +9394,28 @@ API), else a small local Expo module; called once a day after sign-in behind `EX
 id in the secure store; never on the scan path.
 **Why:** a native dependency ships only with a new store build, and the server side can be built and tested offline
 first.
+
+## ADR-836 - Uploaded images are re-encoded, not malware-scanned (ASVS V5.4.3, gap 24)
+
+**Status:** Accepted (coordinator, delegated by Dhia, 2026-11-14; T-809's tester may reopen it).
+**Decision:** player photos and organizer images get no malware scan. Every upload is decoded and re-encoded to pixels
+(`apps/api/src/storage/images.ts` `reencode`), and only the re-encoded file is stored. The original bytes are never
+stored or served.
+**Why:** a re-encode keeps only the pixel data, so a script, archive or polyglot tail in the upload never reaches the
+bucket. A scanner adds a service, a cost and a data flow (photos leaving for a scanning vendor, a PDPL question) to
+guard bytes that are already gone. Files are served only as images, from a private bucket, under the web CSP.
+**Trade-offs:** an exploit in the image decoder itself (sharp/libvips) is not caught by a scan either. It is covered by
+dependency updates (`docs/SECURITY.md` time frames) and the upload gate's size and pixel limits. T-809's tester sends
+polyglot and malformed files to both upload doors; a finding reopens this ADR.
+
+## ADR-837 - Photo links carry their signature in the query string (ASVS V14.2.1, gap 25)
+
+**Status:** Accepted (coordinator, delegated by Dhia, 2026-11-14).
+**Decision:** photos stay on signed bucket URLs with the signature in the query: 120 seconds on the photo wall, 5
+minutes for the team. They are not served through the API.
+**Why:** the URL names no person and no event, only an opaque object key; it expires within minutes; every page and
+image is sent with `Referrer-Policy: no-referrer` (`apps/web/src/lib/security-headers.ts`, `referrerPolicy` on
+`RemotePhoto`, `PhotoScene` and `ImageField`), so it does not leak to other sites; only the bucket accepts it.
+Proxying every photo through the API would put image bytes on the API's CPU and bandwidth during live events.
+**Trade-offs:** a withdrawn photo's already-issued link can still load until it expires (at most two minutes on the
+wall, five for the team). Revisit if a link must die at once or if links start appearing in logs.
