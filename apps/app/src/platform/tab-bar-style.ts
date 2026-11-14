@@ -23,8 +23,9 @@ export function tabBarStyle(backgroundColor: string, platform: PlatformName): Vi
 }
 
 /**
- * The label under a tab icon. On the web the navigator lets the label shrink to its font size and clips the text, which cuts the tails of letters (the y of Journey, the last letter of Arabic words); a line height and a
- * box a little taller fix it. A phone keeps the navigator's own label.
+ * The label under a tab icon. On the web the navigator lets the label shrink to its font size and clips the text,
+ * which cuts the tails of letters (the y of Journey, the last letter of Arabic words); a line height and a box a
+ * little taller fix it. A phone keeps the navigator's own label.
  */
 export function tabBarLabelStyle(
   label: Readonly<{ fontFamily: string; fontSize: number; lineHeight: number }>,

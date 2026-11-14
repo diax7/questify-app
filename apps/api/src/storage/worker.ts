@@ -17,8 +17,10 @@ const JITTER = 0.2;
  * back once it ends.
  */
 const LEASE_MS = 5 * 60_000;
-const KEY_WORST_MS = 31_000;
-export const ROUND_BUDGET_MS = LEASE_MS - KEY_WORST_MS - 29_000;
+export const KEY_WORST_MS = 31_000;
+/** Kept after the last delete for the done call and for clocks that drift between replicas. */
+const DONE_SLACK_MS = 29_000;
+export const ROUND_BUDGET_MS = LEASE_MS - KEY_WORST_MS - DONE_SLACK_MS;
 
 export type MediaWorkerDeps = Readonly<{
   pool: Pool;

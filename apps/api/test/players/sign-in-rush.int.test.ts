@@ -24,6 +24,8 @@ import {
   type TestDatabase,
 } from "#test/support/test-db";
 
+/** The one test that asks for 200 codes three times over: 30 s is too little under a full-suite load (alone ~10 s). */
+const SLOW_TEST_MS = 120_000;
 const KEYS = createAuthKeys(testConfig().auth.secret);
 const ACCEPT = { terms: "0.1", privacy: "0.1" };
 const STRIPE_KEYS = {
@@ -296,31 +298,35 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the sign-in rush", () => {
       expect((await ask(newPhone(), asker(venue))).kind).toBe("throttled");
     });
 
-    it("earns nothing for a wrong code, a right code from elsewhere, a contact twice, or another channel", async () => {
-      const venue = freshIp();
-      const elsewhere = freshIp();
-      const sent = await fill(venue, 200);
-      expect((await verify(sent[0]!, venue, false)).kind).toBe("invalid_code");
-      expect((await verify(sent[1]!, elsewhere)).kind).toBe("new");
-      const again = sent[2]!;
-      expect((await verify(again, venue)).kind).toBe("new");
-      const second = await ask(again.contact, asker(elsewhere));
-      if (second.kind !== "code_sent") {
-        throw new Error(second.kind);
-      }
-      expect((await verify({ ...again, token: second.challengeToken }, venue)).kind).toBe("new");
-      // Only the first right code of `again` counts: two more codes, then the window is full.
-      await fill(venue, 2);
-      expect((await ask(newPhone(), asker(venue))).kind).toBe("throttled");
-      // Email codes typed back earn email room only.
-      const mailVenue = freshIp();
-      const mails = await fill(mailVenue, 200, "email");
-      for (const one of mails.slice(0, 10)) {
-        expect((await verify(one, mailVenue)).kind).toBe("new");
-      }
-      expect((await ask(newPhone(), asker(mailVenue))).kind).toBe("throttled");
-      expect((await ask(newEmail(), asker(mailVenue))).kind).toBe("code_sent");
-    });
+    it(
+      "earns nothing for a wrong code, a right code from elsewhere, a contact twice, or another channel",
+      { timeout: SLOW_TEST_MS },
+      async () => {
+        const venue = freshIp();
+        const elsewhere = freshIp();
+        const sent = await fill(venue, 200);
+        expect((await verify(sent[0]!, venue, false)).kind).toBe("invalid_code");
+        expect((await verify(sent[1]!, elsewhere)).kind).toBe("new");
+        const again = sent[2]!;
+        expect((await verify(again, venue)).kind).toBe("new");
+        const second = await ask(again.contact, asker(elsewhere));
+        if (second.kind !== "code_sent") {
+          throw new Error(second.kind);
+        }
+        expect((await verify({ ...again, token: second.challengeToken }, venue)).kind).toBe("new");
+        // Only the first right code of `again` counts: two more codes, then the window is full.
+        await fill(venue, 2);
+        expect((await ask(newPhone(), asker(venue))).kind).toBe("throttled");
+        // Email codes typed back earn email room only.
+        const mailVenue = freshIp();
+        const mails = await fill(mailVenue, 200, "email");
+        for (const one of mails.slice(0, 10)) {
+          expect((await verify(one, mailVenue)).kind).toBe("new");
+        }
+        expect((await ask(newPhone(), asker(mailVenue))).kind).toBe("throttled");
+        expect((await ask(newEmail(), asker(mailVenue))).kind).toBe("code_sent");
+      },
+    );
 
     it("holds the ceiling of 2,000 however many contacts typed a right code", async () => {
       const venue = freshIp();
