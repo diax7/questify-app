@@ -27,12 +27,18 @@ function opensNewDocument(page: WatchedPage, request: Request): boolean {
  * A new document drops the requests the old one still had open: the browser cancels them, and Playwright does not
  * always report that (CI runs 42412664875 and 42422503343: the event page's rehearsal read, cut off by `page.goto` to
  * the next page, stayed open in the count forever, and the events page after it "never settled").
+ *
+ * The same holds for a read the old document starts after the next document's request began: the pairing pages poll
+ * `GET /v1/device` every 300 ms to 3 s, so one poll often fires in that gap, is cut off by the commit and is never
+ * reported (the phone a11y sweep on /kiosk, 2026-11-14). So the commit of a new top-frame document (`framenavigated`
+ * after a navigation request, not a pushState) drops every read still open as well.
  */
 export function watchRequests(page: WatchedPage): void {
-  const requests = { open: new Set<Request>(), lastActivity: Date.now() };
+  const requests = { open: new Set<Request>(), lastActivity: Date.now(), loading: false };
   const change = (request: Request, started: boolean): void => {
     if (started && opensNewDocument(page, request)) {
       requests.open.clear();
+      requests.loading = true;
     }
     requests.open[started ? "add" : "delete"](request);
     requests.lastActivity = Date.now();
@@ -40,6 +46,13 @@ export function watchRequests(page: WatchedPage): void {
   page.on("request", (request) => change(request, true));
   page.on("requestfinished", (request) => change(request, false));
   page.on("requestfailed", (request) => change(request, false));
+  page.on("framenavigated", (frame) => {
+    if (frame === page.mainFrame() && requests.loading) {
+      requests.loading = false;
+      requests.open.clear();
+      requests.lastActivity = Date.now();
+    }
+  });
   settlers.set(page, async () => {
     const giveUp = Date.now() + SETTLE_LIMIT_MS;
     while (requests.open.size > 0 || Date.now() - requests.lastActivity < QUIET_MS) {

@@ -25,7 +25,7 @@ function fakePage() {
     waitForTimeout: (ms: number) => new Promise((resolve) => setTimeout(resolve, ms)),
   } as unknown as WatchedPage;
   watchRequests(page);
-  return { page, emit: (name: string, one: Request) => events.emit(name, one) };
+  return { page, emit: (name: string, one: unknown) => events.emit(name, one) };
 }
 
 /** How long settling takes, in ms; rejects as settling does. */
@@ -64,6 +64,26 @@ describe("the request count waitUntilSettled reads", () => {
     const embed = request("/embed", true, IFRAME);
     emit("request", embed);
     emit("requestfinished", embed);
+    setTimeout(() => emit("requestfinished", read), 600);
+    expect(await timeToSettle(page)).toBeGreaterThanOrEqual(600 + QUIET_MS - 50);
+  });
+
+  it("forgets a poll the old document sent after the next document's request began (the kiosk page's GET /v1/device)", async () => {
+    const { page, emit } = fakePage();
+    const next = request("/en/kiosk", true);
+    emit("request", next);
+    // The old document's timer fires before the commit: the browser cancels the read and nothing reports it.
+    emit("request", request("/v1/device", false));
+    emit("requestfinished", next);
+    emit("framenavigated", TOP);
+    expect(await timeToSettle(page)).toBeLessThan(2000);
+  });
+
+  it("keeps the reads open across a pushState, which is no new document", async () => {
+    const { page, emit } = fakePage();
+    const read = request("/v1/organizers/o/events", false);
+    emit("request", read);
+    emit("framenavigated", TOP);
     setTimeout(() => emit("requestfinished", read), 600);
     expect(await timeToSettle(page)).toBeGreaterThanOrEqual(600 + QUIET_MS - 50);
   });

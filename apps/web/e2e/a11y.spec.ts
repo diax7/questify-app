@@ -20,6 +20,9 @@ import { openMenu } from "#e2e/nav.ts";
  * level-one heading); minor ones are listed in the output only. The
  * event is filled first, exactly as the layout check does, so the pages show their filled states.
  *
+ * One test per phase (public, device, draft, live), each with its own pages and event, so a stall costs its own test and
+ * not the whole sweep. The live phase reads about 60 pages and takes 9 to 13 minutes, hence its own long timeout.
+ *
  * `ALLOWED` is the one place a rule may be waived on a page: each entry names the rule, the page (or `*` for the
  * rule on every page) and the reason it cannot be fixed. The list is meant to stay empty or short.
  */
@@ -167,34 +170,61 @@ async function readPairedScreen(browser: Browser, project: string): Promise<void
   }
 }
 
-test("every page passes the WCAG 2.1 A and AA rules of axe-core", async ({
-  page,
-  browser,
-}, info) => {
-  test.setTimeout(600_000);
+/** Every test opens its own pages and reads them alone, so one stalled phase costs its own test, not the whole sweep. */
+const PHASE_TIMEOUT_MS = 600_000;
+/** The live phase reads every event and console page in two languages (a phone twice each): far more than the rest. */
+const LIVE_TIMEOUT_MS = 1_800_000;
+
+test.beforeEach(async ({ page }, info) => {
+  test.setTimeout(PHASE_TIMEOUT_MS);
   found.length = 0;
   notes.length = 0;
   page.on("pageerror", (error) => {
     throw error;
   });
-  const project = info.project.name;
   await page.setViewportSize(
-    project === "phone" ? { width: 360, height: 780 } : { width: 1440, height: 900 },
+    info.project.name === "phone" ? { width: 360, height: 780 } : { width: 1440, height: 900 },
   );
   await freshAddress(page);
   watchRequests(page);
+});
 
+/** Prints the findings that do not fail the test, then fails on the ones that do. */
+function finish(): void {
+  process.stdout.write(`${notes.length} other findings (not failures):\n${notes.join("\n")}\n`);
+  expect(found, "serious, critical or moderate accessibility violations").toEqual([]);
+}
+
+test("the public pages pass the WCAG 2.1 A and AA rules of axe-core", async ({ page }, info) => {
   for (const listed of PUBLIC_PAGES) {
     for (const language of LANGUAGES) {
-      await readPage(page, project, language, listed, listed.path);
+      await readPage(page, info.project.name, language, listed, listed.path);
     }
   }
+  finish();
+});
+
+test("the unpaired screen, station and kiosk pages pass the WCAG 2.1 A and AA rules of axe-core", async ({
+  page,
+}, info) => {
   for (const device of DEVICE_PAGES) {
     for (const language of LANGUAGES) {
-      await readPage(page, project, language, { name: device.name, ready: WAITING }, device.path);
+      await readPage(
+        page,
+        info.project.name,
+        language,
+        { name: device.name, ready: WAITING },
+        device.path,
+      );
     }
   }
+  finish();
+});
 
+test("the draft event's pages and its confirmation dialog pass the WCAG 2.1 A and AA rules of axe-core", async ({
+  page,
+}, info) => {
+  const project = info.project.name;
   const created = await createEvent(page, project);
   await fillShop(page, created);
   const draftIds: LayoutIds = {
@@ -212,7 +242,17 @@ test("every page passes the WCAG 2.1 A and AA rules of axe-core", async ({
   for (const language of LANGUAGES) {
     await readDialog(page, project, language, created);
   }
+  finish();
+});
 
+test("the live event's pages and the paired big screen pass the WCAG 2.1 A and AA rules of axe-core", async ({
+  page,
+  browser,
+}, info) => {
+  test.setTimeout(LIVE_TIMEOUT_MS);
+  const project = info.project.name;
+  const created = await createEvent(page, project);
+  await fillShop(page, created);
   const ids = await startAndFill(page, created);
   for (const listed of LAYOUT_PAGES.filter((one) => one.phase !== "draft")) {
     for (const language of LANGUAGES) {
@@ -220,7 +260,5 @@ test("every page passes the WCAG 2.1 A and AA rules of axe-core", async ({
     }
   }
   await readPairedScreen(browser, project);
-
-  process.stdout.write(`${notes.length} other findings (not failures):\n${notes.join("\n")}\n`);
-  expect(found, "serious, critical or moderate accessibility violations").toEqual([]);
+  finish();
 });
