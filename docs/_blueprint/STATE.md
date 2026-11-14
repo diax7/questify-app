@@ -1,5 +1,20 @@
 # Blueprint State — Questify
 
+## Staging 0198 and 0199, OTA, security write-ups, phone e2e, followups batch — 2026-11-14
+
+- **Deployed to staging:** 0198 (device integrity; 11,807 tests passed) and 0199 (T-810d console host, setting off;
+  11,840 passed, 1 load timeout in `sign-in-rush`, passes alone). Smoke checked with `CONSOLE_ORIGIN` unset: the console
+  still sends to sign-in and `/v1/admin/*` still reaches the API. EAS OTA on `demo`: group 8e8d595b (About and privacy,
+  Arabic layout fixes); the privacy manifest needs the next build.
+- **Merged:** the ASVS sheet; T-810d (ADR-720 to 724, 723 and 724 accepted after its tier A review; its questions are
+  Q-782 and Q-783, renumbered from Q-769 and Q-770). ADR-836 (re-encode, no malware scan) and ADR-837 (signed photo
+  URLs) accepted; ASVS gaps 24 and 25 accepted in writing.
+- **Phone e2e (T-808 rerun):** 235 passed; console-usage and play-web pass alone with `build:play`. The a11y sweep is now
+  one test per phase (followups batch, review 93) and passes on phone and desktop. Followups: two lines fixed, the rest
+  annotated; three review MINOR/NIT lines added.
+- **Next:** Dhia's parts (Apple key, Q-768 bucket location, Q-783 DNS, product questions); mutation runs once GitHub
+  unlocks (throttle, devices limits, storage worker, staff-guard, session, activation and organizer routes, console-host).
+
 ## T-810d the console on its own host, code side (migration 0199) — 2026-11-13
 
 - **Built (tier A, admin powers and sign-in; port of the unmerged 2026-11-05 branch `t-810d-console-hostname`).** Plan
