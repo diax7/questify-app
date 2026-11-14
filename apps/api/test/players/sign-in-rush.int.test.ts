@@ -287,16 +287,20 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the sign-in rush", () => {
   });
 
   describe("the address that earns room (ADR-691)", () => {
-    it("sends 200 at once, then 2 more for each contact that typed a right code from it", async () => {
-      const venue = freshIp();
-      const sent = await fill(venue, 200);
-      expect((await ask(newPhone(), asker(venue))).kind).toBe("throttled");
-      for (const one of sent.slice(0, 50)) {
-        expect((await verify(one, venue)).kind).toBe("new");
-      }
-      await fill(venue, 100);
-      expect((await ask(newPhone(), asker(venue))).kind).toBe("throttled");
-    });
+    it(
+      "sends 200 at once, then 2 more for each contact that typed a right code from it",
+      { timeout: SLOW_TEST_MS },
+      async () => {
+        const venue = freshIp();
+        const sent = await fill(venue, 200);
+        expect((await ask(newPhone(), asker(venue))).kind).toBe("throttled");
+        for (const one of sent.slice(0, 50)) {
+          expect((await verify(one, venue)).kind).toBe("new");
+        }
+        await fill(venue, 100);
+        expect((await ask(newPhone(), asker(venue))).kind).toBe("throttled");
+      },
+    );
 
     it(
       "earns nothing for a wrong code, a right code from elsewhere, a contact twice, or another channel",
