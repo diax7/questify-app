@@ -19,6 +19,8 @@ export type FakeS3 = Readonly<{
   script: Behaviour[];
   /** The fake's clock in milliseconds; tests move it to expire a signed URL. */
   clock: { now: number };
+  /** Resolves once every request the fake has received is answered (a timed-out call's late answer included). */
+  settled: () => Promise<void>;
   close: () => Promise<void>;
 }>;
 
@@ -239,11 +241,17 @@ export async function startFakeS3(
     return answer(response, entry, 200, request.method === "HEAD" ? undefined : found.body, type);
   };
 
+  const pending = new Set<Promise<void>>();
   const server = createServer((request, response) => {
-    handle(request, response).catch(() => {
-      response.writeHead(500);
-      response.end();
-    });
+    const done: Promise<void> = handle(request, response)
+      .catch(() => {
+        response.writeHead(500);
+        response.end();
+      })
+      .then(() => {
+        pending.delete(done);
+      });
+    pending.add(done);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const { port } = server.address() as AddressInfo;
@@ -254,6 +262,9 @@ export async function startFakeS3(
     log,
     script,
     clock,
+    settled: async () => {
+      await Promise.all(pending);
+    },
     close: () =>
       new Promise((resolve) => {
         server.closeAllConnections();

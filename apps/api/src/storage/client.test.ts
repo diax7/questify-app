@@ -113,6 +113,8 @@ describe("object store client", () => {
     const started = Date.now();
     await expect(store.put(KEY, BODY)).rejects.toMatchObject({ code: "timeout", op: "put" });
     expect(Date.now() - started).toBeLessThan(1800);
+    // The fake still answers each slow call after the client gave up; wait so it cannot land in the next test.
+    await fake.settled();
   });
 
   it("counts a delete of an object that is gone as done", async () => {
