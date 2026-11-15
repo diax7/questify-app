@@ -1943,6 +1943,10 @@ order `erase_player` takes.
 - **The tombstone is final:** `player_tombstone_final` (BEFORE UPDATE OR DELETE, ENABLE ALWAYS) refuses any change to a
   row whose status is `deleted`, and its deletion, for every role and in replica mode.
 - **Index:** `audit_log_data_request_idx (target_id, at) WHERE action IN ('player.data_export', 'player.delete')`.
+- **Device checks (migration 0201, T-812, Q-780):** `player_data_export` restated with a top-level `deviceChecks` section
+  after the support sections: `[{platform, result (passed|failed), reasons, checkedAt}]` for every `device_check` row
+  whose `player_id` is the account, oldest first; never the install id or another account's check. No new function or
+  grant.
 - **Notice kind:** `data_exported` (personal, fixed text, opens the center).
 - **The record of requests** is the audit log: `player.data_export` and `player.delete` with `source` (`player`,
   `admin`, `reapply`), and for an admin the reason code and the case reference. `console_player_record` answers them as
@@ -2014,8 +2018,8 @@ list, compared with the shared package by a test), `player_intro_default()`, `pl
   empty exactly when passed), player_id → player (the account that sent it last), checked_at)`: the latest verdict per
   app install. `app_attest_key (key_id bytea(32) PK, install_id, player_id → player, public_key (SPKI DER), sign_count
   0..2^32-1, development, created_at, used_at)`: an attested App Attest key and its counter. Both: RLS forced, no policy,
-  no grant; erased by the `player_forget_device_checks` trigger when the sending account becomes a tombstone; not in the
-  data export yet (Q-780).
+  no grant; erased by the `player_forget_device_checks` trigger when the sending account becomes a tombstone. The data
+  export lists the account's checks as `deviceChecks` (migration 0201, Q-780); the App Attest keys stay out.
 - `flag.kind` takes `device_integrity` (with `device_id`, the install; `flag_device_kind` now pairs `device_id` with both
   `shared_device` and `device_integrity`; `flag_integrity_once` one case per account and install, evidence
   `{platform, reasons, checkedAt}`, refreshed while open). Raised by `record_device_check` for the install's accounts (not

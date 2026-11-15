@@ -64,6 +64,8 @@ BEGIN
   INSERT INTO push_topic_on (player_id, topic) VALUES (me, 'community');
   INSERT INTO push_device (player_id, family, platform, token, language, app_version)
   VALUES (me, gen_random_uuid(), 'android', 'push_token_abcdefghijkl_' || k, 'ar', '1.0.0') RETURNING id INTO dev;
+  INSERT INTO device_check (install_id, platform, verdict, reasons, player_id)
+  VALUES (gen_random_uuid(), 'android', 'failed', ARRAY['device'], me);
   INSERT INTO player_session (player_id, token_hash, expires_at)
   VALUES (me, sha256(convert_to('session' || k, 'UTF8')), now() + interval '1 hour');
   INSERT INTO player_refresh (player_id, family, token_hash, expires_at)

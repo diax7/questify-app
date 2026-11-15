@@ -3355,7 +3355,7 @@ hours of scanning" could become a separate, softer kind.
 
 ## Q-780 - Does the player's data export list their device checks? (ADR-834, T-812)
 
-**Status:** Answered (Dhia, 2026-11-15): "Yes, include them". Built in the next `export_player_data` change. Original text: recommended: yes, as "device checks: platform, result, reason codes, when", in the next change to
+**Status:** Answered (Dhia, 2026-11-15): "Yes, include them". Built 2026-11-15 in migration 0201 as the top-level `deviceChecks` section of `player_data_export` (the player's and the admin's export). Original text: recommended: yes, as "device checks: platform, result, reason codes, when", in the next change to
 `export_player_data` (not restated here to keep 0198 small). The rows are erased with the account already.
 **Question:** confirm the export should carry them (PDPL right of access) and in which section.
 

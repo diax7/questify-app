@@ -59,7 +59,7 @@ export const CATALOG: Readonly<Record<string, CatalogEntry>> = {
     personal: ["install_id"],
     export: {
       excluded:
-        "an App Attest public key and counter, device security data, not shown to the player (Q-780)",
+        "an App Attest public key and counter, device security data, not shown to the player (Q-780 exports the checks only)",
     },
     erasure: "delete",
     rows: P("player_id"),
@@ -164,9 +164,7 @@ export const CATALOG: Readonly<Record<string, CatalogEntry>> = {
   device_check: {
     links: ["player_id"],
     personal: ["install_id"],
-    export: {
-      excluded: "the install's integrity verdict, a fraud signal like the flags (Q-442, Q-780)",
-    },
+    export: "deviceChecks",
     erasure: "delete",
     rows: P("player_id"),
   },

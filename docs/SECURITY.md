@@ -935,6 +935,11 @@ window allows at most 420 guesses of 1,000,000; `review_demo.code_guessing` logs
 - **Admin powers:** export and erase need an active platform admin, a reason code and an opaque case reference that
   cannot carry a name, contact, phone or id number; the erase needs the username typed and a forfeit for pending
   handovers. Both are audited with the admin; the audit log outlives the account.
+- **Device checks (Q-780, migration 0201):** the export's `deviceChecks` lists only the checks whose row names this
+  account (the last sender on that install), with platform, result, reason codes and time; never the install id. It is
+  read inside `player_data_export` (owner, closed to PUBLIC and to the API role); `device_check` keeps no right for the
+  API role, and the export routes still log only the file's size. Proof: `test/db/data-requests` (own rows only, a moved
+  install leaves, no install id, both doors), `test/db/personal-data-catalog`, the outsider suite.
 - **No restore:** a tombstone can never change (trigger enabled ALWAYS). After any database restore, before the API takes
   traffic, the runbook's "Re-apply erasures" erases again every account erased since the backup (`staff-cli
   reapply-erasures`). Erased data lives on in backups only until they age out (proposed 35 days, T-019; the privacy

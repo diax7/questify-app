@@ -1882,6 +1882,9 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
     key id in the secure store, attests on `next: "attest"` or no key, otherwise asserts; Android sends the token;
     `later` waits for the next launch; every failure is silent and never on the scan path. (3) A new `version` in
     `app.json` and a new build; then the device test in Q-781 (4).
+  - Note 2026-11-15 (Q-780 answered by Dhia: "Yes, include them"): migration 0201 restates `player_data_export` with a
+    `deviceChecks` section (platform, result, reason codes, when; never the install id), in both the player's and the
+    admin's export. Still unticked for the reasons above.
 - [x] **T-813** Performance audit of the player app, the dashboard and the console, by `docs/PERFORMANCE_AUDIT.md` (Dhia,
   2026-11-06); run when the features stop changing, before launch
   - Done when: each of the twelve items is applied or has a stated reason to skip, and the before-and-after numbers are

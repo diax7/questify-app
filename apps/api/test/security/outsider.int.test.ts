@@ -2321,6 +2321,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot build a data export, with its device checks, or reach the export doors (T-708, Q-780)", async () => {
+      for (const sql of [
+        "SELECT public.player_data_export(gen_random_uuid())",
+        "SELECT public.own_data_export(gen_random_uuid())",
+        "SELECT public.console_player_export(gen_random_uuid(), 'legal_request', 'CASE-1', gen_random_uuid())",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+      const held = await rows<{ app: boolean; outsider: boolean; definer: boolean }>(
+        `SELECT has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+                has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider, p.prosecdef AS definer
+         FROM pg_proc p WHERE p.oid = 'public.player_data_export(uuid)'::regprocedure`,
+      );
+      expect(held).toEqual([{ app: false, outsider: false, definer: true }]);
+    });
+
     it("cannot read a pairing request or a device or reach the device doors and helpers (T-309)", async () => {
       const bytes = "'\\x" + "00".repeat(32) + "'::bytea";
       for (const sql of [

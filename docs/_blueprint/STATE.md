@@ -1,5 +1,15 @@
 # Blueprint State — Questify
 
+## Q-780: the data export lists the player's device checks (T-812 follow-up) — 2026-11-15
+
+- **Built:** migration 0201 (undeployed) restates `player_data_export` with a top-level `deviceChecks` section (platform,
+  result, reason codes, when; oldest first; never the install id or another account's check); no new function, table
+  or grant. Catalog: `device_check` now exported; the full-player seed has a check. T-812 stays unticked (note added).
+- **Checks:** data-requests, personal-data catalog, outsider (new export-builder test), cross-tenant, device-integrity,
+  data-export HTTP, hot-path and player-name-reads suites 880 passed; rehearsal 35 passed; types, lint, `lint:limits`,
+  format pass. Full suite not run (CI is the gate). CI 0 minutes (not pushed).
+- **Next:** push; apply 0201 on staging with the next deploy.
+
 ## T-814 phase 1: photos in a second PostgreSQL database, built with photos off (tier A) — 2026-11-15
 
 - **Plan review 86** (approve with revisions) folded into the plan (section 9): the reconcile fails closed with a cap

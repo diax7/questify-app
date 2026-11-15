@@ -207,6 +207,52 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("data requests (database)", () 
       expect(theirs).not.toContain(full.player);
     });
 
+    it("lists the player's own device checks in their section, never an install id or another account's check (Q-780)", async () => {
+      const p = await newPlayer();
+      const other = await newPlayer();
+      const [failed, passed, theirs, moved] = [
+        randomUUID(),
+        randomUUID(),
+        randomUUID(),
+        randomUUID(),
+      ];
+      await owner(
+        `INSERT INTO device_check (install_id, platform, verdict, reasons, player_id, checked_at) VALUES
+           ($1, 'android', 'failed', ARRAY['device', 'app'], $5, '2026-11-14T10:00:00Z'),
+           ($2, 'ios', 'passed', '{}', $5, '2026-11-15T09:30:00Z'),
+           ($3, 'ios', 'failed', ARRAY['chain'], $6, '2026-11-15T08:00:00Z'),
+           ($4, 'android', 'passed', '{}', $6, '2026-11-15T07:00:00Z')`,
+        [failed, passed, theirs, moved, p.id, other.id],
+      );
+      const expected = [
+        {
+          platform: "android",
+          result: "failed",
+          reasons: ["device", "app"],
+          checkedAt: "2026-11-14T10:00:00.000Z",
+        },
+        { platform: "ios", result: "passed", reasons: [], checkedAt: "2026-11-15T09:30:00.000Z" },
+      ];
+      const mine = await ownExport(p.id);
+      expect(mine["deviceChecks"]).toEqual(expected);
+      expect(await adminExport(p.id)).toMatchObject({ deviceChecks: expected });
+      const text = JSON.stringify(mine);
+      for (const install of [failed, passed, theirs, moved]) expect(text).not.toContain(install);
+      expect(text).not.toContain("chain");
+      expect((await ownExport(other.id))["deviceChecks"]).toHaveLength(2);
+      await owner("UPDATE device_check SET player_id = $1 WHERE install_id = $2", [
+        other.id,
+        passed,
+      ]);
+      expect((await ownExport(p.id))["deviceChecks"]).toEqual([expected[0]]);
+      expect((await ownExport((await newPlayer()).id))["deviceChecks"]).toEqual([]);
+      expect(
+        await sqlstate(
+          as({ playerId: p.id }, "SELECT * FROM device_check WHERE player_id = $1", [p.id]),
+        ),
+      ).toBe("42501");
+    });
+
     it("writes one audit entry and one notice, and keeps admin exports out of the file and the count", async () => {
       const p = await newPlayer();
       await adminExport(p.id);
