@@ -91,6 +91,20 @@ describe("the media route", () => {
       headers: { "if-none-match": etag },
     });
     expect([again.statusCode, again.body]).toEqual([304, ""]);
+    for (const header of [`W/${etag}`, `"other", ${etag}`, "*"]) {
+      const listed = await server.inject({
+        method: "GET",
+        url: pathOf(storage),
+        headers: { "if-none-match": header },
+      });
+      expect([header, listed.statusCode]).toEqual([header, 304]);
+    }
+    const stale = await server.inject({
+      method: "GET",
+      url: pathOf(storage),
+      headers: { "if-none-match": '"other"' },
+    });
+    expect(stale.statusCode).toBe(200);
     const head = await server.inject({ method: "HEAD", url: pathOf(storage) });
     expect([head.statusCode, head.body, head.headers["content-type"]]).toEqual([
       200,

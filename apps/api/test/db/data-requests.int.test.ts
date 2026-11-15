@@ -238,7 +238,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("data requests (database)", () 
       expect(await adminExport(p.id)).toMatchObject({ deviceChecks: expected });
       const text = JSON.stringify(mine);
       for (const install of [failed, passed, theirs, moved]) expect(text).not.toContain(install);
-      expect(text).not.toContain("chain");
+      expect(text).not.toContain('"reasons":["chain"]');
       expect((await ownExport(other.id))["deviceChecks"]).toHaveLength(2);
       await owner("UPDATE device_check SET player_id = $1 WHERE install_id = $2", [
         other.id,

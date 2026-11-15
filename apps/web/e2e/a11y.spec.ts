@@ -249,6 +249,7 @@ test("the live event's pages and the paired big screen pass the WCAG 2.1 A and A
   page,
   browser,
 }, info) => {
+  // beforeEach set the shorter per-phase timeout; this one phase needs the longer one.
   test.setTimeout(LIVE_TIMEOUT_MS);
   const project = info.project.name;
   const created = await createEvent(page, project);

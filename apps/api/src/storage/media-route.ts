@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { mediaBusy, notFound } from "#src/auth/http-errors";
+import { etagMatches } from "#src/etag";
 import { StorageError, type ObjectStore, type StoredBlob } from "#src/storage/client";
 
 /** Media reads at a time and waiting, then 503 (plan review 86 MINOR 7; phase 3 tunes them from the load test). */
@@ -94,7 +95,7 @@ function answer(
     .header("content-security-policy", "default-src 'none'")
     .header("x-content-type-options", "nosniff")
     .header("accept-ranges", "none");
-  if (request.headers["if-none-match"] === etag) return reply.code(304).send();
+  if (etagMatches(request.headers["if-none-match"], etag)) return reply.code(304).send();
   return reply
     .header("content-type", blob.contentType)
     .header("content-disposition", "inline")
