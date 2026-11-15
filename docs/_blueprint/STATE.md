@@ -12,8 +12,13 @@
   `PhotoScene` and the app wall keep a loaded picture's link; `ops/cranl/staging.json` declares `questify-media-db`.
 - **Checks:** Vitest app and web 4,169 tests in 320 files; API unit and shared 5,380 in 308; DB and security suites
   touched 972 in 17; infra 56; format, lint, `lint:limits`, types pass. CI 0 minutes (not pushed).
-- **Next:** the tier A code review, then mutation on `apps/api/src/storage/media-*.ts`, `reconcile.ts`, `worker.ts`.
-  Phase 2 needs Dhia to create `questify-media-db` in `riyadh-1`.
+- **Code review 93, GO** (no BLOCKER or MAJOR). MINOR 1 fixed: the reconcile cap has a floor of 10
+  (`min(1,000, max(10, 5 %))`); MINOR 2 to 4 and the NITs are in `docs/FOLLOWUPS.md`.
+- **Pushed** to `f4abb6bb`. Full API suite 11,874 passed; its one failure was the media-db test still expecting the old
+  cap, fixed and the storage suites re-run (15/15). CI 0 minutes (Actions locked); about 0.7M agent tokens.
+- **Staging:** 0200 applied and code deployed, photos off (`/v1/media/*` answers 404), probes green.
+- **Next:** mutation on `apps/api/src/storage/media-*.ts`, `reconcile.ts`, `worker.ts` once GitHub Actions unlock.
+  Phase 2 needs Dhia's broader CranL API key to create `questify-media-db` in `riyadh-1` and set the `MEDIA_*` settings.
 
 ## T-814 plan: photos in a second PostgreSQL database (tier A, plan only) — 2026-11-15
 
