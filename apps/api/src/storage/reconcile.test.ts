@@ -81,33 +81,46 @@ describe("the media reconcile", () => {
     }
   });
 
-  it("blocks the daily run past min(1,000, 5 % of the rows), and an operator's `all` run goes past it", async () => {
-    expect([reconcileCap(10), reconcileCap(20), reconcileCap(40_000)]).toEqual([0, 1, 1000]);
-    const keys = Array.from({ length: 100 }, (_, n) => key(n));
-    const six = new Set(keys.slice(0, 6));
+  it("blocks the daily run past min(1,000, max(10, 5 % of the rows)), and an operator's `all` run goes past it", async () => {
+    expect([reconcileCap(0), reconcileCap(10), reconcileCap(400), reconcileCap(40_000)]).toEqual([
+      10, 10, 20, 1000,
+    ]);
+    const keys = Array.from({ length: 400 }, (_, n) => key(n));
+    const over = new Set(keys.slice(0, 21));
     const daily = mediaOf(keys);
     expect(
-      await reconcileMedia({ pool: mainKnowing(six).pool, store: daily.store, now: () => NOW }),
-    ).toEqual({ outcome: "blocked", scanned: 100, unknown: 6, deleted: 0 });
+      await reconcileMedia({ pool: mainKnowing(over).pool, store: daily.store, now: () => NOW }),
+    ).toEqual({ outcome: "blocked", scanned: 400, unknown: 21, deleted: 0 });
     expect(daily.deleted).toEqual([]);
-    const five = mediaOf(keys);
-    const fiveKnown = new Set(keys.slice(0, 5));
+    const atCap = mediaOf(keys);
     expect(
       (
         await reconcileMedia({
-          pool: mainKnowing(fiveKnown).pool,
-          store: five.store,
+          pool: mainKnowing(new Set(keys.slice(0, 20))).pool,
+          store: atCap.store,
           now: () => NOW,
         })
       ).deleted,
-    ).toBe(5);
+    ).toBe(20);
     const all = mediaOf(keys);
     expect(
       await reconcileMedia(
-        { pool: mainKnowing(six).pool, store: all.store, now: () => NOW },
+        { pool: mainKnowing(over).pool, store: all.store, now: () => NOW },
         { all: true },
       ),
-    ).toEqual({ outcome: "done", scanned: 100, unknown: 6, deleted: 6 });
+    ).toEqual({ outcome: "done", scanned: 400, unknown: 21, deleted: 21 });
+  });
+
+  it("deletes a few orphans on a small database instead of blocking every day", async () => {
+    const keys = Array.from({ length: 12 }, (_, n) => key(n));
+    const small = mediaOf(keys);
+    expect(
+      await reconcileMedia({
+        pool: mainKnowing(new Set(keys.slice(0, 3))).pool,
+        store: small.store,
+        now: () => NOW,
+      }),
+    ).toEqual({ outcome: "done", scanned: 12, unknown: 3, deleted: 3 });
   });
 
   it("stops paging once a stale main restore has made more than 1,000 keys unknown", async () => {

@@ -7,12 +7,17 @@ import type { ObjectStore } from "#src/storage/client";
 export const RECONCILE_PAGE = 500;
 /** Rows younger than this are skipped: their `media_object` row may still be on its way (the write order). */
 export const RECONCILE_AGE_MS = 60 * 60_000;
-/** The daily run deletes nothing when more keys than `min(1,000, 5 % of the rows scanned)` are unknown (review 86). */
+/**
+ * The daily run deletes nothing when more keys than `min(1,000, max(10, 5 % of the rows scanned))`
+ * are unknown (review 86). The floor of 10 keeps one orphan on a small database from blocking
+ * and paging every day (phase 1 review, MINOR 1).
+ */
 export const RECONCILE_MAX_KEYS = 1000;
 export const RECONCILE_SHARE = 0.05;
+export const RECONCILE_FLOOR = 10;
 
 export const reconcileCap = (scanned: number): number =>
-  Math.min(RECONCILE_MAX_KEYS, Math.floor(scanned * RECONCILE_SHARE));
+  Math.min(RECONCILE_MAX_KEYS, Math.max(RECONCILE_FLOOR, Math.floor(scanned * RECONCILE_SHARE)));
 
 export type ReconcileResult = Readonly<{
   outcome: "done" | "blocked";

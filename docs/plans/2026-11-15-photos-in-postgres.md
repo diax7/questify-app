@@ -100,7 +100,7 @@ Staging has never stored a photo: the `S3_*` operator secrets were not set while
     Any `media_keys_known` error, or an answer that is short, has a key that was not asked, or names a key twice, aborts
     the whole run before any delete (`media.reconcile_failed {code}`); it is never read as "unknown". The run first
     collects the unknown keys of every page, then deletes. **Per-run cap:** when the unknown keys are more than
-    `min(1,000, 5 % of the rows scanned)`, the daily run deletes nothing and logs `media.reconcile_blocked {unknown,
+    `min(1,000, max(10, 5 % of the rows scanned))`, the daily run deletes nothing and logs `media.reconcile_blocked {unknown,
     scanned}` (an alert); only an operator's `--all` run (phase 4's `staff-cli media-reconcile --all`, after a checked
     restore) goes past it. So a stale main restore next to a current media database can never silently empty the media
     database: it stops at the cap and pages someone. A test proves an error, a short answer and an odd answer each

@@ -901,7 +901,7 @@ console sessions count; `community.pay_failed {code}`; the owner losing its priv
 ### QuestifyMediaReconcileBlocked
 
 The daily media reconcile (T-814, ADR-839) deleted nothing. `media.reconcile_blocked {unknown, scanned}`: more byte rows than
-`min(1,000, 5 % of the rows scanned)` have a key the main database no longer names; `media.reconcile_failed {code}`:
+`min(1,000, max(10, 5 % of the rows scanned))` have a key the main database no longer names; `media.reconcile_failed {code}`:
 `media_keys_known` failed or gave an answer that was not one row per key (`odd_answer`), or the media database did not answer.
 **Check:** was the main database restored recently (a stale main next to a current media database makes many keys look unknown)?
 Compare `SELECT count(*) FROM media_object` (main, as the owner) with `SELECT count(*) FROM media_blob` (media). **Do:** never
