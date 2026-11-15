@@ -3281,7 +3281,7 @@ when Dhia has it; it stays the Done-when gate of T-806.
 
 ## Q-773 - Is the Home sponsor strip an "ad" for Google Play's declaration? (T-806 prep, ADR-067, ADR-311)
 
-**Status:** Proposed (developer, 2026-11-13); gap G5.
+**Status:** Answered (Dhia, 2026-11-15): Play's "contains ads" is **No**, against the developer's recommendation; STORE_COMPLIANCE 2.11 and PD-27 stand as written. Apple's advertising answer stays No. Re-open if Play queries the sponsor strip. Gap G5 closed.
 STORE_COMPLIANCE 2.11 and PD-27 say "Ads: No". ADR-311 reasons that Google treats sponsored native content as an ad and keeps
 the daily challenge editorial so "No ads" stays true. The Home sponsor strip and "Presented by" labels on quests,
 categories, rewards and souvenirs (ADR-067) are organizer-managed sponsor names and logos with no link-out and no targeting, but they
@@ -3347,7 +3347,7 @@ counsel answers Q-043.
   manifest of the first release bundle (FCM rows), the Firebase file and the notification icon (T-806 Done-when).
 ## Q-779 - Should a scan from an install that never sent a device check become a flag? (ADR-833, T-812)
 
-**Status:** open; recommended: no, not until a build that sends the check has been the minimum app version for a
+**Status:** Answered (Dhia, 2026-11-15): "Later, yes". A softer "No device check" kind, separate from failed checks, once every supported build checks at launch; not built now. Original text: recommended: no, not until a build that sends the check has been the minimum app version for a
 while. Today only a failed check flags; a phone that sends none (an old build, an unconfigured platform, or a cheater
 who strips the call) is not flagged. Once every supported build checks at launch, "no check from this install in 24
 hours of scanning" could become a separate, softer kind.
@@ -3355,7 +3355,7 @@ hours of scanning" could become a separate, softer kind.
 
 ## Q-780 - Does the player's data export list their device checks? (ADR-834, T-812)
 
-**Status:** open; recommended: yes, as "device checks: platform, result, reason codes, when", in the next change to
+**Status:** Answered (Dhia, 2026-11-15): "Yes, include them". Built in the next `export_player_data` change. Original text: recommended: yes, as "device checks: platform, result, reason codes, when", in the next change to
 `export_player_data` (not restated here to keep 0198 small). The rows are erased with the account already.
 **Question:** confirm the export should carry them (PDPL right of access) and in which section.
 

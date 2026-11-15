@@ -922,3 +922,10 @@ Asked why not store photos in PostgreSQL, which is in Saudi Arabia ("why would w
 Why not just a regular database like PostgreSQL? Because those are in Saudi Arabia. What do you think?"). Recommended a
 second, separate PostgreSQL database for photos in riyadh-1. Answer: "Second Postgres DB (Recommended)". The CranL bucket
 (files outside Saudi Arabia) is not used for photos. Apple API key for TestFlight: "Later".
+
+## 2026-11-15 — Dhia: store and device-check answers
+
+- Google Play "contains ads": **No** (Q-773).
+- Data export lists the device checks: "Yes, include them (Recommended)" (Q-780).
+- Soft "no device check" flag: "Later, yes (Recommended)" (Q-779).
+- Processed: OPEN_QUESTIONS Q-773, Q-779, Q-780.
