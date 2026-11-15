@@ -3224,7 +3224,8 @@ clears the column instead.
 
 ## Q-768 - Where does CranL store bucket files? (ADR-828, PDPL, T-811)
 
-**Status:** open; photos stay off until answered (Dhia, 2026-11-13). Dhia created bucket `questify-media` (public
+**Status:** resolved (Dhia, 2026-11-15): photos go to a second PostgreSQL database in `riyadh-1`, not the bucket
+(ADR-839, T-814). Earlier: open; photos stay off until answered (Dhia, 2026-11-13). Dhia created bucket `questify-media` (public
 host `storage-questify-media.cranl.net`) and is switching it to Private. Its host answers from BunnyCDN (`server:
 BunnyCDN-FR1-…`, a European edge), and the CranL page shows no Saudi region. Player photos are personal data and
 must stay in Saudi Arabia (rule 3).
@@ -3389,3 +3390,25 @@ console on its own host").
 exists yet. JSON allows no comment in that file, so this entry and the RUNBOOK ("Store builds") carry the warning.
 **Needs Dhia:** the production API's address when it exists. Until then a `production` build talks to staging and must not
 be submitted for review as is. The `ascAppId` placeholder (`SET_ASC_APP_ID_DIGITS`) is waiting for his App Store Connect id.
+
+## Q-785 - Remove the S3 backend rather than keep it behind a setting? (ADR-839)
+
+**Status:** Proposed (T-814 plan, 2026-11-15); recommended: remove it. Keeping it leaves a path that sends personal data
+outside Saudi Arabia one setting away, with a dependency, a fake and a contract test to maintain.
+**Question:** overturn only if a storage provider in Saudi Arabia with an S3 interface is expected soon; it would then
+come back as a second implementation of the same interface.
+
+## Q-786 - CranL facts for the media database (ADR-840, ADR-841)
+
+**Status:** open (T-814 plan, 2026-11-15); recommended: ask CranL with T-811's questions.
+**Question:** (1) Is a second CranL PostgreSQL database its own server, and does the plan allow three databases? (2)
+Its disk size and how it grows, for the size alert. (3) Any egress or bandwidth limit on the API's public host, now that
+photos are served from it. (4) Its PostgreSQL version (as Q-767). (5) Point-in-time restore for it (T-811).
+
+## Q-787 - The media database's own recovery target (ADR-841, NFR-026)
+
+**Status:** Proposed (T-814 plan, 2026-11-15); recommended: back within 4 hours, losing at most the photos since its
+last backup (a day now, 5 minutes with point-in-time restore), while the main database keeps NFR-026's 5 minutes and 1
+hour. An event runs without photos meanwhile.
+**Question for Dhia:** is losing up to a day of photos after a media database failure acceptable until point-in-time
+restore is confirmed, or should photos stay off at real events until then?

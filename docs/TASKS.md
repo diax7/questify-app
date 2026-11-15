@@ -1889,3 +1889,11 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
   - Done 2026-11-07: items 1 to 4 in migrations 0172 to 0175 (ADR-816, Q-753), items 5 to 12 in the web and app; numbers and skips in
     `docs/PERFORMANCE_AUDIT.md`. Deployed as `release-20261107-8`. Open: the `ledger_entry (quest_id)` index before the first event past
     about 500,000 ledger rows (FOLLOWUPS).
+- [ ] **T-814** (tier A, personal data storage) Photos in a second PostgreSQL database in `riyadh-1` instead of the CranL
+  bucket (Dhia, 2026-11-15; Q-768) — delivers no new FR (FR-204, FR-635 to 637 keep working); depends on: T-301b, T-504b
+  - Done when: photos and organizer images are stored in `questify-media-db` and served by `/v1/media/*` through
+    5-minute signed links; deletions reach the media database within one worker run; without the `MEDIA_*` settings
+    photos stay off; no S3 code remains.
+  - Plan 2026-11-15 (`docs/plans/2026-11-15-photos-in-postgres.md`, awaiting plan review; main migration 0200, media
+    migration m0001; ADR-839 to ADR-841 and Q-785 to Q-787 Proposed). Four phases: code with photos off, staging on
+    (Dhia creates the database), live event load, backups and restore (adds the media database to T-019 and T-805).

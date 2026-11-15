@@ -9205,7 +9205,8 @@ and only the database owner can swap ciphers (SECURITY.md V11).
 
 **Status:** Proposed (T-301b phase 1, 2026-11-12; plan `docs/plans/2026-11-12-photo-storage.md` with its CTO review,
 section 10). Carries out ADR-183, changes ADR-185 (HEIC refused) and adds ADR-186's interim purge. Q-149 resolved;
-Q-150 to Q-152 as recommended; Q-764 to Q-766.
+Q-150 to Q-152 as recommended; Q-764 to Q-766. **Its "Bucket" bullet is to be replaced by ADR-839 (Proposed,
+2026-11-15): photos in a second PostgreSQL database.**
 **Decision:**
 - **Bucket.** One private CranL bucket per environment (`questify-media-staging` now, production later), declared in
   `ops/cranl/<env>.json`; `apply` sends the region and counts buckets in the project's budget (1). The API reads
@@ -9409,7 +9410,8 @@ polyglot and malformed files to both upload doors; a finding reopens this ADR.
 
 ## ADR-837 - Photo links carry their signature in the query string (ASVS V14.2.1, gap 25)
 
-**Status:** Accepted (coordinator, delegated by Dhia, 2026-11-14).
+**Status:** Accepted (coordinator, delegated by Dhia, 2026-11-14). **"Not served through the API" is to be superseded by ADR-840
+(Proposed, 2026-11-15)**; the short, person-free, no-referrer links stay.
 **Decision:** photos stay on signed bucket URLs with the signature in the query: 120 seconds on the photo wall, 5
 minutes for the team. They are not served through the API.
 **Why:** the URL names no person and no event, only an opaque object key; it expires within minutes; every page and
@@ -9436,3 +9438,52 @@ Arabic name, is exactly 201 units) while the push keeps 40 (`INVITATION_NAME_UNI
 (ADR-331 (3)). The promotional-SMS check now counts the opt-out link 7 units longer (its test moved by 7 units). The app config declares no associated domains or Android intent
 filters (only the `questify` scheme), so there is no universal-link entry to change; the day they are added they name
 this host.
+
+## ADR-839 - Photos in a second PostgreSQL database: a dumb byte store keyed by object key; S3 removed (amends ADR-828)
+
+**Status:** Proposed (T-814 plan, 2026-11-15; `docs/plans/2026-11-15-photos-in-postgres.md` section 2.1). Carries out
+Dhia's choice of 2026-11-15 ("Second Postgres DB", INBOX), which resolves Q-768. Replaces ADR-828's "Bucket" bullet. Q-785.
+**Decision:**
+- Photo and image bytes live in their own CranL PostgreSQL database in `riyadh-1` (`questify-media-db`), one table
+  `media_blob (key, content_type, bytes, sha256, body bytea)` with the key shape, type and 4 MiB CHECKs, RLS forced, no
+  grant; the runtime role `questify_media_app` runs four definers only (`blob_put`, `blob_get`, `blob_delete`,
+  `blob_keys_page`). Its migrations are their own series (`apps/api/media-migrations/m0001_…`, `migrate.cjs --media`).
+- `media_object` and `media_delete` stay in the main database, which stays the source of truth for ownership, consent,
+  retention and every deletion (ADR-828). Write order: reserve (main), bytes (media), stored (main). The worker deletes a
+  claimed round with one `blob_delete`, then marks it done. A daily reconcile deletes byte rows older than an hour that
+  `media_keys_known` (main, system seat) does not name.
+- Settings `MEDIA_DATABASE_URL`, `MEDIA_ORIGIN`, `MEDIA_URL_SECRET`, all or none; none means photos off as today.
+- The S3 client, `aws4fetch`, the S3 fake and contract test are removed; `S3_*` are ignored with one start-up log line.
+**Why:** hard rule 3 (the CranL bucket stores files outside Saudi Arabia, Q-768); one place for tenant rules; no
+cross-database transaction is needed because every gap already has an owner (sweep, delete queue, reconcile).
+**Trade-offs:** a third CranL database (budget 3) and its disk; bytes cross the API (ADR-840); an outside store in
+Saudi Arabia later is a second implementation of the same `ObjectStore` interface and its own ADR.
+
+## ADR-840 - Photos are served by the API through 5-minute HMAC links (supersedes ADR-837's "not through the API")
+
+**Status:** Proposed (T-814 plan, 2026-11-15; plan section 2.2). Q-786.
+**Decision:** `GET /v1/media/<key>?e=<expiry>&s=<signature>` (public access; the link is the authorization). The
+signature is 128 bits of HMAC-SHA256 under a key derived from `MEDIA_URL_SECRET`, over the key and the expiry, checked
+in constant time before any read; an expiry more than 305 s away is refused. Team links last 300 s, wall links 120 s
+from the minute's start (ADR-830). Answers: one 404 for every refusal; 503 with `Retry-After` when the media database or
+the read gate is full; 200 with the stored type, `nosniff`, `inline`, `private, max-age=<left>, immutable`, an ETag (304),
+`Referrer-Policy: no-referrer`, `Cross-Origin-Resource-Policy: cross-origin`; no ranges. Valid links are not limited by
+address; bad signatures are (60 a minute). A read gate (16 at a time, 128 waiting) and a 64 MB in-process cache protect
+the API. `MEDIA_ORIGIN` is the API's public host and the web's `MEDIA_HOST` names it in `img-src`. The URL names an
+opaque key and an expiry, never a person; request logs carry the route template only.
+**Why:** the bytes are in our own database, so only our API can serve them; the short-link model of ADR-837 is kept.
+**Trade-offs:** image bytes now use the API's CPU and egress during live events (the reason ADR-837 gave); clients keep
+a loaded wall picture by its id so a new minute's link does not reload it, and a load test gates large events.
+
+## ADR-841 - The media database's retention, size and recovery target
+
+**Status:** Proposed (T-814 plan, 2026-11-15; plan section 2.3). Q-787.
+**Decision:** retention is the main database's (30-minute sweep, ADR-828 deletions, 365-day purge); the media database
+keeps nothing on its own. Size is measured (`questify_media_db_bytes`, an alert at 70 % of the plan's disk). CranL daily
+backups kept 7, and the media database joins T-019's second copy. NFR-026 (5 minutes, 1 hour) stays the main database's
+and the service's target, since an event runs without photos; the media database's own target is back within 4 hours,
+losing at most the photos since its last backup. Restore order: main and erasures (T-708), then media, then the
+reconcile over every row, then traffic.
+**Why:** keeping the bytes apart keeps the main restore inside its hour as photos grow (about 12 GB a year at the guess
+in the plan).
+**Trade-offs:** after a media restore, photos sent since its backup show as unavailable.

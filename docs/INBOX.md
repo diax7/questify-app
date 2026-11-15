@@ -916,7 +916,7 @@ Asked "why are you stopped ... Do you need anything from me? Or keep going, plea
   go with cranl option".
 - One web origin for the store version and printed QR codes (Q-771): "questify.nafes.com".
 
-## 2026-11-15 - Photos in a second PostgreSQL database in Saudi Arabia; Apple key later
+## 2026-11-15 - Photos in a second PostgreSQL database in Saudi Arabia; Apple key later -> processed (plan `docs/plans/2026-11-15-photos-in-postgres.md`, T-814, ADR-839, Q-768 resolved)
 
 Asked why not store photos in PostgreSQL, which is in Saudi Arabia ("why would we need this type of storage for photos?
 Why not just a regular database like PostgreSQL? Because those are in Saudi Arabia. What do you think?"). Recommended a

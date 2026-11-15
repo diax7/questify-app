@@ -1,5 +1,13 @@
 # Blueprint State — Questify
 
+## T-814 plan: photos in a second PostgreSQL database (tier A, plan only) — 2026-11-15
+
+- **Plan** `docs/plans/2026-11-15-photos-in-postgres.md`, awaiting plan review (Dhia, 2026-11-15: "Second Postgres DB";
+  Q-768 resolved). Bytes only move to `questify-media-db` (`riyadh-1`); `media_object` and `media_delete` stay in the main
+  database. Served by `GET /v1/media/<key>` behind 5-minute HMAC links; S3 code removed. Main migration 0200, media
+  migration m0001. ADR-839 to ADR-841, Q-785 to Q-787 Proposed.
+- **Next:** plan review; then phase 1 (code, photos off); phase 2 needs Dhia to create `questify-media-db`.
+
 ## One web origin and the store build profiles (Q-771, ADR-838) — 2026-11-14
 
 - **Origin:** Dhia chose `questify.nafes.com` (ADR-838, Accepted). Join links, invitation and opt-out links, the About
