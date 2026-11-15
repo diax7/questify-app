@@ -126,21 +126,21 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the main and media databases t
     expect(await media.keys()).toEqual([...keys, young].toSorted());
     expect(lost).not.toBe(young);
 
-    // A stale main restore: rows the main database no longer names, more than the cap allows.
-    await db.owner.query("DELETE FROM media_object WHERE key = ANY ($1)", [keys.slice(0, 3)]);
+    // A stale main restore: rows the main database no longer names, more than the cap (its floor of 10) allows.
+    await db.owner.query("DELETE FROM media_object WHERE key = ANY ($1)", [keys.slice(0, 11)]);
     await db.owner.query("DELETE FROM media_delete");
     await ageAll();
     expect(await reconcileMedia({ pool, store: media.store })).toEqual({
       outcome: "blocked",
       scanned: 21,
-      unknown: 4,
+      unknown: 12,
       deleted: 0,
     });
     expect(await media.keys()).toHaveLength(21);
     expect(await reconcileMedia({ pool, store: media.store }, { all: true })).toMatchObject({
       outcome: "done",
-      deleted: 4,
+      deleted: 12,
     });
-    expect(await media.keys()).toEqual(keys.slice(3).toSorted());
+    expect(await media.keys()).toEqual(keys.slice(11).toSorted());
   });
 });
