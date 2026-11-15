@@ -9468,8 +9468,8 @@ in constant time before any read; an expiry more than 305 s away is refused. Tea
 from the minute's start (ADR-830). Answers: one 404 for every refusal; 503 with `Retry-After` when the media database or
 the read gate is full; 200 with the stored type, `nosniff`, `inline`, `private, max-age=<left>, immutable`, an ETag (304),
 `Referrer-Policy: no-referrer`, `Cross-Origin-Resource-Policy: cross-origin`; no ranges. Valid links are not limited by
-address; bad signatures are (60 a minute). A read gate (16 at a time, 128 waiting) and a 64 MB in-process cache protect
-the API. `MEDIA_ORIGIN` is the API's public host and the web's `MEDIA_HOST` names it in `img-src`. The URL names an
+address, and bad signatures are not either (plan review 86: one venue NAT). A read gate (8 at a time, 128 waiting) and a
+32 MB in-process cache whose entries live at most 60 s protect the API. `MEDIA_ORIGIN` is the API's public host and the web's `MEDIA_HOST` names it in `img-src`. The URL names an
 opaque key and an expiry, never a person; request logs carry the route template only.
 **Why:** the bytes are in our own database, so only our API can serve them; the short-link model of ADR-837 is kept.
 **Trade-offs:** image bytes now use the API's CPU and egress during live events (the reason ADR-837 gave); clients keep
@@ -9477,7 +9477,7 @@ a loaded wall picture by its id so a new minute's link does not reload it, and a
 
 ## ADR-841 - The media database's retention, size and recovery target
 
-**Status:** Proposed (T-814 plan, 2026-11-15; plan section 2.3). Q-787.
+**Status:** Proposed (T-814 plan, 2026-11-15; plan section 2.3); the recovery target (4 hours, a day of photos) is Accepted (Dhia, 2026-11-15, Q-787: "Accept 4h / 1 day (Recommended)").
 **Decision:** retention is the main database's (30-minute sweep, ADR-828 deletions, 365-day purge); the media database
 keeps nothing on its own. Size is measured (`questify_media_db_bytes`, an alert at 70 % of the plan's disk). CranL daily
 backups kept 7, and the media database joins T-019's second copy. NFR-026 (5 minutes, 1 hour) stays the main database's

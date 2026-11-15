@@ -61,11 +61,12 @@ Staging has never stored a photo: the `S3_*` operator secrets were not set while
   Msegat pattern). None means photos off, as `config.storage === undefined` does today; every photos-off path is reused
   untouched. `MEDIA_ORIGIN` must be https in production and an origin only. A `mediaPool` (`max` 4,
   `connectionTimeoutMillis` 5,000, `statement_timeout` 10 s for writes and 5 s for reads, set per role in m0001) is
-  watched as `media` by `watchPool`. The API starts even when the media database is unreachable: uploads answer 503
+  watched as `media` by `watchPool` (review 86 NIT: one pool-level `statement_timeout` of 10 s, no per-role read/write
+  split). The API starts even when the media database is unreachable: uploads answer 503
   `storage_unavailable`, links load nothing, `/readyz` stays green (an event runs without photos).
 - **Migrations kept apart.** `apps/api/media-migrations/m0001_media_blob.sql` and later files, run by the same runner
-  (`migrate(client, directory)`) with its own `schema_migration` table in the media database and its own advisory lock
-  key. `node migrate.cjs --media` uses `MEDIA_DATABASE_ADMIN_URL`; `--media --roles` creates the role the first time;
+  (`migrate(client, directory)`) with its own `schema_migration` table in the media database and the same advisory lock
+  key (review 86 NIT: an advisory lock is per database, so no second key is needed). `node migrate.cjs --media` uses `MEDIA_DATABASE_ADMIN_URL`; `--media --roles` creates the role the first time;
   `--media --verify` proves its limits. Exit codes and the deploy loop are the same as the main series (RUNBOOK). The
   file name pattern is `m\d{4}_…` so a media file can never be copied into the main series by mistake (the main
   runner's `FILE_NAME` refuses it, and the media runner refuses a plain `\d{4}_` file).
@@ -93,8 +94,17 @@ Staging has never stored a photo: the `S3_*` operator secrets were not set while
     for the round and backs off as today.
   - **Orphan sweep (reconcile):** once a day, and on demand after a restore, the worker pages `blob_keys_page` (500 keys
     a page, only rows older than 1 hour) and asks the main database `media_keys_known(keys)` (migration 0200, system seat
-    only, returns the keys that still have a `media_object` row). Unknown keys are deleted with `blob_delete`. This also
+    only, answers one row `(key, known)` for every key asked). Unknown keys are deleted with `blob_delete`. This also
     removes bytes a restore of the media database brought back for photos that were deleted since (PDPL erasure).
+    **Fail closed (review 86 MAJOR 1):** a key is unknown only when the main database answered `known = false` for it.
+    Any `media_keys_known` error, or an answer that is short, has a key that was not asked, or names a key twice, aborts
+    the whole run before any delete (`media.reconcile_failed {code}`); it is never read as "unknown". The run first
+    collects the unknown keys of every page, then deletes. **Per-run cap:** when the unknown keys are more than
+    `min(1,000, 5 % of the rows scanned)`, the daily run deletes nothing and logs `media.reconcile_blocked {unknown,
+    scanned}` (an alert); only an operator's `--all` run (phase 4's `staff-cli media-reconcile --all`, after a checked
+    restore) goes past it. So a stale main restore next to a current media database can never silently empty the media
+    database: it stops at the cap and pages someone. A test proves an error, a short answer and an odd answer each
+    delete nothing.
   - **The other way round** (a `media_object` stored but no bytes, after a media restore): the link answers 404, the
     team sees "photo unavailable", and the reconcile logs `media.missing {count}` (no keys). Nothing is invented.
 - **The S3 backend is removed, not kept behind configuration.** Keeping it would keep a code path that sends personal
@@ -113,8 +123,9 @@ Staging has never stored a photo: the `S3_*` operator secrets were not set while
 - **Signature:** `s` = base64url of the first 16 bytes of HMAC-SHA256 under a key derived from `MEDIA_URL_SECRET`
   (HKDF, label `questify-media-get-v1`) over `"<key>\n<e>"`. Checked with `timingSafeEqual` before any database read.
   `e` must be in the future and at most `now + 300 + 5` seconds (clock slack); a link minted for longer is refused, so a
-  coding mistake cannot hand out a long-lived link. `signGet(key, ttl, type, at)` keeps its contract (at most 300 s;
-  the wall's 120 s from the minute's start stays stable within a minute). The URL names an opaque key (organizer, event
+  coding mistake cannot hand out a long-lived link. `signGet(key, ttl, at)` keeps its contract (at most 300 s; the
+  wall's 120 s from the minute's start stays stable within a minute). Review 86 NIT: with one implementation it is
+  synchronous and takes no content type (the key's extension decides it, and the stored row's type is served). The URL names an opaque key (organizer, event
   and object uuids) and an expiry, never a person, as ADR-837 already accepts. Signing is pure computation: readers no
   longer make an outside call.
 - **Answers:** every refusal (bad path, bad or old signature, no such bytes) is one `404` with no body detail; the
@@ -125,16 +136,21 @@ Staging has never stored a photo: the `S3_*` operator secrets were not set while
     no shared cache or edge keeps a photo);
   - `ETag: "<sha256 base64url>"` and `304` on `If-None-Match` (only after the signature passed);
   - `Referrer-Policy: no-referrer`, `Cross-Origin-Resource-Policy: cross-origin` (the dashboard on
-    `questify.nafes.com` and the screen load it from the API's host), the API's usual `Content-Security-Policy:
-    default-src 'none'` (harmless on an image, blocks an SVG trick even if one ever got in).
+    `questify.nafes.com` and the screen load it from the API's host), and `Content-Security-Policy: default-src 'none'`
+    set by the route itself (review 86 MINOR 4; harmless on an image, blocks an SVG trick even if one ever got in). The
+    header test checks it. As built: the API's `onSend` hook (T-810b, `API_SECURITY_HEADERS`) also sends `default-src
+    'none'; frame-ancestors 'none'` on every answer and runs last, so that is the value on the wire; the route's own
+    header keeps the route safe if the hook ever changes.
   - **No ranges:** `Accept-Ranges: none`. A stored image is at most a few hundred KB to 2 MB; ranges add parsing and
     edge cases for no gain.
-- **Limits on a public route:** valid links are never limited by address (a venue's phones share one NAT). Bad
-  signatures count per address bucket (60 a minute, then 429), so the route is not an oracle to hammer. A read gate
-  (16 media reads at a time, 128 waiting, then 503) keeps the API's event loop and the 4-connection pool from being
-  swamped. An in-process cache of hot objects (LRU, 64 MB, entries up to 4 MB, 5-minute life) serves the wall's repeats
-  without the database; a deleted photo cannot be served from it past its links, because no reader signs a link for a
-  key that no longer exists, and the worker evicts keys it deletes on its own replica.
+- **Limits on a public route:** no address limit at all (review 86 MAJOR 2: the bad-signature limiter is dropped; an
+  expired wall link from many phones behind one venue NAT must never lock out their valid links). A bad signature
+  costs one HMAC and no database read, so the route is no oracle worth hammering. A read gate (8 media reads at a time,
+  128 waiting, then 503; review 86 MINOR 7) keeps the API's event loop and the 4-connection pool from being swamped. An
+  in-process cache of hot objects (LRU, 32 MB, entries up to 4 MB, **60-second life**; review 86 MINOR 6 and 7) serves
+  the wall's repeats without the database; a deleted photo cannot be served from it past its links, because no reader
+  signs a link for a key that no longer exists, the worker evicts keys it deletes on its own replica, and on another
+  replica an entry lives at most 60 s (docs/SECURITY.md, erasure notes). Phase 3 tunes both from the load test.
 - **The web.** `MEDIA_HOST` keeps its name and its check (`mediaSource`), and becomes the API's public host (staging:
   `questify-api-staging-3ez01s.cranl.net`), so `img-src` names exactly that one host. `RemotePhoto`, `PhotoScene` and
   `ImageField` keep `referrerPolicy="no-referrer"`. The forwarder's image-read 302 rule (`imageLocation`) is unchanged:
@@ -158,7 +174,7 @@ Staging has never stored a photo: the `S3_*` operator secrets were not set while
   fires at 70 % of the plan's disk (the figure goes in the rule once CranL gives it, Q-786).
 - **Backups:** CranL daily backups for `questify-media-db`, kept 7 (declared in `ops/cranl/staging.json`, like the main
   database), plus the media database in T-019's nightly second copy in Saudi Arabia.
-- **Recovery targets (Proposed, Q-787):** NFR-026 (5 minutes of loss, back within 1 hour) stays the target of the main
+- **Recovery targets (Accepted by Dhia 2026-11-15, Q-787 "Accept 4h / 1 day (Recommended)"):** NFR-026 (5 minutes of loss, back within 1 hour) stays the target of the main
   database and of the service: an event runs with the media database down (no photos shown, uploads 503). The media
   database gets its own target: back within 4 hours, losing at most the photos since its last backup (a day with daily
   backups; 5 minutes once CranL's point-in-time restore is confirmed, T-811). Keeping the bytes in their own database is
@@ -170,13 +186,22 @@ Staging has never stored a photo: the `S3_*` operator secrets were not set while
 
 ### 3.1 Media database (m0001)
 - `media_blob` as 2.1, RLS forced, no grant; the four definers; `REVOKE CONNECT … FROM PUBLIC`, `GRANT CONNECT` to
-  `questify_media_app`; `ALTER ROLE questify_media_app SET statement_timeout = '10s'`. Header names the lock order (one
-  table, one row per statement) and says no function reads more than one key's body.
+  `questify_media_app` (the statement timeout is the pool's, review 86 NIT). Header names the lock order (one table, one
+  row per statement) and says no function reads more than one key's body.
 - Personal-data catalog (T-708): `media_blob.body` is listed as a photo (personal data) for the erasure proof.
 
 ### 3.2 Main migration 0200
-- `media_keys_known(keys text[]) RETURNS SETOF text`: system seat only (refuses every player, team, device and admin
-  seat, as the worker's doors do), at most 500 keys a call, reads `media_object` by its unique key index.
+- `media_keys_known(keys text[]) RETURNS TABLE (key text, known boolean)`: one row for every distinct key asked (so the
+  worker can tell a short or odd answer, MAJOR 1); system seat only (refuses every player, team, device and admin seat,
+  as the worker's doors do), at most 500 keys a call, reads `media_object` by its unique key index.
+- `media_reconcile_claim()` and a one-row `media_reconcile_run` table (system seat only): the daily run's lease, so one
+  replica runs it once in 23 hours, and a restart does not run it again.
+- Review 86 MINOR 5: `REVOKE CONNECT ON DATABASE <current> FROM PUBLIC`, `GRANT CONNECT` to `questify_app` and to the
+  migration owner (`current_user`), so the test "the media role cannot connect to the main database" is real. Who
+  connects today (roles.sql, RUNBOOK and INTEGRATIONS on CranL): `questify_app` (the API and its push pool), the owner
+  `admin` (migrations, CranL's console and managed `pg_dump`; the database's owner and keeping its rights), and the
+  test-only `questify_outsider`, whose test setup grants it `CONNECT` on its throw-away database (it stands for a
+  stranger who got a connection).
 - `media_delete_failed` takes the new code `media_unavailable` (codes are free text today; check, and widen a CHECK only
   if one exists).
 - Outsider and route inventories updated.
@@ -186,7 +211,11 @@ Staging has never stored a photo: the `S3_*` operator secrets were not set while
   `57014`, as both are safe to repeat on the same key and hash; `deleteMany` → `blob_delete`; `get` → `blob_get`; `signGet`
   → HMAC). Timeouts from the pool and the role; logs carry the operation, the key's purpose and a code, never a key.
 - `storage/media-link.ts` (new): `signLink`, `checkLink` (pure, unit-tested).
-- `storage/media-route.ts` (new): the route of 2.2, the read gate, the LRU, the bad-signature limiter.
+- `storage/media-route.ts` (new): the route of 2.2 and the read gate (no limiter, MAJOR 2); the LRU lives in the store,
+  so the worker's deletes evict it.
+- `storage/upload.ts` (review 86 MINOR 3): `blob_put`'s `MB409` (the key already holds different bytes) releases the
+  slot (`media_release` / `media_image_release` queue the key) and answers once with the named client error `409
+  photo_send_again`, not a 30-minute loop of 503s; the client's next send gets a fresh slot.
 - `storage/config.ts`: the three `MEDIA_*` settings; `S3_*` ignored with the start-up log.
 - `storage/client.ts`: keeps `ObjectStore`, `StoredType`, `SignedUrl`, `StorageError` (renamed codes: `unavailable`,
   `timeout`); the aws4fetch client is deleted. `upload.ts`, `organizer-upload.ts`, `read-routes.ts`, `signed.ts`, the
@@ -199,9 +228,10 @@ Staging has never stored a photo: the `S3_*` operator secrets were not set while
 - `package.json`: drop `aws4fetch`.
 
 ### 3.4 Web and app
-- Phase 1: none (same `MEDIA_HOST` mechanism, new value set in phase 2).
-- Phase 3: `PhotoScene`, `RemotePhoto` (wall uses) and the app's `PhotoWall` keep a picture that has loaded while its
-  `mediaId` stays in the list, and change `src` only when the photo changes, so a new minute's link does not reload it.
+- Phase 1 (moved from phase 3 by review 86 MINOR 7): `PhotoScene`, `RemotePhoto` (wall uses) and the app's `PhotoWall`
+  keep a picture that has loaded while its `mediaId` stays in the list, and change `src` only when the photo changes
+  (or the kept link failed), so a new minute's link does not reload it. Same `MEDIA_HOST` mechanism otherwise, new value
+  set in phase 2.
 
 ### 3.5 CranL and docs
 - `scripts/cranl/apply.mjs`: `BUDGET.databases` 3 (Dhia's plan has room: he is creating the database). `buckets` stays
@@ -220,8 +250,12 @@ Staging has never stored a photo: the `S3_*` operator secrets were not set while
     before it).
   - `media-store.test.ts` (fake pool): retry once on a connection error, never on `MB409`; the log has no key.
   - `config.test.ts`: all three or none; https only in production; `S3_*` ignored with one log line.
-  - `media-route.test.ts` (fake store): every header of 2.2; `304`; 404 for each refusal and the same body for all;
-    503 when the gate is full; the bad-signature limiter; HEAD.
+  - `media-route.test.ts` (fake store): every header of 2.2 (`Content-Security-Policy` included); `304`; 404 for each
+    refusal and the same body for all; 503 when the gate is full; many bad links from one address never refuse a good
+    one; HEAD.
+  - `worker` reconcile (fake pools): a `media_keys_known` error, a short answer and an odd answer each delete nothing;
+    more unknown keys than the cap deletes nothing and logs `media.reconcile_blocked`; `all` goes past it.
+  - `upload` (fake store): `MB409` releases the slot and answers `photo_send_again`.
 - **Media database** (`test/db/media-blob.int.test.ts`, the second database of 4.1): key CHECK, type and extension,
   size cap, `blob_put` idempotent on the same hash and `MB409` on another, `blob_delete` of absent keys, paging.
 - **Both databases** (`test/storage/*.int`, `test/submissions/photo.int`, `test/screen/photo-wall.int`, moved off the
@@ -275,7 +309,7 @@ Staging has never stored a photo: the `S3_*` operator secrets were not set while
    test; a photo quest on the demo event from a phone. Then Dhia deletes the `questify-media` bucket and its keys
    (dashboard only), and the bucket keys file on this PC is removed. *Value:* photo quests, ticket photos, organizer
    images and the wall work on staging with every byte in `riyadh-1`. Unblocks Q-774 (store forms).
-3. **Live event load.** The client change of 3.4, the load test, the LRU and gate tuned from its numbers. If the API's
+3. **Live event load.** The load test (the client change of 3.4 moved to phase 1), the LRU and gate tuned from its numbers. If the API's
    egress or CPU is the limit, a smaller wall copy (1,280 px, JPEG 75, stored at pick time as `…/wall/<id>.jpg`) is the
    next step, decided on the measurement, not built ahead. *Value:* the wall is safe at a 1,000-player event.
 4. **Backups and restore.** The RUNBOOK restore order of 2.3, the reconcile `--all` command
@@ -299,7 +333,21 @@ The main code deploy may go before or after either: without the settings it does
 - **Q-768:** resolved by Dhia (2026-11-15): the bucket is not used for photos.
 - **Q-785** (ADR-839): S3 removed rather than kept behind a setting. **Q-786** (ADR-840 and 841): CranL's facts for the
   media database (separate server or not, disk size, egress limits of the API's host, PostgreSQL version). **Q-787**
-  (ADR-841): the media database's own recovery target (4 hours, a day of photos) against NFR-026.
+  (ADR-841): the media database's own recovery target (4 hours, a day of photos) against NFR-026. **Answered** by Dhia
+  2026-11-15: "Accept 4h / 1 day (Recommended)"; ADR-841 is Accepted for that point.
+
+## 9. Plan review 86 (approve with revisions, 2026-11-15), folded in above
+
+| # | Finding | Where it landed |
+|---|---|---|
+| MAJOR 1 | The reconcile must fail closed: an error or an odd answer is never "unknown"; a cap stops a stale main restore from emptying the media DB | 2.1 "Fail closed", 3.2 `(key, known)`, 4 worker tests |
+| MAJOR 2 | Drop the bad-signature limiter (a venue NAT) | 2.2 limits, 3.3 |
+| MINOR 3 | `MB409` releases the slot and answers once with a named error | 3.3 `upload.ts`, 4 |
+| MINOR 4 | The media route sets its own CSP; the header test checks it | 2.2 answers |
+| MINOR 5 | 0200 revokes `CONNECT` on the main database from `PUBLIC` | 3.2 |
+| MINOR 6 | Cache entries live at most 60 s; SECURITY.md records the window | 2.2 limits, 8 |
+| MINOR 7 | 32 MB cache, a gate of 8; the client change moves to phase 1 | 2.2 limits, 3.4, 5 |
+| NIT | One pool-level statement timeout; no second lock key; `signGet` synchronous without a type | 2.1, 2.2, 3.1 |
 
 ## 7. Risks
 

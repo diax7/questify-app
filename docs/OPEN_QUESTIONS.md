@@ -3407,7 +3407,7 @@ photos are served from it. (4) Its PostgreSQL version (as Q-767). (5) Point-in-t
 
 ## Q-787 - The media database's own recovery target (ADR-841, NFR-026)
 
-**Status:** Proposed (T-814 plan, 2026-11-15); recommended: back within 4 hours, losing at most the photos since its
+**Status:** Answered (Dhia, 2026-11-15: "Accept 4h / 1 day (Recommended)"; ADR-841 Accepted for this point). Back within 4 hours, losing at most the photos since its
 last backup (a day now, 5 minutes with point-in-time restore), while the main database keeps NFR-026's 5 minutes and 1
 hour. An event runs without photos meanwhile.
 **Question for Dhia:** is losing up to a day of photos after a media database failure acceptable until point-in-time
