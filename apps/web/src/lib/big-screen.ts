@@ -241,13 +241,17 @@ export function wallPhotosOf(value: unknown): readonly WallPhoto[] {
 
 /**
  * The URLs the screen draws (plan section 7, M2): a photo it already shows keeps the URL it loaded with, so the picture
- * never reloads; a new photo takes the answer's URL; a photo missing from the latest answer is dropped at once.
+ * never reloads (T-814: a URL it could not load gives way to the newest one, given `failed`); a new photo takes the
+ * answer's URL; a photo missing from the latest answer is dropped at once.
  */
 export function keptPhotos(
   shown: readonly WallPhoto[],
   latest: readonly WallPhoto[],
+  failed: ReadonlySet<string> = new Set(),
 ): readonly WallPhoto[] {
-  const before = new Map(shown.map((one) => [one.mediaId, one.url]));
+  const before = new Map(
+    shown.filter((one) => !failed.has(one.url)).map((one) => [one.mediaId, one.url]),
+  );
   return latest.map((one) => ({ mediaId: one.mediaId, url: before.get(one.mediaId) ?? one.url }));
 }
 

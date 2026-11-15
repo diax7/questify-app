@@ -13,7 +13,7 @@
 | SLO-4 Ranking freshness | the live ranking shows a change within 5 seconds (ADR-074) | **not measured directly yet.** Guarded by three signals: the repair loop runs (`ranking_repair`, at most 30 s since its last run), the cache and repair do not fail, and the completion speed above. The direct measure (age of the oldest unrepaired mark) needs a database function and is T-018b; the load test (NFR-003) proves the 5 s | continuous | `QuestifyRankingRepairStalled`, `QuestifyRankingStoreFailing` |
 | SLO-5 Data loss | at most 5 minutes (point-in-time recovery, ADR-082) | not a runtime metric: proven by the restore rehearsal (T-805, NFR-026). Backup age is a T-018b probe | per incident | none yet |
 | SLO-6 Recovery | service back within 1 hour (ADR-082) | the incident record (post-mortem, QUALITY_BASELINE section 4) | per incident | none |
-| SLO-7 Background work | every background loop finishes a run at least every 5 minutes (the ranking repair every 30 s); community payouts are never behind | `questify_tick_last_run_seconds`, and the `community.*` events | continuous | `QuestifyLoopStalled`, `QuestifyCommunityPayoutsBehind`, `QuestifyCommunitySettleFailing` |
+| SLO-7 Background work | every background loop finishes a run at least every 5 minutes (the ranking repair every 30 s); community payouts are never behind | `questify_tick_last_run_seconds`, and the `community.*` events | continuous | `QuestifyLoopStalled`, `QuestifyCommunityPayoutsBehind`, `QuestifyCommunitySettleFailing`, `QuestifyMediaReconcileBlocked` |
 | SLO-8 Messages | no target number in the ADRs. First guess (Q-562): fewer than 20% of SMS, push and email sends fail over 15 minutes | `questify_outbound_requests_total` by outcome | 15 minutes | `QuestifySmsFailing`, `QuestifyPushFailing`, `QuestifyPushProviderRefusing`, `QuestifyEmailFailing`, `QuestifyEmailBackupInUse`, `QuestifySendBudgetSpent` |
 
 Signals that are not targets of their own: `QuestifyDatabaseBusy` and `QuestifyDatabasePoolWaiting` (the database is the first thing
@@ -51,6 +51,7 @@ email (ADR-079); `warning` opens a ticket. Each alert's `runbook` annotation poi
 | `QuestifyRankingStoreFailing` | page | a Redis or ranking failure event keeps coming | 10 m | SLO-4 |
 | `QuestifyCommunitySettleFailing` | warning | a community settle or pay step keeps failing (never a single line: the deploy window of migration 0141 logs a few) | 10 m | SLO-7 |
 | `QuestifyCommunityPayoutsBehind` | page | a goal's settle point is behind, a payout is stuck, or settling is blind | 5 m | SLO-7 |
+| `QuestifyMediaReconcileBlocked` | page | the daily media reconcile deleted nothing: more unknown photo keys than its cap, or the main database's answer was not trusted (T-814) | 1 m | SLO-7 |
 | `QuestifyErrorEventRepeating` | warning | any other error event is logged more than 10 times in 15 minutes | 5 m | capacity |
 | `QuestifyPushFailing` | warning | more than 20% of push sends fail, are lost, requeue or are held | 15 m | SLO-8 |
 | `QuestifyPushProviderRefusing` | page | APNs or FCM refuses our requests, a round was mostly invalid tokens, or a notice is parked | 5 m | SLO-8 |

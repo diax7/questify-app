@@ -12,10 +12,10 @@ import { operatorVariable } from "./spec.mjs";
 const CREATES = new Set(["project.create", "database.create", "bucket.create", "app.create"]);
 
 /**
- * What Questify may hold on CranL for one environment: three apps, two databases (ADR-626, Q-613) and one bucket, the
- * photos' (T-301b; Q-149: the plan was raised on 2026-11-12 for a second bucket).
+ * What Questify may hold on CranL for one environment: three apps, three databases (ADR-626, Q-613; the third is the
+ * media database, T-814, ADR-839) and one bucket (T-301b; no file declares one since T-814: photos stay in `riyadh-1`).
  */
-export const BUDGET = { apps: 3, databases: 2, buckets: 1 };
+export const BUDGET = { apps: 3, databases: 3, buckets: 1 };
 
 /**
  * Refuses, before any write, a file that declares more apps, databases or buckets than the budget, and a create that

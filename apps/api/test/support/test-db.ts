@@ -25,7 +25,7 @@ const SWEEP_LIMIT = 20;
 /** How long closing waits for a test's own connections to finish closing before it forces the drop. */
 const LINGER_MS = 2000;
 const LINGER_STEP_MS = 20;
-const NAME = /^questify_test_(?:([0-9]{10})_)?[0-9a-f]{12}$/;
+const NAME = /^questify_test_(?:media_)?(?:([0-9]{10})_)?[0-9a-f]{12}$/;
 
 /**
  * Drops test databases left behind by killed runs (a mutation run that was stopped, a crash): names carry their
@@ -112,6 +112,9 @@ export async function createTestDatabase(
 
   const owner = await connect(urlFor(TEST_DATABASE_URL, name));
   await migrate(owner, migrationDirectory);
+  // 0200 revokes CONNECT from PUBLIC; the outsider stands for a stranger who got a connection anyway, so its one right
+  // here is to connect (a test that stops before 0200 needs no grant, and the grant changes nothing there).
+  await owner.query(`GRANT CONNECT ON DATABASE ${name} TO questify_outsider`);
   const app = await connect(urlFor(TEST_DATABASE_URL, name, "questify_app"));
   const outsider = await connect(urlFor(TEST_DATABASE_URL, name, "questify_outsider"));
 
@@ -122,23 +125,76 @@ export async function createTestDatabase(
     appUrl: urlFor(TEST_DATABASE_URL, name, "questify_app"),
     close: async () => {
       await Promise.all([owner.end(), app.end(), outsider.end()]);
-      // A test's own pool resolves `end()` before its sockets close; forcing the drop then would terminate them and
-      // the pool would raise that as an unhandled error. Wait for them to go, then force whatever is left.
-      for (let waited = 0; waited < LINGER_MS; waited += LINGER_STEP_MS) {
-        const { rows } = await admin.query<{ n: number }>(
-          "SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = $1",
-          [name],
-        );
-        if (rows[0]?.n === 0) {
-          break;
-        }
-        await new Promise((resolve) => setTimeout(resolve, LINGER_STEP_MS));
-      }
-      await admin.query(`DROP DATABASE ${name} WITH (FORCE)`);
-      await admin.end();
+      await dropWhenQuiet(admin, name);
     },
   };
 }
+
+/**
+ * Drops a test database once its connections are gone. A test's own pool resolves `end()` before its sockets close;
+ * forcing the drop then would terminate them and the pool would raise that as an unhandled error. Wait for them to go,
+ * then force whatever is left.
+ */
+async function dropWhenQuiet(admin: Client, name: string): Promise<void> {
+  for (let waited = 0; waited < LINGER_MS; waited += LINGER_STEP_MS) {
+    const { rows } = await admin.query<{ n: number }>(
+      "SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = $1",
+      [name],
+    );
+    if (rows[0]?.n === 0) {
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, LINGER_STEP_MS));
+  }
+  await admin.query(`DROP DATABASE ${name} WITH (FORCE)`);
+  await admin.end();
+}
+
+export type MediaTestDatabase = Readonly<{
+  /** The media database's owner (a superuser here). */
+  owner: Client;
+  /** Connection string for `questify_media_app`, for the media pool under test. */
+  appUrl: string;
+  /** The database's name, for tests that try to reach it as another role. */
+  name: string;
+  close: () => Promise<void>;
+}>;
+
+/**
+ * The second throw-away database (T-814, plan section 4.1): on the same server as TEST_DATABASE_URL, the media series
+ * applied, `questify_media_app` created under the role lock. In CI the one PostgreSQL service serves both.
+ */
+export async function createMediaTestDatabase(): Promise<MediaTestDatabase> {
+  if (TEST_DATABASE_URL === undefined) {
+    throw new Error("TEST_DATABASE_URL is not set.");
+  }
+  const name = `questify_test_media_${Math.floor(Date.now() / 1000)}_${randomBytes(6).toString("hex")}`;
+  const admin = await connect(TEST_DATABASE_URL);
+  await admin.query(`CREATE DATABASE ${name}`);
+  await admin.query("SELECT pg_advisory_lock($1)", [ROLE_SETUP_LOCK]);
+  try {
+    await admin.query(await readFile(join(API_ROOT, "db", "roles.sql"), "utf8"));
+    await admin.query(await readFile(join(API_ROOT, "db", "media-roles.sql"), "utf8"));
+    await admin.query(`ALTER ROLE questify_media_app PASSWORD '${ROLE_PASSWORD}'`);
+  } finally {
+    await admin.query("SELECT pg_advisory_unlock($1)", [ROLE_SETUP_LOCK]);
+  }
+  const owner = await connect(urlFor(TEST_DATABASE_URL, name));
+  await migrate(owner, join(API_ROOT, "media-migrations"), { series: "media" });
+  return {
+    owner,
+    appUrl: urlFor(TEST_DATABASE_URL, name, "questify_media_app"),
+    name,
+    close: async () => {
+      await owner.end();
+      await dropWhenQuiet(admin, name);
+    },
+  };
+}
+
+/** A URL for `role` (the shared test password) on `database` of the test server, to try a connection the rules refuse. */
+export const roleUrl = (database: string, role: string): string =>
+  urlFor(TEST_DATABASE_URL ?? "", database, role);
 
 /** Inserts two organizers with an event each and returns their ids (as the owner, bypassing the rules on purpose). */
 export async function seedTwoTenants(owner: Client): Promise<{

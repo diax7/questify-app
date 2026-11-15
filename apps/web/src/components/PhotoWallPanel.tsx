@@ -33,7 +33,12 @@ function PhotoCard({
 }: Readonly<{ photo: PickerPhoto; language: Language; t: Translate; children: React.ReactNode }>) {
   return (
     <Card as="li">
-      <RemotePhoto src={photo.url} alt={t("photo.alt")} expired={t("photo.expired")} />
+      <RemotePhoto
+        src={photo.url}
+        photoId={photo.submissionId}
+        alt={t("photo.alt")}
+        expired={t("photo.expired")}
+      />
       <Muted>
         <span dir="auto">{textFor(photo.questTitle, language)}</span>
       </Muted>

@@ -24,7 +24,7 @@ export type RouteClass = (typeof ROUTE_CLASSES)[number];
 export const OPERATIONS = ["sms", "email", "push"] as const;
 export type Operation = (typeof OPERATIONS)[number];
 
-export const POOLS = ["api", "push"] as const;
+export const POOLS = ["api", "push", "media"] as const;
 export type PoolName = (typeof POOLS)[number];
 
 export const POOL_STATES = ["total", "idle", "waiting"] as const;

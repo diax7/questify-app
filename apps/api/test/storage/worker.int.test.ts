@@ -1,8 +1,10 @@
+import { randomUUID } from "node:crypto";
 import { Pool, type Client } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { createObjectStore, type ObjectStore } from "#src/storage/client";
-import { KEY_WORST_MS, ROUND_BUDGET_MS, startMediaWorker } from "#src/storage/worker";
-import { startFakeS3, type FakeS3 } from "#test/storage/fake-s3";
+import type { ObjectStore } from "#src/storage/client";
+import { createMediaStore } from "#src/storage/media-store";
+import { startMediaWorker } from "#src/storage/worker";
+import { startMediaFixture, type MediaFixture } from "#test/storage/media-test-store";
 import {
   TEST_DATABASE_URL,
   connectAsOwner,
@@ -10,17 +12,17 @@ import {
   type TestDatabase,
 } from "#test/support/test-db";
 
-const KEY = (n: number) => `o/00000000-0000-4000-8000-00000000000${n}/e/x/submission/k${n}.jpg`;
+const keyOf = () => `o/${randomUUID()}/e/${randomUUID()}/submission/${randomUUID()}.jpg`;
 
 /**
- * The media worker over a real database and the S3 double (T-301b): deletes leave the bucket after the claim has
- * committed, a 404 is done, a failure backs off and is tried again, and the sweep runs every time.
+ * The media worker over both databases (T-301b, T-814): a claimed round leaves the media database in one delete after
+ * the claim has committed, a key already gone is done, a media database that fails backs the round off with its code,
+ * and a later run deletes it.
  */
 describe.skipIf(TEST_DATABASE_URL === undefined)("media worker", () => {
   let db: TestDatabase;
   let pool: Pool;
-  let fake: FakeS3;
-  let store: ObjectStore;
+  let media: MediaFixture;
   let watcher: Client;
   const lines: Record<string, unknown>[] = [];
 
@@ -28,109 +30,88 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("media worker", () => {
     db = await createTestDatabase();
     pool = new Pool({ connectionString: db.appUrl, max: 3 });
     watcher = await connectAsOwner(db);
-    fake = await startFakeS3();
-    store = createObjectStore(fake.settings, { retryDelayMs: 1, timeoutMs: 500 });
+    media = await startMediaFixture();
   });
   afterAll(async () => {
     await watcher.end();
     await pool.end();
-    await fake.close();
+    await media.close();
     await db.close();
   });
   beforeEach(async () => {
     await db.owner.query("DELETE FROM media_delete");
-    fake.objects.clear();
-    fake.script.length = 0;
+    await media.media.owner.query("DELETE FROM media_blob");
     lines.length = 0;
   });
 
-  const worker = (deleteStore: ObjectStore = store) =>
+  const worker = (store: ObjectStore = media.store) =>
     startMediaWorker({
       pool,
-      store: deleteStore,
+      store,
       intervalMs: 3_600_000,
       log: (_level, fields) => lines.push(fields),
     });
   const queue = (...keys: string[]) =>
     db.owner.query("INSERT INTO media_delete (key) SELECT unnest($1::text[])", [keys]);
 
-  it("deletes queued objects from the bucket, counts a 404 as done, and empties the queue", async () => {
-    fake.objects.set(KEY(1), { body: Buffer.from("a"), contentType: "image/jpeg" });
-    await queue(KEY(1), KEY(2));
+  it("deletes queued keys from the media database, counts a key already gone as done, and empties the queue", async () => {
+    const stored = keyOf();
+    await media.store.put(stored, Buffer.from("a"));
+    await queue(stored, keyOf());
     const running = worker();
     expect(await running.runOnce()).toEqual({ swept: 0, purged: 0, deleted: 2, failed: 0 });
     await running.stop();
-    expect(fake.objects.size).toBe(0);
+    expect(await media.keys()).toEqual([]);
     expect((await db.owner.query("SELECT key FROM media_delete")).rows).toEqual([]);
   });
 
-  it("calls the bucket only after the claim has committed, with the key leased", async () => {
-    await queue(KEY(3));
+  it("calls the media database once a round, only after the claim has committed, with every key leased", async () => {
+    await queue(keyOf(), keyOf(), keyOf());
     const seen: unknown[] = [];
     const watching: ObjectStore = {
-      ...store,
-      delete: async (key) => {
+      ...media.store,
+      deleteMany: async (keys) => {
         const { rows } = await watcher.query(
-          "SELECT lease_until > now() AS leased FROM media_delete WHERE key = $1",
-          [key],
+          "SELECT bool_and(lease_until > now()) AS leased, count(*)::int AS n FROM media_delete WHERE key = ANY ($1)",
+          [keys],
         );
         seen.push(rows[0]);
-        await store.delete(key);
+        return media.store.deleteMany(keys);
       },
     };
     const running = worker(watching);
     await running.runOnce();
     await running.stop();
-    expect(seen).toEqual([{ leased: true }]);
+    expect(seen).toEqual([{ leased: true, n: 3 }]);
   });
 
-  it("keeps a key whose delete failed, backs it off with its code, and deletes it on a later run", async () => {
-    fake.objects.set(KEY(4), { body: Buffer.from("b"), contentType: "image/jpeg" });
-    await queue(KEY(4));
-    fake.script.push({ status: 500 }, { status: 500 }, { status: 503 });
-    const running = worker();
-    expect(await running.runOnce()).toMatchObject({ deleted: 0, failed: 1 });
+  it("keeps a round whose delete failed, backs it off with media_unavailable, and deletes it on a later run", async () => {
+    const key = keyOf();
+    await media.store.put(key, Buffer.from("b"));
+    await queue(key);
+    const down = new Pool({
+      connectionString: "postgres://nobody:x@127.0.0.1:9/none",
+      connectionTimeoutMillis: 500,
+    });
+
+    const failing = createMediaStore(down, { origin: "https://m.test", secret: "d".repeat(32) });
+    const broken = worker(failing);
+    expect(await broken.runOnce()).toMatchObject({ deleted: 0, failed: 1 });
+    await broken.stop();
+    await down.end();
     const [row] = (
       await db.owner.query<{ attempts: number; code: string; later: boolean }>(
         "SELECT attempts, last_code AS code, due_at > now() AS later FROM media_delete WHERE key = $1",
-        [KEY(4)],
+        [key],
       )
     ).rows;
-    expect(row).toEqual({ attempts: 1, code: "status_503", later: true });
+    expect(row).toEqual({ attempts: 1, code: "media_unavailable", later: true });
+    const running = worker();
     expect(await running.runOnce()).toMatchObject({ deleted: 0, failed: 0 });
     await db.owner.query("UPDATE media_delete SET due_at = now() - interval '1 second'");
     expect(await running.runOnce()).toMatchObject({ deleted: 1, failed: 0 });
     await running.stop();
-    expect(fake.objects.has(KEY(4))).toBe(false);
-    expect(JSON.stringify(lines)).not.toContain("k4.jpg");
-  });
-  it("starts no delete past the round's budget, so a slow bucket never outlasts the 5-minute lease", async () => {
-    const keys = Array.from({ length: 50 }, (_, n) => `o/x/e/x/submission/slow${n}.jpg`);
-    await queue(...keys);
-    let clock = 0;
-    const slow: ObjectStore = {
-      ...store,
-      delete: async (key) => {
-        clock += KEY_WORST_MS;
-        await store.delete(key);
-      },
-    };
-    const running = startMediaWorker({
-      pool,
-      store: slow,
-      intervalMs: 3_600_000,
-      log: (_level, fields) => lines.push(fields),
-      now: () => clock,
-    });
-    const started = Math.ceil(ROUND_BUDGET_MS / KEY_WORST_MS);
-    expect(await running.runOnce()).toEqual({ swept: 0, purged: 0, deleted: started, failed: 0 });
-    await running.stop();
-    // The last delete started before the budget and ended inside the lease.
-    expect(started * KEY_WORST_MS).toBeLessThan(ROUND_BUDGET_MS + KEY_WORST_MS);
-    const { rows } = await db.owner.query<{ n: number; leased: number; tried: number }>(
-      `SELECT count(*)::int AS n, count(*) FILTER (WHERE lease_until > now())::int AS leased,
-              count(*) FILTER (WHERE attempts > 0)::int AS tried FROM media_delete`,
-    );
-    expect(rows[0]).toEqual({ n: 50 - started, leased: 50 - started, tried: 0 });
+    expect(await media.keys()).toEqual([]);
+    expect(JSON.stringify(lines)).not.toContain(key);
   });
 });

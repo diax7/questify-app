@@ -11,7 +11,64 @@ import { migrate, migrationExitCode } from "./db/migrate";
  *   --roles     create the roles first and set the app role password from APP_ROLE_PASSWORD
  *   --check     print what the owner account may do, and change nothing
  *   --verify    connect as the API's own role (DATABASE_URL) and prove its limits, changing nothing
+ *   --media     the same for the media database (T-814, ADR-839): its own series (media-migrations, `m0001_…`) as its
+ *               owner (MEDIA_DATABASE_ADMIN_URL); with --roles the media role first (MEDIA_ROLE_PASSWORD); with
+ *               --verify the media role (MEDIA_DATABASE_URL) and its limits. Same exit codes.
  */
+async function verifyMediaRole(): Promise<void> {
+  const client = await connected("MEDIA_DATABASE_URL");
+  try {
+    const { rows } = await client.query<{ who: string; plain: boolean }>(
+      `SELECT current_user AS who, NOT (r.rolsuper OR r.rolbypassrls) AS plain
+       FROM pg_roles r WHERE r.rolname = current_user`,
+    );
+    const tableReadable = await client.query("SELECT 1 FROM media_blob LIMIT 1").then(
+      () => true,
+      () => false,
+    );
+    const page = await client.query("SELECT key FROM blob_keys_page(NULL, now(), 1)");
+    const definersRun = page.rowCount !== null;
+    const ok = rows[0]?.plain === true && !tableReadable && definersRun;
+    process.stdout.write(
+      `${JSON.stringify({ ok, role: rows[0]?.who, plainRole: rows[0]?.plain, tableReadable, definersRun })}\n`,
+    );
+    if (!ok) process.exitCode = 1;
+  } finally {
+    await client.end();
+  }
+}
+
+async function connected(variable: string): Promise<Client> {
+  const url = process.env[variable];
+  if (url === undefined || url === "") {
+    throw new Error(`${variable} is not set.`);
+  }
+  const client = new Client({ connectionString: url });
+  await client.connect();
+  return client;
+}
+
+/** `--media` without `--verify`: the media role (with --roles), then the media series, as the media database's owner. */
+async function migrateMedia(flags: ReadonlySet<string>): Promise<void> {
+  const client = await connected("MEDIA_DATABASE_ADMIN_URL");
+  try {
+    if (flags.has("--roles")) {
+      await client.query(await readFile(join(__dirname, "db", "media-roles.sql"), "utf8"));
+      const password = process.env["MEDIA_ROLE_PASSWORD"];
+      if (password !== undefined && password !== "") {
+        await client.query(
+          `ALTER ROLE questify_media_app PASSWORD ${client.escapeLiteral(password)}`,
+        );
+      }
+      process.stdout.write("The media role is in place.\n");
+    }
+    const result = await migrate(client, join(__dirname, "media-migrations"), { series: "media" });
+    process.stdout.write(`${JSON.stringify(result)}\n`);
+  } finally {
+    await client.end();
+  }
+}
+
 async function verifyAppRole(): Promise<void> {
   const url = process.env["DATABASE_URL"];
   if (url === undefined || url === "") {
@@ -67,6 +124,12 @@ async function verifyAppRole(): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  const flags = new Set(process.argv.slice(2));
+  if (!flags.has("--media")) return mainDatabase();
+  return flags.has("--verify") ? verifyMediaRole() : migrateMedia(flags);
+}
+
+async function mainDatabase(): Promise<void> {
   if (process.argv.includes("--verify")) {
     await verifyAppRole();
     return;

@@ -47,36 +47,34 @@ async function run<T>(
 }
 
 /**
- * Signs each key a seat-checked reader returned and drops the key: a photo that cannot be signed (or every photo, with
- * no bucket) is left out, so the screen and the app show only what they can load.
+ * Signs each key a seat-checked reader returned and drops the key: with no media store every photo is left out, so the
+ * screen and the app show only what they can load.
  */
-export async function signWall<T extends Readonly<{ key: string }>>(
+export function signWall<T extends Readonly<{ key: string }>>(
   storage: ObjectStore | undefined,
   rows: readonly T[],
   now: () => number = Date.now,
-): Promise<Array<Omit<T, "key"> & { url: string; expiresAt: string }>> {
-  const signed = await Promise.all(
-    rows.map(async (row) => {
-      const read = await stableWallUrl(storage, row.key, now);
-      if (read === null) return null;
-      const { key: _key, ...rest } = row;
-      return { ...rest, url: read.url, expiresAt: read.expiresAt.toISOString() };
-    }),
-  );
+): Array<Omit<T, "key"> & { url: string; expiresAt: string }> {
+  const signed = rows.map((row) => {
+    const read = stableWallUrl(storage, row.key, now);
+    if (read === null) return null;
+    const { key: _key, ...rest } = row;
+    return { ...rest, url: read.url, expiresAt: read.expiresAt.toISOString() };
+  });
   return signed.filter((row) => row !== null);
 }
 
 /** The screen's photo scene after the database read: each photo signed, no key left (plan section 4). */
-export async function signedScene(
+export function signedScene(
   storage: ObjectStore | undefined,
   answer: Readonly<Record<string, unknown>>,
   now: () => number = Date.now,
-): Promise<Readonly<Record<string, unknown>>> {
+): Readonly<Record<string, unknown>> {
   const photos = answer["photos"];
   if (!Array.isArray(photos)) return answer;
   return {
     ...answer,
-    photos: await signWall(storage, photos as { mediaId: string; key: string }[], now),
+    photos: signWall(storage, photos as { mediaId: string; key: string }[], now),
   };
 }
 
@@ -215,8 +213,8 @@ export function readTeamWall(
     ]);
     const last = page.rows.at(-1);
     return {
-      picked: await teamRows(deps.storage, picked.rows),
-      candidates: await teamRows(deps.storage, page.rows),
+      picked: teamRows(deps.storage, picked.rows),
+      candidates: teamRows(deps.storage, page.rows),
       cursor: page.rows.length === CANDIDATE_PAGE && last !== undefined ? last.submission_id : null,
     };
   });

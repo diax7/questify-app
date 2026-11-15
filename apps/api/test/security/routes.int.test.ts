@@ -283,6 +283,8 @@ const ROUTES: Readonly<Record<string, string>> = {
   "GET /v1/cities": "no tenant data: the same seeded city list for everyone",
   "GET /healthz": "no data: process liveness",
   "GET /readyz": "no data: database reachability",
+  "GET /v1/media/*":
+    "the link is the authorization (ADR-840): a 128-bit HMAC under MEDIA_URL_SECRET over the exact key and an expiry at most 305 s away, checked in constant time before any read; keys are signed only for what a seat-checked reader returned; every refusal (a path that is not exactly a key, another key, an old or too long link) is one 404; no person in the URL (storage/media-route.test, test/security/media-outsider)",
   "GET /v1/translations": "no tenant data: the same platform texts for everyone",
   "GET /v1/config": "another organizer's private event answers like a missing one (tested below)",
   "POST /v1/staff/auth/password":
@@ -1195,6 +1197,7 @@ const PUBLIC_ROUTES = [
   "GET /v1/interests",
   "GET /v1/legal",
   "GET /v1/legal/:document",
+  "GET /v1/media/*",
   "GET /v1/public/events",
   "GET /v1/public/events/:joinCode",
   "GET /v1/public/events/:joinCode/quests",

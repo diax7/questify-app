@@ -2720,6 +2720,23 @@ export const storageUnavailable = make(
   "تعذّر حفظ الصورة. حاول مرة أخرى.",
   "We couldn't save the photo. Try again.",
 );
+/**
+ * The media database already holds other bytes at this upload's key (MB409, T-814): the slot was given back, so the
+ * next send gets a fresh one. Answered once, instead of a 503 on every retry until the slot is swept.
+ */
+export const photoSendAgain = make(
+  409,
+  "photo_send_again",
+  "تعذّر حفظ الصورة. أرسلها مرة أخرى.",
+  "We couldn't save the photo. Send it again.",
+);
+/** The media route's read gate is full or the media database did not answer (T-814): `Retry-After: 1`. */
+export const mediaBusy = make(
+  503,
+  "media_busy",
+  "تعذّر تحميل الصورة الآن. حاول بعد قليل.",
+  "We couldn't load the photo right now. Try again shortly.",
+);
 /** The bytes are not a JPEG, PNG or WebP (HEIC among them), whatever the request said they were. */
 export const photoType = make(
   415,

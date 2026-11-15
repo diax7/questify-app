@@ -240,7 +240,7 @@ export function consoleTicket(
       returned:
         row.returned_at === null ? null : { at: row.returned_at, note: row.return_note ?? "" },
       answeredBy: row.answered_by,
-      ...(await signedPhoto(deps.storage, row.photo_key)),
+      ...signedPhoto(deps.storage, row.photo_key),
     };
   });
 }

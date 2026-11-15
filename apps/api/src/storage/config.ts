@@ -1,74 +1,67 @@
-/** The private bucket that holds photos (ADR-183): CranL's S3-compatible storage in `riyadh-1`. */
+/** The media database and its links (ADR-839, ADR-840): photos are stored in PostgreSQL in `riyadh-1`. */
 export type StorageSettings = Readonly<{
-  /** The S3 endpoint's origin, like https://s3.riyadh-1.cranl.net; https in production. */
-  endpoint: string;
-  bucket: string;
-  /** The region string the bucket signs with (SigV4). */
-  region: string;
-  accessKeyId: string;
-  secretAccessKey: string;
-  /** Path-style URLs (`<endpoint>/<bucket>/<key>`) unless S3_URL_STYLE=virtual (`<bucket>.<host>/<key>`). */
-  urlStyle: "path" | "virtual";
+  /** The runtime role's connection string (`questify_media_app`), never the owner's. */
+  databaseUrl: string;
+  /** The public origin that serves `/v1/media/*` (the API's own public host); https in production. */
+  origin: string;
+  /** The key the read links are signed with (32 characters or more). */
+  urlSecret: string;
 }>;
 
 type Env = Readonly<Record<string, string | undefined>>;
 
-export const STORAGE_NAMES = [
+export const STORAGE_NAMES = ["MEDIA_DATABASE_URL", "MEDIA_ORIGIN", "MEDIA_URL_SECRET"] as const;
+/** The bucket settings of before T-814: no code reads them any more. */
+export const RETIRED_S3_NAMES = [
   "S3_ENDPOINT",
   "S3_BUCKET",
   "S3_REGION",
   "S3_ACCESS_KEY_ID",
   "S3_SECRET_ACCESS_KEY",
+  "S3_URL_STYLE",
 ] as const;
-
-const BUCKET = /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/;
-const REGION = /^[a-z0-9-]{1,40}$/;
+const SECRET_MIN = 32;
 
 const valueOf = (env: Env, name: string): string | undefined => {
   const value = env[name];
   return value === undefined || value.trim() === "" ? undefined : value.trim();
 };
 
-function endpointOf(text: string, nodeEnv: string): string {
+function originOf(text: string, nodeEnv: string): string {
   let url: URL;
   try {
     url = new URL(text);
   } catch {
-    throw new Error("S3_ENDPOINT must be a URL like https://s3.example.com.");
+    throw new Error("MEDIA_ORIGIN must be a URL like https://api.example.com.");
   }
   if (url.protocol !== "https:" && (nodeEnv === "production" || url.protocol !== "http:")) {
-    throw new Error("S3_ENDPOINT must start with https:// (http:// only outside production).");
+    throw new Error("MEDIA_ORIGIN must start with https:// (http:// only outside production).");
   }
-  if (url.pathname !== "/" || url.search !== "" || url.username !== "") {
-    throw new Error("S3_ENDPOINT must be an origin only: no path, query or user.");
+  if (!onlyOrigin(url)) {
+    throw new Error("MEDIA_ORIGIN must be an origin only: no path, query or user.");
   }
   return url.origin;
 }
 
-/** The bucket's name and region, each checked. */
-function placeOf(env: Env): Pick<StorageSettings, "bucket" | "region"> {
-  const bucket = valueOf(env, "S3_BUCKET") ?? "";
-  if (!BUCKET.test(bucket)) {
-    throw new Error("S3_BUCKET must be a bucket name: lowercase letters, digits, dots and dashes.");
-  }
-  const region = valueOf(env, "S3_REGION") ?? "";
-  if (!REGION.test(region)) {
-    throw new Error("S3_REGION must be a region name like riyadh-1.");
-  }
-  return { bucket, region };
-}
+const onlyOrigin = (url: URL): boolean =>
+  url.pathname === "/" && url.search === "" && url.hash === "" && url.username === "";
 
-function styleOf(env: Env): StorageSettings["urlStyle"] {
-  const style = valueOf(env, "S3_URL_STYLE") ?? "path";
-  if (style !== "path" && style !== "virtual") {
-    throw new Error('S3_URL_STYLE must be "path" or "virtual".');
+function databaseUrlOf(text: string): string {
+  let url: URL;
+  try {
+    url = new URL(text);
+  } catch {
+    throw new Error("MEDIA_DATABASE_URL must be a postgres:// connection string.");
   }
-  return style;
+  if (url.protocol !== "postgres:" && url.protocol !== "postgresql:") {
+    throw new Error("MEDIA_DATABASE_URL must be a postgres:// connection string.");
+  }
+  return text;
 }
 
 /**
- * All five S3 variables or none (the Msegat pattern): without them photos are off, the builder keeps refusing photo
- * quests and the upload doors answer 503 `storage_off`. Nothing here is logged; the keys stay in memory.
+ * All three media settings or none (the Msegat pattern): without them photos are off, the builder keeps refusing photo
+ * quests and the upload doors answer 503 `photos_off`. Nothing here is logged; the secret stays in memory.
  */
 export function storageSettings(env: Env, nodeEnv: string): StorageSettings | undefined {
   const set = STORAGE_NAMES.filter((name) => valueOf(env, name) !== undefined);
@@ -77,14 +70,20 @@ export function storageSettings(env: Env, nodeEnv: string): StorageSettings | un
   }
   if (set.length !== STORAGE_NAMES.length) {
     throw new Error(
-      `${STORAGE_NAMES.join(", ")} are required together: the photo bucket's settings.`,
+      `${STORAGE_NAMES.join(", ")} are required together: the media database's settings.`,
     );
   }
+  const urlSecret = valueOf(env, "MEDIA_URL_SECRET") ?? "";
+  if (urlSecret.length < SECRET_MIN) {
+    throw new Error(`MEDIA_URL_SECRET must be at least ${SECRET_MIN} characters.`);
+  }
   return {
-    endpoint: endpointOf(valueOf(env, "S3_ENDPOINT") ?? "", nodeEnv),
-    ...placeOf(env),
-    accessKeyId: valueOf(env, "S3_ACCESS_KEY_ID") ?? "",
-    secretAccessKey: valueOf(env, "S3_SECRET_ACCESS_KEY") ?? "",
-    urlStyle: styleOf(env),
+    databaseUrl: databaseUrlOf(valueOf(env, "MEDIA_DATABASE_URL") ?? ""),
+    origin: originOf(valueOf(env, "MEDIA_ORIGIN") ?? "", nodeEnv),
+    urlSecret,
   };
 }
+
+/** Whether any retired S3 variable is still set (logged once at start; a forgotten secret never blocks a deploy). */
+export const s3Ignored = (env: Env): boolean =>
+  RETIRED_S3_NAMES.some((name) => valueOf(env, name) !== undefined);

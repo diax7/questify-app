@@ -98,7 +98,7 @@ export async function readTarget(
     "SELECT admin_report_media_key($1) AS r",
     [target.targetId],
   );
-  const signed = await signedPhoto(storage, key);
+  const signed = signedPhoto(storage, key);
   return {
     ...detail,
     photo:

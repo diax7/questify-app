@@ -199,16 +199,19 @@
 
 Claude's lean: **production on Oracle (Riyadh main, Jeddah recovery) once the console confirms PostgreSQL and the cache there; staging, rehearsal and demos on CranL Pro in Riyadh.** The server is plain containers plus PostgreSQL, so moving between hosts later is a data migration, not a rewrite. If Oracle's console lacks PostgreSQL in Riyadh, the next candidates are sccc or Google Dammam. Questions for CranL before trusting it with production: who runs the Riyadh and Jeddah hardware; is it in-Kingdom; automatic backups and how often; point-in-time restore; copy of backups to a second city; HA failover for a managed PostgreSQL; the written uptime commitment; maximum database size and connections; and its CST registration or hosting partner's.
 
-## CranL buckets (T-301b, ADR-828)
+## Photo storage: the media database (T-814, ADR-839 to ADR-841; was CranL buckets, T-301b)
 
-- **What:** one private S3-compatible bucket per environment (`questify-media-staging` now; production later) holds the
-  players' photos, re-encoded with no metadata. Personal data: yes (data map: photos, in `riyadh-1`).
-- **Calls:** PUT and DELETE from the API (SigV4 on our own fetch, `aws4fetch`'s signer), 10 s timeout, two retries on
-  network errors, 5xx and 429 with jitter, never on 403; redirects refused. Fallback: the upload answers 503
-  `storage_unavailable` and attaches nothing; a failed delete keeps its `media_delete` row and backs off (1 minute to 1
-  hour). Reads are 5-minute presigned GETs the browser or the app fetches from the bucket's host.
-- **Open:** the endpoint and the region string are confirmed by the contract test (RUNBOOK "Photo storage"); per-bucket
-  keys before production (CranL keys are probably account-wide).
+- **What:** a second CranL PostgreSQL database per environment (`questify-media-db`, `riyadh-1`) holds the players'
+  photos and organizer images as bytes, re-encoded with no metadata. Personal data: yes (data map: photos, in
+  `riyadh-1`). **The CranL bucket is not used**: CranL stores bucket files outside Saudi Arabia (Q-768); the S3 code and
+  `aws4fetch` were removed.
+- **Calls:** one statement per call through four definers on the API's own media pool (4 connections, 10 s statement
+  timeout, 5 s connect); a put is tried once more after a dropped connection or a timeout, never after MB409. Fallback:
+  the upload answers 503 `storage_unavailable` and attaches nothing; a failed delete round keeps its `media_delete` rows
+  and backs off (1 minute to 1 hour); links answer 503 while it is down; the API and `/readyz` stay up. Reads are
+  5-minute HMAC links to `/v1/media/*` on the API's own host.
+- **Open:** Q-786 (a separate server or not, the disk size for the size alert, egress limits of the API's host, the
+  PostgreSQL version, point-in-time restore). Backups: CranL daily, kept 7, plus T-019's second copy.
 
 ## CranL staging (built 2026-10-19)
 

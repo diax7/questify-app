@@ -1,199 +1,59 @@
-import { createHash } from "node:crypto";
-import { AwsV4Signer } from "aws4fetch";
-import type { StorageSettings } from "#src/storage/config";
-
 /** The two types the API stores: a JPEG for photos and pictures, a PNG for logos and icons (ADR-829). */
 export type StoredType = "image/jpeg" | "image/png";
 
-/** The bucket's three operations the API needs (ADR-183): put a re-encoded image, delete it, sign a short read. */
+/** One key's stored bytes, as the media database holds them (ADR-839). */
+export type StoredBlob = Readonly<{
+  contentType: StoredType;
+  bytes: number;
+  sha256: Buffer;
+  body: Buffer;
+}>;
+
+/**
+ * The media store the API needs (ADR-839, ADR-840): put a re-encoded image, delete keys, read one key's bytes for the
+ * media route, page the keys for the reconcile, and sign or check a short read link. One implementation,
+ * `createMediaStore` (media-store.ts), over the media database.
+ */
 export type ObjectStore = Readonly<{
-  put: (key: string, body: Buffer, contentType?: StoredType) => Promise<void>;
-  /** A delete of an object that is already gone (404) is done. */
-  delete: (key: string) => Promise<void>;
+  /** Stores the key's bytes; the key's extension decides the type. A retried put of the same bytes is done. */
+  put: (key: string, body: Buffer) => Promise<void>;
+  /** Deletes the keys (a key already gone is fine) and answers how many rows went. */
+  deleteMany: (keys: readonly string[]) => Promise<number>;
+  /** The key's bytes, or undefined when nothing is stored at it. */
+  get: (key: string) => Promise<StoredBlob | undefined>;
+  /** Up to `n` keys after `after` (key order) of rows written before `olderThan`. */
+  keysPage: (after: string | null, olderThan: Date, n: number) => Promise<string[]>;
   /**
-   * A GET URL on the bucket's host that works for `ttlSeconds` (at most 300) from `at` (now by default), served as
-   * `contentType`. One key signed at one `at` is one URL, so a reader that floors `at` hands out a stable URL.
+   * A GET link on the media route that works for `ttlSeconds` (at most 300) from `at` (now by default). One key signed
+   * at one `at` is one URL, so a reader that floors `at` hands out a stable URL.
    */
-  signGet: (
-    key: string,
-    ttlSeconds: number,
-    contentType?: StoredType,
-    at?: Date,
-  ) => Promise<SignedUrl>;
+  signGet: (key: string, ttlSeconds: number, at?: Date) => SignedUrl;
+  /** Whether `expiry` and `signature` (a link's `e` and `s`) open `key` now. */
+  checkLink: (key: string, expiry: unknown, signature: unknown) => boolean;
 }>;
 
 export type SignedUrl = Readonly<{ url: string; expiresAt: Date }>;
 
-type Op = "put" | "delete";
+export type StoreOp = "put" | "get" | "delete" | "keys";
 
-/** A call the bucket did not complete: its answer (`status`), no answer in time (`timeout`) or no connection. */
+/**
+ * A media call that did not complete: the database could not be reached or answered an error (`unavailable`), the
+ * statement or the connection ran out of time (`timeout`), or the key already holds other bytes (`conflict`, MB409).
+ */
 export class StorageError extends Error {
-  readonly op: Op;
-  readonly code: "status" | "timeout" | "network";
-  readonly status: number | null;
+  readonly op: StoreOp;
+  readonly code: "unavailable" | "timeout" | "conflict";
 
-  constructor(op: Op, code: StorageError["code"], status: number | null) {
-    super(`storage ${op} failed: ${code}${status === null ? "" : ` ${status}`}`);
+  constructor(op: StoreOp, code: StorageError["code"]) {
+    super(`storage ${op} failed: ${code}`);
     this.name = "StorageError";
     this.op = op;
     this.code = code;
-    this.status = status;
   }
 }
 
-export type StoreOptions = Readonly<{
-  fetch?: typeof fetch;
-  /** Each attempt's own limit (10 s). */
-  timeoutMs?: number;
-  /** The base of the back-off between attempts (200 ms, times the attempt, with jitter). */
-  retryDelayMs?: number;
-  random?: () => number;
-  now?: () => Date;
-  /** One line per failed call: its operation, the key's purpose and the last status. Never a key or a URL. */
-  log?: (fields: Readonly<Record<string, unknown>>) => void;
-}>;
-
-const ATTEMPTS = 3;
 export const MAX_SIGNED_SECONDS = 300;
-const PURPOSE = /^o\/[^/]+\/e\/[^/]+\/([a-z_]+)\//;
 
-const purposeOf = (key: string): string => PURPOSE.exec(key)?.[1] ?? "unknown";
-const retryable = (status: number): boolean => status >= 500 || status === 429;
-const amzDate = (at: Date): string => at.toISOString().replace(/[:-]|\.\d{3}/g, "");
-
-function objectUrl(settings: StorageSettings, key: string): URL {
-  const path = key.split("/").map(encodeURIComponent).join("/");
-  const base = new URL(settings.endpoint);
-  if (settings.urlStyle === "virtual") {
-    return new URL(`${base.protocol}//${settings.bucket}.${base.host}/${path}`);
-  }
-  return new URL(`${base.origin}/${settings.bucket}/${path}`);
-}
-
-type Attempt = Readonly<{ status: number } | { error: "timeout" | "network" }>;
-
-/** The error of a call that never got the answer it wanted, logged by its operation, purpose and status only. */
-function failure(op: Op, key: string, last: Attempt, log: StoreOptions["log"]): StorageError {
-  const status = "status" in last ? last.status : null;
-  log?.({ event: "storage.failed", op, purpose: purposeOf(key), status });
-  return new StorageError(op, "status" in last ? "status" : last.error, status);
-}
-
-/** An attempt's outcome: what the call wanted, an answer no retry changes (403 and the like), or worth one more try. */
-const verdictOf = (
-  last: Attempt,
-  done: (status: number) => boolean,
-): "done" | "final" | "again" => {
-  if (!("status" in last)) return "again";
-  if (done(last.status)) return "done";
-  return retryable(last.status) ? "again" : "final";
-};
-
-/**
- * The S3 client on aws4fetch's signer, path-style by default. Every call has its own timeout and is tried at most three
- * times: again after a network error, a timeout, 5xx or 429 (PUT and DELETE of one key are safe to repeat), never after
- * another answer such as 403. Redirects are refused (ADR-701).
- */
-export function createObjectStore(
-  settings: StorageSettings,
-  options: StoreOptions = {},
-): ObjectStore {
-  const call = options.fetch ?? fetch;
-  const timeoutMs = options.timeoutMs ?? 10_000;
-  const delayMs = options.retryDelayMs ?? 200;
-  const random = options.random ?? Math.random;
-  const now = options.now ?? (() => new Date());
-  const credentials = {
-    accessKeyId: settings.accessKeyId,
-    secretAccessKey: settings.secretAccessKey,
-    service: "s3",
-    region: settings.region,
-  };
-
-  const attempt = async (
-    method: string,
-    key: string,
-    body: Buffer | undefined,
-    contentType: StoredType,
-  ): Promise<Attempt> => {
-    const headers: Record<string, string> =
-      body === undefined
-        ? {}
-        : {
-            "content-type": contentType,
-            "x-amz-content-sha256": createHash("sha256").update(body).digest("hex"),
-          };
-    const signed = await new AwsV4Signer({
-      ...credentials,
-      method,
-      url: objectUrl(settings, key).toString(),
-      headers,
-      datetime: amzDate(now()),
-    }).sign();
-    try {
-      const response = await call(signed.url, {
-        method,
-        headers: signed.headers,
-        ...(body === undefined ? {} : { body: new Uint8Array(body) }),
-        redirect: "error",
-        signal: AbortSignal.timeout(timeoutMs),
-      });
-      await response.body?.cancel();
-      return { status: response.status };
-    } catch (error) {
-      const name = (error as { name?: string } | undefined)?.name;
-      return { error: name === "TimeoutError" || name === "AbortError" ? "timeout" : "network" };
-    }
-  };
-
-  const send = async (
-    op: Op,
-    key: string,
-    body: Buffer | undefined,
-    done: (status: number) => boolean,
-    contentType: StoredType = "image/jpeg",
-  ) => {
-    let last: Attempt = { error: "network" };
-    for (let tried = 1; tried <= ATTEMPTS; tried += 1) {
-      last = await attempt(op === "put" ? "PUT" : "DELETE", key, body, contentType);
-      const verdict = verdictOf(last, done);
-      if (verdict === "done") return;
-      if (verdict === "final" || tried === ATTEMPTS) break;
-      await new Promise((resolve) => setTimeout(resolve, delayMs * tried * (0.5 + random())));
-    }
-    throw failure(op, key, last, options.log);
-  };
-
-  return {
-    put: (key, body, contentType = "image/jpeg") =>
-      send("put", key, body, (status) => status === 200, contentType),
-    delete: (key) =>
-      send(
-        "delete",
-        key,
-        undefined,
-        (status) => status === 204 || status === 200 || status === 404,
-      ),
-    signGet: async (key, ttlSeconds, contentType = "image/jpeg", from) => {
-      if (!Number.isInteger(ttlSeconds) || ttlSeconds < 1 || ttlSeconds > MAX_SIGNED_SECONDS) {
-        throw new RangeError(`A signed read lasts 1 to at most ${MAX_SIGNED_SECONDS} seconds.`);
-      }
-      const at = from ?? now();
-      const url = objectUrl(settings, key);
-      url.searchParams.set("X-Amz-Expires", String(ttlSeconds));
-      url.searchParams.set("response-content-type", contentType);
-      url.searchParams.set("response-content-disposition", "inline");
-      const signed = await new AwsV4Signer({
-        ...credentials,
-        method: "GET",
-        url: url.toString(),
-        signQuery: true,
-        datetime: amzDate(at),
-      }).sign();
-      return {
-        url: signed.url.toString(),
-        expiresAt: new Date(Math.floor(at.getTime() / 1000) * 1000 + ttlSeconds * 1000),
-      };
-    },
-  };
-}
+/** The type a key's extension names: `.png` is a PNG, anything else (`.jpg`) a JPEG. */
+export const typeOfKey = (key: string): StoredType =>
+  key.endsWith(".png") ? "image/png" : "image/jpeg";

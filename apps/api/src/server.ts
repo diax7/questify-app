@@ -4,12 +4,13 @@ import { createBreachCheck } from "#src/auth/breached";
 import { createEmailSender } from "#src/auth/email/from-config";
 import { dummyVerify } from "#src/auth/password";
 import { loadConfig, type AppConfig } from "#src/config";
-import { poolOptions } from "#src/db/pool-options";
+import { mediaPoolOptions, poolOptions } from "#src/db/pool-options";
 import { MemoryIdempotencyStore } from "#src/idempotency-store";
 import { createMsegatSender } from "#src/players/sms";
 import { createPushProviders } from "#src/push/providers";
 import { createRankingRedis, createRankingStore, type RankingRedis } from "#src/ranking/store";
-import { createObjectStore } from "#src/storage/client";
+import type { ObjectStore } from "#src/storage/client";
+import { createMediaStore } from "#src/storage/media-store";
 import { loadTelemetryConfig } from "#src/telemetry/config";
 import { countLogEvent } from "#src/telemetry/logs";
 import { instrumentEmail, instrumentPush, instrumentSms } from "#src/telemetry/outbound";
@@ -97,6 +98,30 @@ const warn = (fields: Record<string, string>) => {
   process.stderr.write(`${JSON.stringify(fields)}\n`);
 };
 
+type Media = Readonly<{ store: ObjectStore; pool: Pool; unwatch: () => void }>;
+
+/**
+ * The media database's pool and store (T-814, ADR-839), when the three MEDIA_* settings exist. The pool connects
+ * lazily, so the API starts while the media database is down: uploads answer 503 and links load nothing.
+ */
+function createMedia(
+  config: AppConfig,
+  log: (fields: Record<string, unknown>) => void,
+): Media | undefined {
+  if (config.s3Ignored) warn({ event: "storage.s3_ignored" });
+  if (config.storage === undefined) return undefined;
+  const pool = new Pool(mediaPoolOptions(config.storage.databaseUrl));
+  pool.on("error", (error) => {
+    process.stderr.write(`Media pool error: ${error.name}\n`);
+  });
+  const store = createMediaStore(pool, {
+    origin: config.storage.origin,
+    secret: config.storage.urlSecret,
+    log,
+  });
+  return { store, pool, unwatch: watchPool("media", pool) };
+}
+
 async function main(): Promise<void> {
   const config = loadConfig(process.env);
   // First: the context storage and the providers must exist before anything records or logs (T-018).
@@ -113,6 +138,7 @@ async function main(): Promise<void> {
   pushPool.on("error", (error) => {
     process.stderr.write(`Push pool error: ${error.name}\n`);
   });
+  const media = createMedia(config, (fields) => app.log.warn(fields));
   const redis = config.redisUrl === undefined ? undefined : createRedis(config.redisUrl, warn);
   if (redis !== undefined) {
     // Not awaited: the API starts without Redis and serves rankings from PostgreSQL until it connects.
@@ -142,14 +168,7 @@ async function main(): Promise<void> {
     souvenirIntervalMs: 5000,
     invitationIntervalMs: INVITATION_INTERVAL_MS,
     rankPushIntervalMs: RANK_PUSH_INTERVAL_MS,
-    ...(config.storage === undefined
-      ? {}
-      : {
-          storage: createObjectStore(config.storage, {
-            log: (fields) => app.log.warn(fields),
-          }),
-          mediaIntervalMs: MEDIA_INTERVAL_MS,
-        }),
+    ...(media === undefined ? {} : { storage: media.store, mediaIntervalMs: MEDIA_INTERVAL_MS }),
     organizerAlerts: { intervalMs: ORGANIZER_ALERT_INTERVAL_MS },
     teamAlertIntervalMs: TEAM_ALERT_INTERVAL_MS,
     // Built here so a key that cannot sign stops the start; their log lines run later, once `app` exists.
@@ -168,8 +187,10 @@ async function main(): Promise<void> {
     await app.close();
     unwatchPool();
     unwatchPushPool();
+    media?.unwatch();
     await pool.end();
     await pushPool.end();
+    await media?.pool.end();
     if (redis?.isOpen === true) {
       await redis.close();
     }

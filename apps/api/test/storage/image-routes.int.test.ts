@@ -2,8 +2,12 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { BAR_KEYS, DEFAULT_LOOKS, EMPTY_CONTENT, HOME_KEYS, INFO_KEYS } from "@questify/shared";
 import sharp from "sharp";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createObjectStore } from "#src/storage/client";
-import { startFakeS3, type FakeS3 } from "#test/storage/fake-s3";
+import {
+  TEST_MEDIA_ORIGIN,
+  linkPath,
+  startMediaFixture,
+  type MediaFixture,
+} from "#test/storage/media-test-store";
 import {
   createStaff,
   signInFully,
@@ -47,14 +51,14 @@ const vote = (image: string) => ({
 const game = (images: object) => ({ game: "slide_puzzle", level: "easy", attempts: 3, images });
 
 /**
- * Organizer images over HTTP on the S3 double (ADR-829): the team's upload door, the two read doors (a 302 to a 5-minute
- * signed URL on the bucket's host, every refusal one 404), idempotent repeats, photos off, and each holder: a branding,
+ * Organizer images over HTTP on both databases (ADR-829, T-814): the team's upload door, the two read doors (a 302 to
+ * a 5-minute link on the media route, every refusal one 404), idempotent repeats, photos off, and each holder: a branding,
  * layout, map, sponsor, game or vote that names another event's image is refused with 422, and one that names its own is
  * drawn by the player through the event's door.
  */
 describe.skipIf(TEST_DATABASE_URL === undefined)("organizer images over HTTP", () => {
   let db: TestDatabase;
-  let fake: FakeS3;
+  let fake: MediaFixture;
   let test: TestApp;
   let off: TestApp;
   let orgA = "";
@@ -75,9 +79,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer images over HTTP", (
 
   beforeAll(async () => {
     db = await createTestDatabase();
-    fake = await startFakeS3();
-    const storage = createObjectStore(fake.settings, { retryDelayMs: 1 });
-    test = await startApp(db, false, {}, { storage });
+    fake = await startMediaFixture();
+    test = await startApp(db, false, {}, { storage: fake.store });
     off = await startApp(db);
     orgA = await one("INSERT INTO organizer (name, slug) VALUES ('img-a', 'img-a') RETURNING id");
     orgB = await one("INSERT INTO organizer (name, slug) VALUES ('img-b', 'img-b') RETURNING id");
@@ -205,8 +208,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer images over HTTP", (
       const stored = sent.json<{ imageId: string; width: number; height: number }>();
       expect([stored.width, stored.height]).toEqual([512, 171]);
       const key = `o/${orgA}/e/${event}/logo/${stored.imageId}.png`;
-      expect(fake.objects.get(key)?.contentType).toBe("image/png");
-      expect((await sharp(fake.objects.get(key)?.body).metadata()).hasAlpha).toBe(true);
+      const row = await fake.row(key);
+      expect(row?.content_type).toBe("image/png");
+      expect((await sharp(row?.body).metadata()).hasAlpha).toBe(true);
 
       const token = await newPlayer(orgA, event);
       const read = await playerRead(event, stored.imageId, token);
@@ -214,12 +218,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer images over HTTP", (
       expect(read.headers["cache-control"]).toBe("private, max-age=240");
       expect(read.headers["referrer-policy"]).toBe("no-referrer");
       const url = new URL(String(read.headers["location"]));
-      expect(url.origin).toBe(fake.settings.endpoint);
-      expect(url.pathname).toBe(`/${fake.settings.bucket}/${key}`);
-      expect(url.searchParams.get("X-Amz-Expires")).toBe("300");
-      expect(url.searchParams.get("response-content-type")).toBe("image/png");
-      const fetched = await fetch(url);
-      expect([fetched.status, fetched.headers.get("content-type")]).toEqual([200, "image/png"]);
+      expect(url.origin).toBe(TEST_MEDIA_ORIGIN);
+      expect(url.pathname).toBe(`/v1/media/${key}`);
+      expect(Number(url.searchParams.get("e")) * 1000 - Date.now()).toBeGreaterThan(280_000);
+      const fetched = await test.app.inject({ method: "GET", url: linkPath(url.toString()) });
+      expect([fetched.statusCode, fetched.headers["content-type"]]).toEqual([200, "image/png"]);
 
       // The app's client asks for JSON: the same signed URL, so no redirect carries its token to the bucket.
       const asJson = await test.app.inject({
@@ -229,15 +232,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer images over HTTP", (
       });
       expect(asJson.statusCode).toBe(200);
       const answer = asJson.json<{ url: string; expiresAt: string }>();
-      expect(new URL(answer.url).pathname).toBe(`/${fake.settings.bucket}/${key}`);
+      expect(new URL(answer.url).pathname).toBe(`/v1/media/${key}`);
       const left = new Date(answer.expiresAt).getTime() - Date.now();
       expect(left).toBeGreaterThan(280_000);
       expect(left).toBeLessThanOrEqual(300_000);
       const preview = await teamRead(orgA, event, stored.imageId);
       expect(preview.statusCode).toBe(302);
-      expect(new URL(String(preview.headers["location"])).pathname).toBe(
-        `/${fake.settings.bucket}/${key}`,
-      );
+      expect(new URL(String(preview.headers["location"])).pathname).toBe(`/v1/media/${key}`);
     });
 
     it("stores one object for a repeated key, strips EXIF and refuses what is no image", async () => {
@@ -247,7 +248,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer images over HTTP", (
       const again = await upload(orgA, event, "picture", jpeg, { key });
       expect(again.json()).toEqual(first.json());
       const id = first.json<{ imageId: string }>().imageId;
-      const stored = fake.objects.get(`o/${orgA}/e/${event}/picture/${id}.jpg`);
+      const stored = await fake.row(`o/${orgA}/e/${event}/picture/${id}.jpg`);
       expect((await sharp(stored?.body).metadata()).exif).toBeUndefined();
       expect(codeOf(await upload(orgA, event, "picture", Buffer.from("GIF89a....")))).toEqual([
         415,

@@ -5,7 +5,7 @@ import {
   type ServiceAccountKey,
 } from "#src/auth/google-token";
 import type { RewardCodeSecret, RewardCodeSettings } from "#src/rewards/codes";
-import { storageSettings, type StorageSettings } from "#src/storage/config";
+import { s3Ignored, storageSettings, type StorageSettings } from "#src/storage/config";
 
 export type AuthConfig = Readonly<{
   /** Key material for code hashes and throttle keys; at least 32 characters. */
@@ -80,10 +80,12 @@ export type AppConfig = Readonly<{
    */
   push: PushSettings;
   /**
-   * The private photo bucket (T-301b, ADR-183): all five S3 variables or none. Without it photo quests and ticket photos
-   * are off.
+   * The media database (T-814, ADR-839): MEDIA_DATABASE_URL, MEDIA_ORIGIN and MEDIA_URL_SECRET, all or none. Without it
+   * photo quests, ticket photos, organizer images and the photo wall are off.
    */
   storage: StorageSettings | undefined;
+  /** A retired `S3_*` variable is still set: the server logs `storage.s3_ignored` once and reads none of them. */
+  s3Ignored: boolean;
   /**
    * The device-integrity checks (T-812, ADR-833), each platform all or none: without one, that platform's challenge
    * answers `enabled: false` and nothing is checked or flagged.
@@ -316,6 +318,7 @@ export function loadConfig(env: Env): AppConfig {
     redisUrl: redisUrl(env, nodeEnv),
     push: { apns: apns(env), fcm: fcm(env) },
     storage: storageSettings(env, nodeEnv),
+    s3Ignored: s3Ignored(env),
     integrity: { play: playIntegrity(env), appAttest: appAttest(env) },
   };
 }

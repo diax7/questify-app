@@ -2,7 +2,13 @@ import type { Session } from "#src/api/session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
 
 /** One photo of the event's wall (T-504b): a short signed read, and its owner's username for Block (never a full name). */
-export type WallPhoto = Readonly<{ mediaId: string; url: string; username: string | null }>;
+export type WallPhoto = Readonly<{
+  mediaId: string;
+  url: string;
+  username: string | null;
+  /** When the link stops working (ISO time); absent in an older API's answer. */
+  expiresAt?: string;
+}>;
 
 export type WallRead =
   | Readonly<{ kind: "photos"; photos: readonly WallPhoto[] }>
@@ -28,7 +34,33 @@ export function wallPhotosOf(body: unknown): readonly WallPhoto[] | undefined {
       mediaId: one["mediaId"] as string,
       url: one["url"] as string,
       username: typeof one["username"] === "string" ? one["username"] : null,
+      ...(typeof one["expiresAt"] === "string" ? { expiresAt: one["expiresAt"] } : {}),
     }));
+}
+
+/** A kept link must last at least this much longer, or the newest one is taken. */
+const KEEP_MARGIN_MS = 15_000;
+
+/**
+ * The wall read again (T-814, plan review 86 MINOR 7): a photo that was shown keeps the link it loaded with while that
+ * link still has time left, so a newly signed link does not load the picture again; anything else is the new answer.
+ */
+export function keptWall(before: WallRead | undefined, next: WallRead, nowMs: number): WallRead {
+  if (before?.kind !== "photos" || next.kind !== "photos") return next;
+  const kept = new Map(
+    before.photos
+      .filter(
+        (one) => one.expiresAt !== undefined && Date.parse(one.expiresAt) - nowMs > KEEP_MARGIN_MS,
+      )
+      .map((one) => [one.mediaId, one]),
+  );
+  return {
+    kind: "photos",
+    photos: next.photos.map((one) => {
+      const old = kept.get(one.mediaId);
+      return old === undefined ? one : { ...old, username: one.username };
+    }),
+  };
 }
 
 /** The event's photo wall now. */

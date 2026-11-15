@@ -55,6 +55,12 @@ describe("the photo wall scene", () => {
       { mediaId: "c", url: "https://m/c?2" },
     ]);
   });
+
+  it("gives up a kept URL that failed to load and takes the newest one (T-814)", () => {
+    const shown = [{ mediaId: "b", url: "https://m/b?1" }];
+    const latest = [{ mediaId: "b", url: "https://m/b?2" }];
+    expect(keptPhotos(shown, latest, new Set(["https://m/b?1"]))).toEqual(latest);
+  });
 });
 
 describe("the team's picker", () => {

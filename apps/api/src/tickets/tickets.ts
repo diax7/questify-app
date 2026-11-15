@@ -485,7 +485,7 @@ const teamOf = async (deps: TicketDeps, row: TeamRow): Promise<TeamTicket> => ({
       : { enrollmentId: row.reported_enrollment_id, username: row.reported_username },
   escalation: escalationOf(row),
   returned: row.returned_at === null ? null : { at: row.returned_at, note: row.return_note ?? "" },
-  ...(await signedPhoto(deps.storage, row.photo_key)),
+  ...signedPhoto(deps.storage, row.photo_key),
 });
 
 export type TeamCounts = Readonly<{
@@ -605,7 +605,7 @@ export function operatorTicket(
       reply: row.reply,
       createdAt: row.created_at,
       closedAt: row.closed_at,
-      ...(await signedPhoto(deps.storage, row.photo_key)),
+      ...signedPhoto(deps.storage, row.photo_key),
     };
   });
 }

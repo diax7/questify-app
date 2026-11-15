@@ -191,6 +191,18 @@ groups:
           summary: "Community rewards are late: a goal's settle point or a payout is stuck"
           runbook: docs/RUNBOOK.md#questifycommunitypayoutsbehind
 
+      # The daily media reconcile stopped before any delete (T-814, review 86 MAJOR 1): it found more unknown keys than
+      # its cap (a stale main restore?) or could not trust the main database's answer.
+      - alert: QuestifyMediaReconcileBlocked
+        expr: |
+          sum(increase(questify_log_events_total{questify_event=~"media\\.(reconcile_blocked|reconcile_failed)"}[1d])) > 0
+        for: 1m
+        labels:
+          severity: page
+        annotations:
+          summary: "The media reconcile deleted nothing: too many unknown photo keys, or the main database's answer was not trusted"
+          runbook: docs/RUNBOOK.md#questifymediareconcileblocked
+
       # Any other error-level event that keeps repeating. Community events have their own alerts above.
       - alert: QuestifyErrorEventRepeating
         expr: |

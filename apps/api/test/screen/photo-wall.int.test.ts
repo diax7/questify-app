@@ -1,8 +1,12 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import sharp from "sharp";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createObjectStore } from "#src/storage/client";
-import { startFakeS3, type FakeS3 } from "#test/storage/fake-s3";
+import {
+  TEST_MEDIA_ORIGIN,
+  linkPath,
+  startMediaFixture,
+  type MediaFixture,
+} from "#test/storage/media-test-store";
 import {
   DASHBOARD_ORIGIN,
   createStaff,
@@ -28,15 +32,24 @@ const cookieOf = (response: Response): string => {
   const header = response.headers["set-cookie"];
   return String(Array.isArray(header) ? header[0] : header).split(";")[0] ?? "";
 };
+/** A wall photo's link: the media route for its own key, lasting one to two minutes. */
+const onMediaRoute = (photo: Photo, mediaKey: string) => {
+  const url = new URL(photo.url);
+  expect(url.origin).toBe(TEST_MEDIA_ORIGIN);
+  expect(url.pathname).toBe(`/v1/media/${mediaKey}`);
+  const left = new Date(photo.expiresAt).getTime() - Date.now();
+  expect(left).toBeGreaterThan(55_000);
+  expect(left).toBeLessThanOrEqual(120_000);
+};
 
 /**
- * The photo wall over HTTP on the S3 double (T-504b): the player's choice at the send and afterwards, the team's picker,
- * the screen's photo scene and the app's wall (each photo a 120-second URL on the bucket, never a key or a full name),
+ * The photo wall over HTTP on both databases (T-504b, T-814): the player's choice at the send and afterwards, the team's picker,
+ * the screen's photo scene and the app's wall (each photo a 120-second link on the media route, never a key or a full name),
  * Home's flag, and a server without a bucket, where everything stays off and harmless.
  */
 describe.skipIf(TEST_DATABASE_URL === undefined)("the photo wall over HTTP", () => {
   let db: TestDatabase;
-  let fake: FakeS3;
+  let fake: MediaFixture;
   let test: TestApp;
   let off: TestApp;
   let organizer = "";
@@ -47,9 +60,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the photo wall over HTTP", () 
 
   beforeAll(async () => {
     db = await createTestDatabase();
-    fake = await startFakeS3();
-    const storage = createObjectStore(fake.settings, { retryDelayMs: 1 });
-    test = await startApp(db, false, {}, { storage });
+    fake = await startMediaFixture();
+    test = await startApp(db, false, {}, { storage: fake.store });
     off = await startApp(db);
     organizer =
       (
@@ -201,14 +213,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the photo wall over HTTP", () 
       url: "/v1/device/screen/photo",
       headers: { cookie, origin: DASHBOARD_ORIGIN },
     }) as Promise<Response>;
-  const onBucket = (photo: Photo, mediaKey: string) => {
-    const url = new URL(photo.url);
-    expect(url.origin).toBe(fake.settings.endpoint);
-    expect(url.pathname).toBe(`/${fake.settings.bucket}/${mediaKey}`);
-    const left = new Date(photo.expiresAt).getTime() - Date.now();
-    expect(left).toBeGreaterThan(55_000);
-    expect(left).toBeLessThanOrEqual(120_000);
-  };
 
   it("takes the player's choice, lets the team pick, and shows the pick on the screen and in the app", async () => {
     const { event, quest } = await newEvent();
@@ -227,7 +231,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the photo wall over HTTP", () 
     expect(picker.headers["cache-control"]).toBe("private, no-store");
     const candidates = picker.json<{ candidates: Photo[] }>().candidates;
     expect(candidates.map((one) => one.submissionId)).toEqual([yes.submissionId]);
-    onBucket(candidates[0] as Photo, key);
+    onMediaRoute(candidates[0] as Photo, key);
     expect(picker.body).not.toContain('"key"');
     expect(picker.body).not.toContain(sara.username);
 
@@ -245,7 +249,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the photo wall over HTTP", () 
     expect(shown.statusCode, shown.body).toBe(200);
     const photos = shown.json<{ shut: null; photos: Photo[] }>().photos;
     expect(photos.map((one) => one.mediaId)).toEqual([yes.mediaId]);
-    onBucket(photos[0] as Photo, key);
+    onMediaRoute(photos[0] as Photo, key);
+    const served = await test.app.inject({ method: "GET", url: linkPath(String(photos[0]?.url)) });
+    expect([served.statusCode, served.headers["content-type"]]).toEqual([200, "image/jpeg"]);
     expect(shown.body).not.toContain('"key"');
     expect(shown.body).not.toContain(sara.username);
     expect(Object.keys(photos[0] ?? {}).toSorted()).toEqual(["expiresAt", "mediaId", "url"]);

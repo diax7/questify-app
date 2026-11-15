@@ -2,9 +2,14 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import sharp from "sharp";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createObjectStore } from "#src/storage/client";
+import { createMediaStore } from "#src/storage/media-store";
 import { startMediaWorker } from "#src/storage/worker";
-import { startFakeS3, type FakeS3 } from "#test/storage/fake-s3";
+import {
+  TEST_MEDIA_ORIGIN,
+  linkPath,
+  startMediaFixture,
+  type MediaFixture,
+} from "#test/storage/media-test-store";
 import {
   createStaff,
   signInFully,
@@ -19,15 +24,18 @@ type Row = Record<string, unknown>;
 const GUIDELINES = "0.1";
 
 /**
- * Photo submissions and ticket photos over HTTP on the S3 double (T-301b): the upload door, the stored object (re-encoded,
- * no EXIF, under the event's prefix), the submit, the team's and the operator's signed reads, the worker deleting a
- * rejected photo, idempotent repeats, the refusals (type, size, kind, another player's photo), and photos off.
+ * Photo submissions and ticket photos over HTTP on both databases (T-301b, T-814): the upload door, the stored bytes
+ * (re-encoded, no EXIF, under the event's prefix, in the media database), the submit, the team's and the operator's
+ * signed reads through the media route, the worker deleting a rejected photo, idempotent repeats, the refusals (type,
+ * size, kind, another player's photo), and photos off.
  */
 describe.skipIf(TEST_DATABASE_URL === undefined)("photo submissions over HTTP", () => {
   let db: TestDatabase;
-  let fake: FakeS3;
+  let fake: MediaFixture;
   let test: TestApp;
   let off: TestApp;
+  let down: TestApp;
+  let downPool: Pool;
   let pool: Pool;
   let organizer = "";
   let ownerCookie = "";
@@ -37,10 +45,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("photo submissions over HTTP", 
 
   beforeAll(async () => {
     db = await createTestDatabase();
-    fake = await startFakeS3();
-    const storage = createObjectStore(fake.settings, { retryDelayMs: 1 });
-    test = await startApp(db, false, {}, { storage });
+    fake = await startMediaFixture();
+    test = await startApp(db, false, {}, { storage: fake.store });
     off = await startApp(db);
+    // A media database that is not there: a pool to a closed port (plan section 4).
+    downPool = new Pool({
+      connectionString: "postgres://nobody:x@127.0.0.1:9/none",
+      connectionTimeoutMillis: 500,
+    });
+    down = await startApp(
+      db,
+      false,
+      {},
+      {
+        storage: createMediaStore(downPool, { origin: TEST_MEDIA_ORIGIN, secret: "d".repeat(32) }),
+      },
+    );
     pool = new Pool({ connectionString: db.appUrl, max: 2 });
     organizer =
       (
@@ -63,6 +83,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("photo submissions over HTTP", 
   afterAll(async () => {
     await test.close();
     await off.close();
+    await down.close();
+    await downPool.end();
     await pool.end();
     await fake.close();
     await db.close();
@@ -150,8 +172,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("photo submissions over HTTP", 
     expect(sent.statusCode).toBe(201);
     const { photoId } = sent.json<{ photoId: string }>();
     const key = `o/${organizer}/e/${event}/submission/${photoId}.jpg`;
-    const stored = fake.objects.get(key);
-    expect(stored?.contentType).toBe("image/jpeg");
+    const stored = await fake.row(key);
+    expect(stored?.content_type).toBe("image/jpeg");
     const meta = await sharp(stored?.body).metadata();
     expect([meta.format, meta.width, meta.exif]).toEqual(["jpeg", 640, undefined]);
 
@@ -173,13 +195,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("photo submissions over HTTP", 
     const [item] = queue.json<{ submissions: Row[] }>().submissions;
     expect(item).toMatchObject({ kind: "photo", text: "By the stage", photoGone: false });
     const url = new URL(String(item?.["photoUrl"]));
-    expect(url.origin).toBe(fake.settings.endpoint);
-    expect(url.pathname).toBe(`/${fake.settings.bucket}/${key}`);
+    expect(url.origin).toBe(TEST_MEDIA_ORIGIN);
+    expect(url.pathname).toBe(`/v1/media/${key}`);
     const expires = new Date(String(item?.["photoExpiresAt"])).getTime() - Date.now();
     expect(expires).toBeGreaterThan(280_000);
     expect(expires).toBeLessThanOrEqual(300_000);
-    const read = await fetch(url);
-    expect([read.status, read.headers.get("content-type")]).toEqual([200, "image/jpeg"]);
+    const read = await test.app.inject({ method: "GET", url: linkPath(url.toString()) });
+    expect([read.statusCode, read.headers["content-type"]]).toEqual([200, "image/jpeg"]);
+    expect(read.rawPayload.equals(stored?.body ?? Buffer.alloc(0))).toBe(true);
   });
 
   it("deletes a rejected photo from the bucket in one worker run, and says it is gone", async () => {
@@ -191,7 +214,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("photo submissions over HTTP", 
     }>();
     const sent = await json("POST", `/v1/quests/${quest}/submit`, sara.token, { photoId });
     const key = `o/${organizer}/e/${event}/submission/${photoId}.jpg`;
-    expect(fake.objects.has(key)).toBe(true);
+    expect(await fake.keys()).toContain(key);
     const reviewed = await dashboard(
       "POST",
       `/events/${event}/submissions/${String(sent.json().submissionId)}/review`,
@@ -200,13 +223,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("photo submissions over HTTP", 
     expect(reviewed.statusCode).toBe(200);
     const worker = startMediaWorker({
       pool,
-      store: createObjectStore(fake.settings, { retryDelayMs: 1 }),
+      store: fake.store,
       intervalMs: 3_600_000,
       log: () => undefined,
     });
     expect((await worker.runOnce()).deleted).toBeGreaterThanOrEqual(1);
     await worker.stop();
-    expect(fake.objects.has(key)).toBe(false);
+    expect(await fake.keys()).not.toContain(key);
     const done = await dashboard("GET", `/events/${event}/submissions?filter=done`);
     expect(done.json().submissions[0]).toMatchObject({ photoUrl: null, photoGone: true });
   });
@@ -215,13 +238,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("photo submissions over HTTP", 
     const event = await newEvent();
     const quest = await newQuest(event);
     const sara = await newPlayer(event);
-    const before = fake.objects.size;
+    const before = (await fake.keys()).length;
     const key = randomUUID();
     const first = await upload(`/v1/quests/${quest}/photo`, sara.token, jpeg, "image/jpeg", key);
     const again = await upload(`/v1/quests/${quest}/photo`, sara.token, jpeg, "image/jpeg", key);
     expect([first.statusCode, again.statusCode]).toEqual([201, 201]);
     expect(again.json()).toEqual(first.json());
-    expect(fake.objects.size).toBe(before + 1);
+    expect((await fake.keys()).length).toBe(before + 1);
     const png = await sharp(jpeg).png().toBuffer();
     const other = await upload(`/v1/quests/${quest}/photo`, sara.token, png, "image/png", key);
     expect([other.statusCode, other.json().code]).toEqual([422, "idempotency_key_reused"]);
@@ -300,7 +323,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("photo submissions over HTTP", 
     const ticketPhoto = await upload(`/v1/events/${event}/tickets/photo`, sara.token, jpeg);
     expect(ticketPhoto.statusCode).toBe(201);
     const ticketPhotoId = ticketPhoto.json<{ photoId: string }>().photoId;
-    expect(fake.objects.has(`o/${organizer}/e/${event}/ticket/${ticketPhotoId}.jpg`)).toBe(true);
+    expect(await fake.keys()).toContain(`o/${organizer}/e/${event}/ticket/${ticketPhotoId}.jpg`);
     const opened = await json("POST", `/v1/events/${event}/tickets`, sara.token, {
       kind: "problem",
       text: "The screen is broken",
@@ -324,6 +347,36 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("photo submissions over HTTP", 
       photoId: ticketPhotoId,
     });
     expect([reused.statusCode, reused.json().code]).toEqual([422, "photo_unusable"]);
+  });
+
+  it("keeps the API up while the media database is down: uploads and links 503, readers and /readyz answer", async () => {
+    const event = await newEvent();
+    const quest = await newQuest(event);
+    const sara = await newPlayer(event);
+    const refused = await upload(
+      `/v1/quests/${quest}/photo`,
+      sara.token,
+      jpeg,
+      "image/jpeg",
+      randomUUID(),
+      down,
+    );
+    expect([refused.statusCode, refused.json().code]).toEqual([503, "storage_unavailable"]);
+    const { photoId } = (await upload(`/v1/quests/${quest}/photo`, sara.token, jpeg)).json<{
+      photoId: string;
+    }>();
+    await json("POST", `/v1/quests/${quest}/submit`, sara.token, { photoId });
+    const queue = await down.app.inject({
+      method: "GET",
+      url: `/v1/organizers/${organizer}/events/${event}/submissions`,
+      headers: withSession(await signInFully(down, "owner@photo.test")),
+    });
+    expect(queue.statusCode).toBe(200);
+    const link = String(queue.json<{ submissions: Row[] }>().submissions[0]?.["photoUrl"]);
+    const read = await down.app.inject({ method: "GET", url: linkPath(link) });
+    expect([read.statusCode, read.headers["retry-after"]]).toEqual([503, "1"]);
+    const ready = await down.app.inject({ method: "GET", url: "/readyz" });
+    expect(ready.statusCode).toBe(200);
   });
 
   it("offers photo quests only with a bucket, and answers photos_off without one", async () => {

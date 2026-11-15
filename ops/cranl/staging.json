@@ -17,9 +17,21 @@
         "keep": 7
       }
     },
-    "redis": { "name": "questify-cache", "type": "redis" }
+    "redis": { "name": "questify-cache", "type": "redis" },
+    "media": {
+      "name": "questify-media-db",
+      "type": "postgresql",
+      "backups": {
+        "enabled": true,
+        "frequency": "daily",
+        "hour": 0,
+        "minute": 43,
+        "timezone": "UTC",
+        "keep": 7
+      }
+    }
   },
-  "buckets": ["questify-media-staging"],
+  "buckets": [],
   "apps": {
     "api": {
       "name": "questify-api-staging",
@@ -52,11 +64,9 @@
         "OTEL_EXPORTER_OTLP_ENDPOINT": { "template": "{monitoring.url}/api/v1/otlp" },
         "OTEL_EXPORTER_OTLP_HEADERS": { "secret": "operator" },
         "TELEMETRY_TRACE_RATIO": "0",
-        "S3_ENDPOINT": { "secret": "operator" },
-        "S3_BUCKET": "questify-media-staging",
-        "S3_REGION": "riyadh-1",
-        "S3_ACCESS_KEY_ID": { "secret": "operator" },
-        "S3_SECRET_ACCESS_KEY": { "secret": "operator" }
+        "MEDIA_DATABASE_URL": { "secret": "operator" },
+        "MEDIA_ORIGIN": { "template": "{api.url}" },
+        "MEDIA_URL_SECRET": { "secret": "generate" }
       }
     },
     "web": {

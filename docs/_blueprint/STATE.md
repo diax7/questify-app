@@ -1,5 +1,20 @@
 # Blueprint State — Questify
 
+## T-814 phase 1: photos in a second PostgreSQL database, built with photos off (tier A) — 2026-11-15
+
+- **Plan review 86** (approve with revisions) folded into the plan (section 9): the reconcile fails closed with a cap
+  (`min(1,000, 5 %)`, `QuestifyMediaReconcileBlocked`), no bad-signature limiter, MB409 answers `409 photo_send_again`
+  once, the route's own CSP, 0200 revokes CONNECT from PUBLIC, a 32 MB cache whose entries live 60 s, a gate of 8, the
+  client change in phase 1. Q-787 answered by Dhia ("Accept 4h / 1 day").
+- **Built:** `apps/api/media-migrations/m0001_media_blob.sql`, `db/media-roles.sql`, migration 0200, `storage/media-store`,
+  `media-link`, `media-route`, `media-cache`, `reconcile`, the worker on one `blob_delete` a round, `migrate.cjs --media`,
+  `MEDIA_*` settings (S3 ignored and logged), S3 client, fake, contract test and `aws4fetch` removed; web `RemotePhoto`,
+  `PhotoScene` and the app wall keep a loaded picture's link; `ops/cranl/staging.json` declares `questify-media-db`.
+- **Checks:** Vitest app and web 4,169 tests in 320 files; API unit and shared 5,380 in 308; DB and security suites
+  touched 972 in 17; infra 56; format, lint, `lint:limits`, types pass. CI 0 minutes (not pushed).
+- **Next:** the tier A code review, then mutation on `apps/api/src/storage/media-*.ts`, `reconcile.ts`, `worker.ts`.
+  Phase 2 needs Dhia to create `questify-media-db` in `riyadh-1`.
+
 ## T-814 plan: photos in a second PostgreSQL database (tier A, plan only) — 2026-11-15
 
 - **Plan** `docs/plans/2026-11-15-photos-in-postgres.md`, awaiting plan review (Dhia, 2026-11-15: "Second Postgres DB";

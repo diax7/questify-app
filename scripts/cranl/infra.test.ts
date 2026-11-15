@@ -18,13 +18,13 @@ const OPERATOR = {
   SECRET_API_OTEL_EXPORTER_OTLP_HEADERS: "operator-otlp-headers",
   SECRET_MONITORING_METRICS_PASSWORD: "operator-metrics-password",
   SECRET_MONITORING_METRICS_PASSWORD_HASH: "operator-metrics-hash",
-  SECRET_API_S3_ENDPOINT: "https://s3.riyadh-1.example.test",
-  SECRET_API_S3_ACCESS_KEY_ID: "operator-s3-key-id",
-  SECRET_API_S3_SECRET_ACCESS_KEY: "operator-s3-secret",
-  SECRET_WEB_MEDIA_HOST: "questify-media-staging.s3.riyadh-1.example.test",
+  SECRET_API_MEDIA_DATABASE_URL: "postgres://questify_media_app:operator@media.example.test/media",
+  SECRET_WEB_MEDIA_HOST: "questify-api-staging.example.test",
 };
 
 const staging = () => loadSpec(join(ROOT, "ops", "cranl", "staging.json"));
+/** Staging with one photo bucket, for the bucket tooling (no file declares one since T-814). */
+const withBucket = () => ({ ...staging(), buckets: ["questify-media-staging"] });
 const clientFor = (cranl: ReturnType<typeof fakeCranl>) =>
   createClient({ apiKey: "test-key", fetch: cranl.fetch, retryDelayMs: 0 });
 
@@ -58,6 +58,7 @@ describe("apply on an empty account", () => {
     expect(cranl.databases.map((d) => `${d.name}:${d.type}:${d.region}`)).toEqual([
       "questify-db:postgresql:riyadh-1",
       "questify-cache:redis:riyadh-1",
+      "questify-media-db:postgresql:riyadh-1",
     ]);
     expect(result.rest).toEqual([]);
     expect(await planOf(cranl)).toEqual([]);
@@ -170,7 +171,7 @@ describe("apply on an empty account", () => {
   });
 
   it("creates the photo bucket in the environment's region, in its project (T-301b)", async () => {
-    const { cranl } = await applied();
+    const { cranl } = await applied(withBucket());
     expect(cranl.buckets).toEqual([
       expect.objectContaining({
         name: "questify-media-staging",
@@ -194,7 +195,7 @@ describe("apply on an empty account", () => {
     );
     expect(empty.writes).toEqual([]);
 
-    const { cranl } = await applied();
+    const { cranl } = await applied(withBucket());
     const writes = cranl.writes.length;
     const renamed = { ...staging(), buckets: ["questify-media-staging-2"] };
     await expect(
@@ -211,7 +212,7 @@ describe("apply on an empty account", () => {
       region: "riyadh-1",
       project: { id: "other" },
     });
-    await apply({ client: clientFor(cranl), spec: staging(), env: OPERATOR, runId: "run1" });
+    await apply({ client: clientFor(cranl), spec: withBucket(), env: OPERATOR, runId: "run1" });
     expect(cranl.buckets.map((b) => b.name)).toEqual(["b7r-media", "questify-media-staging"]);
   });
 });
@@ -262,10 +263,10 @@ describe("plan on an existing environment", () => {
   });
 
   it("names a bucket CranL placed in another region as a manual step, and trusts one with no region shown", async () => {
-    const { cranl } = await applied();
+    const { cranl } = await applied(withBucket());
     const bucket = cranl.buckets[0]!;
     bucket.region = "jeddah-1";
-    expect(await planOf(cranl)).toEqual([
+    expect(await planOf(cranl, withBucket())).toEqual([
       {
         sort: "manual",
         op: "bucket.manual",
@@ -276,7 +277,7 @@ describe("plan on an existing environment", () => {
       },
     ]);
     delete bucket.region;
-    expect(await planOf(cranl)).toEqual([]);
+    expect(await planOf(cranl, withBucket())).toEqual([]);
   });
 
   it("names a build folder, branch or region the API cannot change as a manual step", async () => {
@@ -356,7 +357,7 @@ describe("apply that stops halfway", () => {
     await expect(
       apply({ client: stopped, spec: staging(), env: OPERATOR, runId: "run1" }),
     ).rejects.toThrow(/^CranL POST \/apps\/app-\d+\/volumes failed: 422 quota$/);
-    expect(cranl.writes.filter(isCreate)).toHaveLength(5);
+    expect(cranl.writes.filter(isCreate)).toHaveLength(6);
     expect((await planOf(cranl)).length).toBeGreaterThan(0);
 
     const before = cranl.writes.length;
@@ -371,7 +372,7 @@ describe("apply that stops halfway", () => {
     expect(rerun.filter(isCreate)).toEqual([]);
     expect(rerun.some((write) => write.path.endsWith("/volumes"))).toBe(true);
     expect(cranl.apps).toHaveLength(3);
-    expect(cranl.databases).toHaveLength(2);
+    expect(cranl.databases).toHaveLength(3);
     expect(await planOf(cranl)).toEqual([]);
   });
 });
@@ -557,15 +558,18 @@ describe("the environment files", () => {
     expect(() => loadSpec(join(ROOT, "ops", "cranl", "production.json"))).not.toThrow();
   });
 
-  it("keeps Questify to three apps and two databases per environment (ADR-626)", () => {
-    for (const name of ["staging", "production"]) {
+  it("keeps Questify to three apps and at most three databases per environment (ADR-626, T-814)", () => {
+    for (const [name, types] of [
+      ["staging", ["postgresql", "postgresql", "redis"]],
+      ["production", ["postgresql", "redis"]],
+    ] as const) {
       const spec = loadSpec(join(ROOT, "ops", "cranl", `${name}.json`));
       expect(Object.keys(spec.apps).toSorted()).toEqual(["api", "monitoring", "web"]);
       expect(
         Object.values(spec.databases)
           .map((d: any) => d.type)
           .toSorted(),
-      ).toEqual(["postgresql", "redis"]);
+      ).toEqual(types);
     }
   });
 

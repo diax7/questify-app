@@ -425,12 +425,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     }
   });
 
-  it("keeps the photo storage closed: eight doors for the API's role alone, two tables with no grant (T-301b)", async () => {
+  it("keeps the photo storage closed: ten doors for the API's role alone, three tables with no grant (T-301b, T-814)", async () => {
     const doors = [
       "media_delete_claim",
       "media_delete_done",
       "media_delete_failed",
+      "media_keys_known",
       "media_purge_due",
+      "media_reconcile_claim",
       "media_release",
       "media_reserve",
       "media_stored",
@@ -487,7 +489,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     expect(
       await rows(
         `SELECT table_name, grantee FROM information_schema.role_table_grants
-         WHERE table_name IN ('media_object', 'media_delete') AND grantee <> 'postgres'`,
+         WHERE table_name IN ('media_object', 'media_delete', 'media_reconcile_run') AND grantee <> 'postgres'`,
       ),
     ).toEqual([]);
   });

@@ -7,6 +7,7 @@ import {
   notFound,
   notSubmissionQuest,
   photoNotAccepted,
+  photoSendAgain,
   photosOff,
   photoType,
   photoUnreadable,
@@ -19,7 +20,7 @@ import {
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { HttpError } from "#src/http-error";
-import type { ObjectStore, StoredType } from "#src/storage/client";
+import { StorageError, type ObjectStore } from "#src/storage/client";
 import { ImageError, reencode, sniff, type ImageGate, type Reencoded } from "#src/storage/images";
 
 export type PhotoDeps = Readonly<{
@@ -116,15 +117,25 @@ export type UploadSteps<S extends Slot> = Readonly<{
   release: (slot: S) => Promise<unknown>;
   encode: () => Promise<Reencoded>;
   stored: (slot: S, image: Reencoded) => Promise<boolean>;
-  contentType: StoredType;
 }>;
+
+/** A put that failed: MB409 gives the slot back (its key is queued) and answers once; anything else is a 503. */
+async function putFailed<S extends Slot>(steps: UploadSteps<S>, slot: S, error: unknown) {
+  if (error instanceof StorageError && error.code === "conflict") {
+    await steps.release(slot);
+    return new PhotoRefused(photoSendAgain());
+  }
+  return new PhotoRefused(storageUnavailable());
+}
 
 /**
  * One upload after its bytes were sniffed (shared by the photo and organizer image doors): a slot is reserved under the
- * caller's seat, the image re-encoded (a refused image gives its slot back, so it does not count toward the cap), PUT to
- * the bucket outside any transaction, and the slot marked stored. A retry with the same key finds its slot and answers at
- * once when it is stored (`image` undefined). A slot swept while the upload ran has its object queued for deletion by the
- * database, and the caller is asked to send again.
+ * caller's seat, the image re-encoded (a refused image gives its slot back, so it does not count toward the cap), put in
+ * the media database outside any transaction, and the slot marked stored. A retry with the same key finds its slot and
+ * answers at once when it is stored (`image` undefined). A slot swept while the upload ran has its object queued for
+ * deletion by the database, and the caller is asked to send again. A key that already holds other bytes (MB409, a
+ * re-encode that differs from an earlier attempt's) releases the slot, so the next send gets a fresh one (plan review 86
+ * MINOR 3).
  */
 export async function storeUpload<S extends Slot>(
   steps: UploadSteps<S>,
@@ -140,9 +151,9 @@ export async function storeUpload<S extends Slot>(
     throw imageRefusal(error);
   }
   try {
-    await steps.storage.put(slot.key, image.body, steps.contentType);
-  } catch {
-    throw new PhotoRefused(storageUnavailable());
+    await steps.storage.put(slot.key, image.body);
+  } catch (error) {
+    throw await putFailed(steps, slot, error);
   }
   if (!(await steps.stored(slot, image))) throw new PhotoRefused(storageUnavailable());
   return { slot, image };
@@ -158,7 +169,6 @@ export async function uploadPhoto(
   if (sniff(upload.body) === undefined) throw new PhotoRefused(photoType());
   const { slot } = await storeUpload({
     storage,
-    contentType: "image/jpeg",
     reserve: () => reserveSlot(deps, upload),
     release: (taken) => releaseSlot(deps, upload.playerId, taken),
     encode: () => reencode(upload.body, deps.gate),

@@ -34,6 +34,7 @@ import { registerOperatorAwardRoutes } from "#src/awards/routes";
 import type { ObjectStore } from "#src/storage/client";
 import { registerPhotoWallPlayerRoutes } from "#src/screen/routes";
 import type { KioskDeps } from "#src/devices/kiosk";
+import { registerMediaRoutes } from "#src/storage/media-route";
 import { registerImageReadRoutes } from "#src/storage/read-routes";
 import { registerPhotoRoutes } from "#src/storage/routes";
 import { startMediaWorker } from "#src/storage/worker";
@@ -161,8 +162,8 @@ export type AppOptions = Readonly<{
    */
   push?: Readonly<{ pool: Pool; providers: readonly PushProvider[] }>;
   /**
-   * The private photo bucket (T-301b), built from the S3 settings. Without it the photo doors answer 503 `photos_off`,
-   * the builder refuses photo quests, and no URL is signed.
+   * The media store (T-814, ADR-839), built from the MEDIA_* settings. Without it the photo doors answer 503 `photos_off`,
+   * the builder refuses photo quests, no link is signed and the media route answers 404.
    */
   storage?: ObjectStore;
   /** How often the media worker sweeps, purges and deletes (T-301b); off when not given (tests call `runOnce`). */
@@ -721,6 +722,7 @@ function registerPlayDoors(app: FastifyInstance, options: AppOptions, deps: Play
   registerTicketRoutes(app, { pool, settings, keys, storage });
   registerPhotoRoutes(app, { pool, storage });
   registerImageReadRoutes(app, { pool, storage });
+  registerMediaRoutes(app, { storage });
   registerPhotoWallPlayerRoutes(app, { pool, storage });
   registerPlayRoutes(app, { pool, ranking, settings, firstBonus });
   registerMeetRoutes(app, { pool, ranking, settings, keys });

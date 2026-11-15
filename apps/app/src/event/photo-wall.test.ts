@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AuthedResult } from "#src/api/session.ts";
-import { fetchPhotoWall, saveOnScreen, wallPhotosOf } from "#src/event/photo-wall-api.ts";
+import { fetchPhotoWall, keptWall, saveOnScreen, wallPhotosOf } from "#src/event/photo-wall-api.ts";
 import {
   mySubmissionsOf,
   photoChoicesFor,
@@ -59,6 +59,63 @@ describe("the photo wall in the app", () => {
       }),
     ).toEqual([{ mediaId: "m1", url: "https://bucket.test/a", username: "sara" }]);
     expect(wallPhotosOf({})).toBeUndefined();
+  });
+
+  it("keeps a shown photo's link while it has time left, so a new read does not load it again (T-814)", () => {
+    const now = Date.parse("2026-11-15T10:00:00Z");
+    const before = {
+      kind: "photos" as const,
+      photos: [
+        {
+          mediaId: "m1",
+          url: "https://api.test/1?e=1",
+          username: "sara",
+          expiresAt: "2026-11-15T10:01:00Z",
+        },
+        {
+          mediaId: "m2",
+          url: "https://api.test/2?e=1",
+          username: "omar",
+          expiresAt: "2026-11-15T10:00:10Z",
+        },
+      ],
+    };
+    const next = {
+      kind: "photos" as const,
+      photos: [
+        {
+          mediaId: "m1",
+          url: "https://api.test/1?e=2",
+          username: "sara",
+          expiresAt: "2026-11-15T10:02:00Z",
+        },
+        {
+          mediaId: "m2",
+          url: "https://api.test/2?e=2",
+          username: "omar",
+          expiresAt: "2026-11-15T10:02:00Z",
+        },
+        {
+          mediaId: "m3",
+          url: "https://api.test/3?e=2",
+          username: "lina",
+          expiresAt: "2026-11-15T10:02:00Z",
+        },
+      ],
+    };
+    expect(keptWall(before, next, now)).toEqual({
+      kind: "photos",
+      photos: [before.photos[0], next.photos[1], next.photos[2]],
+    });
+    expect(keptWall(undefined, next, now)).toBe(next);
+    expect(keptWall(before, { kind: "off" }, now)).toEqual({ kind: "off" });
+    expect(
+      wallPhotosOf({
+        photos: [{ mediaId: "m1", url: "https://a.test/x", expiresAt: "2026-11-15T10:02:00Z" }],
+      }),
+    ).toEqual([
+      { mediaId: "m1", url: "https://a.test/x", username: null, expiresAt: "2026-11-15T10:02:00Z" },
+    ]);
   });
 
   it("reads the wall, and a 404 as off", async () => {

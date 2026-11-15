@@ -8,7 +8,7 @@ import { organizerContextOf } from "#src/organizers/context";
 import { teamSeat } from "#src/organizers/store";
 import type { ObjectStore } from "#src/storage/client";
 
-/** How long a signed image read lasts: the bucket's limit (client.ts), so a 302 is good for five minutes. */
+/** How long a signed image read lasts: the media link's limit (client.ts), so a 302 is good for five minutes. */
 export const IMAGE_URL_SECONDS = 300;
 /** The app and the browser may keep the redirect a little less than the URL lasts. */
 const IMAGE_CACHE = "private, max-age=240";
@@ -47,8 +47,9 @@ async function keyOf(
 }
 
 /**
- * Answers a 302 to a five-minute signed URL of the key's object, served as a PNG or a JPEG by the key's own extension;
- * every refusal, and a server with no bucket, is one 404, so a caller learns nothing about another event's images.
+ * Answers a 302 to a five-minute link of the key's object on the media route (ADR-840), served as the stored PNG or
+ * JPEG; every refusal, and a server with no media store, is one 404, so a caller learns nothing about another event's
+ * images.
  */
 async function redirect(
   deps: ImageReadDeps,
@@ -57,17 +58,13 @@ async function redirect(
   key: string | undefined,
 ): Promise<FastifyReply> {
   if (deps.storage === undefined || key === undefined) throw notFound();
-  const signed = await deps.storage.signGet(
-    key,
-    IMAGE_URL_SECONDS,
-    key.endsWith(".png") ? "image/png" : "image/jpeg",
-  );
+  const signed = deps.storage.signGet(key, IMAGE_URL_SECONDS);
   reply
     .header("cache-control", IMAGE_CACHE)
     .header("vary", "accept")
     .header("referrer-policy", "no-referrer");
   // The app asks for JSON (its client always does): it then loads the URL itself, so no redirect can carry its token
-  // on to the bucket (plan section 5). A browser's <img> asks for an image and follows the 302.
+  // on to the media route (plan section 5). A browser's <img> asks for an image and follows the 302.
   if (wantsJson(request)) {
     return reply.send({ url: signed.url, expiresAt: signed.expiresAt.toISOString() });
   }

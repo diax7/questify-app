@@ -373,7 +373,7 @@ const itemOf = async (deps: SubmissionDeps, row: QueueRow): Promise<QueueItem> =
   avatar: row.avatar,
   kind: row.kind,
   text: row.body,
-  ...(await signedPhoto(deps.storage, row.photo_key)),
+  ...signedPhoto(deps.storage, row.photo_key),
   photoGone: row.photo_gone,
   onScreen: row.on_screen,
   points: row.points,

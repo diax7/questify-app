@@ -898,6 +898,17 @@ due rewards are older than 2 minutes, or an API or owner session could not be re
 tick alerts" under "Database and deploy" has each line's cause and fix (the named backend holding the oldest transaction; CranL's own
 console sessions count; `community.pay_failed {code}`; the owner losing its privileges). Results wait meanwhile; nothing is lost.
 
+### QuestifyMediaReconcileBlocked
+
+The daily media reconcile (T-814, ADR-839) deleted nothing. `media.reconcile_blocked {unknown, scanned}`: more byte rows than
+`min(1,000, 5 % of the rows scanned)` have a key the main database no longer names; `media.reconcile_failed {code}`:
+`media_keys_known` failed or gave an answer that was not one row per key (`odd_answer`), or the media database did not answer.
+**Check:** was the main database restored recently (a stale main next to a current media database makes many keys look unknown)?
+Compare `SELECT count(*) FROM media_object` (main, as the owner) with `SELECT count(*) FROM media_blob` (media). **Do:** never
+force it while the main database may be behind; restore the main database first (RUNBOOK "Photo storage", restore order). When
+the unknown keys are truly gone photos, an operator runs the reconcile over every row (`--all`, phase 4's `staff-cli
+media-reconcile`). Photos keep loading meanwhile; only orphan bytes wait.
+
 ### QuestifyErrorEventRepeating
 
 An error-level event not covered by another alert has been logged more than ten times in fifteen minutes (`questify_event` names it).
@@ -1680,21 +1691,32 @@ react-native-web dependency, which T-502 does not add. No EAS build or real vend
   readers and `member_event_quests` (DROP and CREATE: a request in that instant may get "function does not exist" and
   is retried), and adds triggers on `submission` and `ticket`. Both take `lock_timeout = '10s'`; run them in a quiet
   minute, then `node migrate.cjs --verify`.
-- **Turning photos on.** Set the API's `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`,
-  `S3_SECRET_ACCESS_KEY` (all five, or the API does not start) and the web's `MEDIA_HOST` (the bucket's host name, for
-  `img-src`). Without them photos stay off: 503 `photos_off`, the builder refuses photo quests.
-- **Before the first real photo:** check in the CranL dashboard that the bucket is in `riyadh-1` (PDPL), that it is
-  private, and run the contract test against it: `S3_CONTRACT=1 S3_ENDPOINT=… S3_BUCKET=… S3_REGION=…
-  S3_ACCESS_KEY_ID=… S3_SECRET_ACCESS_KEY=… npx vitest run apps/api/test/storage/contract.int.test.ts` (put, signed get,
-  unsigned get 403, unsigned list 403, an 8 MB PUT, delete). `plan` names a bucket CranL shows in another region as a
-  manual step; when CranL shows no region, this dashboard check is the only one.
-- **Rotating the bucket keys.** Create the new key pair in CranL, set both variables, restart, run the contract test,
-  then revoke the old pair. Nothing stored depends on the key; signed URLs already handed out stop working (5 minutes
-  at most).
+- **Where the bytes live (T-814, ADR-839 to ADR-841).** Since T-814 the bytes are in a second PostgreSQL database,
+  `questify-media-db` in `riyadh-1`, never in a bucket (the S3 code is gone; a leftover `S3_*` variable is ignored and
+  logged once as `storage.s3_ignored`). Its migrations are their own series: `MEDIA_DATABASE_ADMIN_URL=… node migrate.cjs
+  --media --roles` the first time (with `MEDIA_ROLE_PASSWORD`), `--media` after, then `MEDIA_DATABASE_URL=… node
+  migrate.cjs --media --verify` (the runtime role: no superuser, no BYPASSRLS, `media_blob` refused, the definers run).
+  Same exit codes as the main series. Main migration 0200 (one function pair and the CONNECT revoke) and m0001 are
+  independent; both go before the settings are set.
+- **Migration 0200 closes CONNECT** on the main database to everyone but `questify_app` and the owner (it runs as the
+  owner, CranL's `admin`). Any other login role that must reach the main database needs `GRANT CONNECT` first.
+- **Turning photos on.** Set the API's `MEDIA_DATABASE_URL` (the runtime role `questify_media_app`, never the owner),
+  `MEDIA_ORIGIN` (the API's public https origin) and `MEDIA_URL_SECRET` (32+ characters; the tooling generates it): all
+  three, or the API does not start. Set the web's `MEDIA_HOST` to the API's public host name (for `img-src` and the image
+  redirect check). Without them photos stay off: 503 `photos_off`, the builder refuses photo quests. Before turning on,
+  `SELECT state, count(*) FROM media_object GROUP BY 1` must show no `stored` or `attached` row (staging never stored a
+  photo; a row there is fake data: delete it as the owner and let the worker run).
+- **Rotating `MEDIA_URL_SECRET`.** Change it and restart: links handed out in the last 5 minutes stop working, nothing
+  stored depends on it.
 - **A stuck delete.** `SELECT key, attempts, last_code, due_at FROM media_delete ORDER BY attempts DESC LIMIT 20` as the
-  owner. `status_403` means the keys lost the right to delete; `timeout` or `network` a CranL outage. Rows back off to
-  an hour and retry by themselves; nothing is lost while a row exists. Never delete a row by hand before the object is
-  gone from the bucket.
+  owner. `media_unavailable` or `media_timeout` means the media database did not answer. Rows back off to an hour and
+  retry by themselves; nothing is lost while a row exists. Never delete a row by hand before the bytes are gone from
+  `media_blob`.
+- **The daily reconcile** deletes byte rows older than an hour that no `media_object` row names (`media.reconcile
+  {scanned, unknown, deleted}`). It fails closed: see `QuestifyMediaReconcileBlocked`. **Restore order** (phase 4 adds
+  the drill): the main database first and erasures re-applied, then the media database, then the reconcile over every
+  row, then traffic. The media database's own target is back within 4 hours, losing at most a day of photos (Q-787,
+  Dhia 2026-11-15); an event runs without photos meanwhile (uploads 503, links 503, `/readyz` stays green).
 - **Deleting one photo on request** (until T-504b adds the hold): as the owner, `UPDATE submission SET photo = NULL
   WHERE id = <id>` (or `UPDATE ticket SET photo = NULL WHERE id = <id>`); the trigger deletes the object row and queues
   the key, and the next worker run deletes it. Note it in the audit trail of the request.

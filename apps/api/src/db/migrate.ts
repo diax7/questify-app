@@ -6,7 +6,12 @@ import type { Client } from "pg";
 
 /** Held while migrating so two servers starting together cannot both run the same migration. */
 const LOCK_KEY = 7_361_902;
-const FILE_NAME = /^(\d{4})_[a-z0-9_]+\.sql$/;
+/** The main series (`0001_…`) and the media database's own (`m0001_…`, ADR-839): neither runner takes the other's files. */
+const FILE_NAMES = {
+  main: /^(\d{4})_[a-z0-9_]+\.sql$/,
+  media: /^m(\d{4})_[a-z0-9_]+\.sql$/,
+} as const;
+export type MigrationSeries = keyof typeof FILE_NAMES;
 
 /** SQLSTATE of the two clashes with live traffic that PostgreSQL ends by aborting one side (ADR-291). */
 const LOCK_CLASH_CODES: ReadonlyMap<string, string> = new Map([
@@ -35,6 +40,8 @@ export type MigrateOptions = Readonly<{
   random?: () => number;
   /** Receives one line per retry: file, SQLSTATE and attempt. Defaults to standard error. */
   log?: (line: string) => void;
+  /** Which series the directory holds (main by default); a file named for the other series is refused. */
+  series?: MigrationSeries;
 }>;
 
 /** A file whose transaction lost a lock clash on every attempt. Each attempt rolled back whole; running it again is safe. */
@@ -72,12 +79,13 @@ function describeFailure(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function checkNames(names: readonly string[]): void {
+function checkNames(names: readonly string[], series: MigrationSeries): void {
   const numbers = new Set<string>();
   for (const name of names) {
-    const match = FILE_NAME.exec(name);
+    const match = FILE_NAMES[series].exec(name);
     if (match === null) {
-      throw new Error(`Migration file "${name}" must be named like 0002_add_quests.sql.`);
+      const like = series === "main" ? "0002_add_quests.sql" : "m0002_add_index.sql";
+      throw new Error(`Migration file "${name}" must be named like ${like}.`);
     }
     if (numbers.has(match[1] ?? "")) {
       throw new Error(`Two migration files use the number ${match[1]}.`);
@@ -156,7 +164,7 @@ export async function migrate(
   options: MigrateOptions = {},
 ): Promise<MigrationResult> {
   const names = (await readdir(directory)).filter((name) => name.endsWith(".sql")).toSorted();
-  checkNames(names);
+  checkNames(names, options.series ?? "main");
 
   await client.query("SELECT pg_advisory_lock($1)", [LOCK_KEY]);
   try {

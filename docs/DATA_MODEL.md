@@ -1143,8 +1143,22 @@ days after its event ends (interim, Q-075). RLS forced, no grant: the doors are 
 `media_release` (the caller's own slot) and the system seat's `media_delete_claim`, `media_delete_done`,
 `media_delete_failed`, `media_sweep_uploads`, `media_purge_due`. Lock order: submission or ticket → media_object →
 media_delete.
-**PII:** the photo itself lives in the private bucket in `riyadh-1`, re-encoded with no metadata; the rows hold no
-image, only its key and size.
+**PII:** the photo itself lives in the media database in `riyadh-1` (T-814, below), re-encoded with no metadata; the
+rows hold no image, only its key and size.
+**Reconcile (migration 0200, T-814):** `media_keys_known(keys)` answers one row `(key, known)` per distinct key asked (at
+most 500, system seat only), so the worker can tell a short or odd answer; `media_reconcile_run` (one row, the last start)
+and `media_reconcile_claim()` (system seat) give the daily reconcile to one replica in 23 hours. 0200 also revokes
+CONNECT on the main database from PUBLIC (granted to `questify_app` and the owner).
+
+### The media database (`questify-media-db`; series m0001, T-814, ADR-839)
+**Built:** its own database, its own migrations (`apps/api/media-migrations/m0001_media_blob.sql`, `migrate.cjs
+--media`). One table `media_blob (key text PK, content_type, bytes, sha256 bytea, body bytea STORAGE EXTERNAL,
+created_at)`: the key CHECKed to the main key shape, the type to agree with the extension, `bytes = octet_length(body)`
+and at most 4 MiB, a 32-byte hash. RLS forced, no grant; `questify_media_app` (CONNECT here only) runs `blob_put`
+(insert; the same hash again is done, other bytes MB409, a lying hash MB422), `blob_get`, `blob_delete(keys)` (at most
+500) and `blob_keys_page(after, older_than, n)`. Nothing else lives here: who owns a key and when it goes is the main
+database's (`media_object`, `media_delete`). **PII:** `body` holds player photos; deleted by the worker after the main
+row goes, and by the daily reconcile when no main row names it.
 **Organizer images (migration 0194, ADR-829):** `purpose` also takes `logo`, `icon` (PNG, `format png`), `banner`,
 `picture`, `map` (JPEG); the key ends `.png` or `.jpg` by `format`; `uploaded_by_player` is set exactly for `submission`
 and `ticket`, `uploaded_by_staff → staff_user` (ON DELETE SET NULL) for organizer kinds, unique (staff, request_key);

@@ -9,7 +9,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "esbuild src/server.ts src/migrate-cli.ts src/staff-cli.ts src/reward-codes-cli.ts --bundle --external:@node-rs/argon2 --external:sharp --platform=node --target=node22 --format=cjs --outdir=dist --out-extension:.js=.cjs --sourcemap && node -e \"require('node:fs').cpSync('migrations','dist/migrations',{recursive:true});require('node:fs').cpSync('db','dist/db',{recursive:true})\"",
+    "build": "esbuild src/server.ts src/migrate-cli.ts src/staff-cli.ts src/reward-codes-cli.ts --bundle --external:@node-rs/argon2 --external:sharp --platform=node --target=node22 --format=cjs --outdir=dist --out-extension:.js=.cjs --sourcemap && node -e \"require('node:fs').cpSync('migrations','dist/migrations',{recursive:true});require('node:fs').cpSync('db','dist/db',{recursive:true});require('node:fs').cpSync('media-migrations','dist/media-migrations',{recursive:true})\"",
     "start": "node dist/server.cjs"
   },
   "dependencies": {
@@ -22,7 +22,6 @@
     "@opentelemetry/sdk-metrics": "3.0.0",
     "@opentelemetry/sdk-trace": "3.0.0",
     "@questify/shared": "workspace:*",
-    "aws4fetch": "1.0.20",
     "fastify": "5.12.7",
     "pg": "8.23.1",
     "redis": "6.3.1",

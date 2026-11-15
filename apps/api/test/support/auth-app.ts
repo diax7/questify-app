@@ -55,6 +55,7 @@ export function testConfig(
     redisUrl: undefined,
     push: { apns: undefined, fcm: undefined },
     storage: undefined,
+    s3Ignored: false,
     integrity: { play: undefined, appAttest: undefined },
   };
 }

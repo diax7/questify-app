@@ -34,6 +34,7 @@ COPY --from=build /repo/apps/api/dist/staff-cli.cjs ./staff.cjs
 COPY --from=build /repo/apps/api/dist/reward-codes-cli.cjs ./reward-codes.cjs
 COPY --from=build /repo/apps/api/dist/migrations ./migrations
 COPY --from=build /repo/apps/api/dist/db ./db
+COPY --from=build /repo/apps/api/dist/media-migrations ./media-migrations
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s CMD wget -qO- "http://127.0.0.1:${PORT}/healthz" >/dev/null || exit 1

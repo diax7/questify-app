@@ -1894,6 +1894,12 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
   - Done when: photos and organizer images are stored in `questify-media-db` and served by `/v1/media/*` through
     5-minute signed links; deletions reach the media database within one worker run; without the `MEDIA_*` settings
     photos stay off; no S3 code remains.
-  - Plan 2026-11-15 (`docs/plans/2026-11-15-photos-in-postgres.md`, awaiting plan review; main migration 0200, media
-    migration m0001; ADR-839 to ADR-841 and Q-785 to Q-787 Proposed). Four phases: code with photos off, staging on
-    (Dhia creates the database), live event load, backups and restore (adds the media database to T-019 and T-805).
+  - Plan 2026-11-15 (`docs/plans/2026-11-15-photos-in-postgres.md`; plan review 86 approved with revisions, folded in;
+    main migration 0200, media migration m0001; ADR-839 to ADR-841 and Q-785, Q-786 Proposed; Q-787 answered by Dhia).
+    Four phases: code with photos off, staging on (Dhia creates the database), live event load, backups and restore
+    (adds the media database to T-019 and T-805).
+  - **Phase 1 built 2026-11-15** (photos still off; the task stays open for phases 2 to 4): m0001 and 0200, the media
+    store, link, route, cache and gate, the fail-closed daily reconcile, the worker on one `blob_delete` a round, the
+    `MEDIA_*` settings, `migrate.cjs --media`, the S3 code and `aws4fetch` removed, the client keeps a loaded wall
+    picture's link, the CranL file declares `questify-media-db` (budget 3 databases). Left: the size gauge and its alert
+    (needs Q-786's disk size), `media.missing`, the operator's `staff-cli media-reconcile --all` (phase 4), the load test.

@@ -11,13 +11,7 @@ import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { teamSeat, type OrganizerContext } from "#src/organizers/store";
 import type { ObjectStore } from "#src/storage/client";
-import {
-  IMAGE_SHAPES,
-  reencodeFor,
-  sniff,
-  type ImageGate,
-  type ImagePurpose,
-} from "#src/storage/images";
+import { reencodeFor, sniff, type ImageGate, type ImagePurpose } from "#src/storage/images";
 import { PhotoRefused, storeUpload, type Slot } from "#src/storage/upload";
 
 export type OrganizerImageDeps = Readonly<{
@@ -75,7 +69,6 @@ export async function uploadOrganizerImage(
   if (sniff(upload.body) === undefined) throw new PhotoRefused(photoType());
   const { slot, image } = await storeUpload<ImageSlot>({
     storage,
-    contentType: IMAGE_SHAPES[upload.purpose].png ? "image/png" : "image/jpeg",
     reserve: () =>
       asTeam(deps, upload.team, async (client) => {
         const { rows } = await client.query<ImageSlot>(

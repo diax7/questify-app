@@ -5,7 +5,12 @@ import { api } from "#src/api/app-session.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { Sheet } from "#src/components/Sheet.tsx";
-import { fetchPhotoWall, type WallPhoto, type WallRead } from "#src/event/photo-wall-api.ts";
+import {
+  fetchPhotoWall,
+  keptWall,
+  type WallPhoto,
+  type WallRead,
+} from "#src/event/photo-wall-api.ts";
 import { usePlayer } from "#src/auth/player.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { BlockButton } from "#src/questify/BlockButton.tsx";
@@ -118,7 +123,8 @@ export function PhotoWallEntry({ eventId }: Readonly<{ eventId: string }>) {
   const [open, setOpen] = useState(false);
   const [read, setRead] = useState<WallRead | undefined>(undefined);
   const load = useCallback(async () => {
-    setRead(await fetchPhotoWall(api.session, eventId));
+    const next = await fetchPhotoWall(api.session, eventId);
+    setRead((before) => keptWall(before, next, Date.now()));
   }, [eventId]);
   useEffect(() => {
     if (open) void load();

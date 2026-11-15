@@ -301,6 +301,39 @@ describe("the check that a migration leaves the transaction alone", () => {
   });
 });
 
+describe("the two series (ADR-839)", () => {
+  let dir: string;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), "migrate-series-"));
+  });
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it("refuses a media file in the main series and a main file in the media series, before any statement", async () => {
+    await writeFile(join(dir, "m0001_media_blob.sql"), "SELECT 1;");
+    const main = scriptedClient(() => undefined);
+    await expect(migrate(main.client, dir)).rejects.toThrow(/named like 0002_add_quests/);
+    expect(main.statements).toEqual([]);
+    await rm(join(dir, "m0001_media_blob.sql"));
+    await writeFile(join(dir, "0001_a.sql"), "SELECT 1;");
+    const media = scriptedClient(() => undefined);
+    await expect(migrate(media.client, dir, { series: "media" })).rejects.toThrow(
+      /named like m0002_add_index/,
+    );
+    expect(media.statements).toEqual([]);
+  });
+
+  it("never lets a media migration end the runner's transaction", async () => {
+    const directory = join(import.meta.dirname, "..", "..", "media-migrations");
+    const names = (await readdir(directory)).filter((name) => name.endsWith(".sql"));
+    expect(names).toContain("m0001_media_blob.sql");
+    for (const name of names) {
+      expect(endsTransaction(await readFile(join(directory, name), "utf8")), name).toBe(false);
+    }
+  });
+});
+
 describe("the migration files", () => {
   it("never end the runner's transaction themselves, because a retry relies on one file being one transaction", async () => {
     const names = (await readdir(MIGRATIONS)).filter((name) => name.endsWith(".sql"));

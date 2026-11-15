@@ -57,7 +57,7 @@ ephemerally. "Required" per Google means the app cannot work without it for any 
 
 | Type | C | S | Optional/Required | Purposes | Trace |
 |---|---|---|---|---|---|
-| Photos | Yes | **Yes**, with the event team; with other players only when the owner allowed the photo on the wall and the team picked it | Optional (photo quests only) | App functionality | System picker or camera; the library is never read (`photosPermission: false`; `READ_MEDIA_*` blocked); EXIF is removed and photos are deleted by construction (ADR-828); photos stay off until the bucket question is answered (G6, Q-768) |
+| Photos | Yes | **Yes**, with the event team; with other players only when the owner allowed the photo on the wall and the team picked it | Optional (photo quests only) | App functionality | System picker or camera; the library is never read (`photosPermission: false`; `READ_MEDIA_*` blocked); EXIF is removed and photos are deleted by construction (ADR-828); photos are stored in Saudi Arabia (`riyadh-1`, a separate database, T-814) and stay off until that database is on (G6) |
 | Videos | No | | | | Never in v1 (FR-1006) |
 
 ### App activity
