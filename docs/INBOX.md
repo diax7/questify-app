@@ -915,3 +915,10 @@ Asked "why are you stopped ... Do you need anything from me? Or keep going, plea
 - Where the photo bucket stores files (Q-768): "files outside ksa, but thats fine, we dont have personal photos, we can
   go with cranl option".
 - One web origin for the store version and printed QR codes (Q-771): "questify.nafes.com".
+
+## 2026-11-15 - Photos in a second PostgreSQL database in Saudi Arabia; Apple key later
+
+Asked why not store photos in PostgreSQL, which is in Saudi Arabia ("why would we need this type of storage for photos?
+Why not just a regular database like PostgreSQL? Because those are in Saudi Arabia. What do you think?"). Recommended a
+second, separate PostgreSQL database for photos in riyadh-1. Answer: "Second Postgres DB (Recommended)". The CranL bucket
+(files outside Saudi Arabia) is not used for photos. Apple API key for TestFlight: "Later".
