@@ -177,3 +177,34 @@ describe("honest play through the app over a few seeds (the full run is in realt
     }
   });
 });
+
+describe("playTapRush pinned to fixed seeds", () => {
+  // Checked byte-identical over 450 seeded rounds before the function-limits split; this pins three of them.
+  it("plays the same inputs and claims the same result for each seed", () => {
+    const seen = [3, 7, 11].map((seed) => {
+      const level = GAME_LEVELS[seed % 3] ?? "easy";
+      const played = playTapRush(seed, LEVELS.tap_rush[level], prng(seed * 31 + 2));
+      return { seed, level, inputs: played.inputs.length, claimed: played.claimed };
+    });
+    expect(seen).toEqual([
+      {
+        seed: 3,
+        level: "easy",
+        inputs: 52,
+        claimed: { hits: 40, misses: 12, score: 28, quick: 0 },
+      },
+      {
+        seed: 7,
+        level: "medium",
+        inputs: 62,
+        claimed: { hits: 51, misses: 11, score: 40, quick: 0 },
+      },
+      {
+        seed: 11,
+        level: "hard",
+        inputs: 72,
+        claimed: { hits: 55, misses: 14, score: 41, quick: 0 },
+      },
+    ]);
+  });
+});

@@ -1,7 +1,9 @@
+import { QUEST_CODE_HOSTS } from "@questify/shared";
 import { describe, expect, it } from "vitest";
 import { readScan } from "#src/event/scan.ts";
 
 const ID = "5f0c2b1e-8d4a-4c3b-9e7f-0a1b2c3d4e5f";
+const OWN = `https://${QUEST_CODE_HOSTS[0]}`;
 const STAGING = "https://questify-web-staging-4ecphq.cranl.net";
 
 /** A token laid out as `apps/api/src/quests/qr.ts` signs it: format, id, version, a 16-byte tag. */
@@ -22,7 +24,7 @@ const EXPECTED: Record<string, Record<number, string>> = {
 };
 
 describe("which printed forms a scan accepts", () => {
-  for (const origin of ["https://questify.nafes.com", STAGING, "https://evil.example"]) {
+  for (const origin of [OWN, STAGING, "https://evil.example"]) {
     for (const path of ["q", "s"]) {
       for (const format of [0x01, 0x04, 0x05, 0x07]) {
         const expected = origin === "https://evil.example" ? "other" : EXPECTED[path]?.[format];

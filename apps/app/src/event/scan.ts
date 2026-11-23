@@ -132,8 +132,9 @@ export function readScan(text: string, extraOrigin: string | null): Scan {
 }
 
 /** A host whose printed codes this build reads: Questify's own, or the build's one extra origin. */
-const isQuestCodeHost = (host: string, extraOrigin: string | null): boolean =>
-  QUEST_CODE_HOSTS.includes(host) || `https://${host}` === extraOrigin;
+function isQuestCodeHost(host: string, extraOrigin: string | null): boolean {
+  return QUEST_CODE_HOSTS.includes(host) || `https://${host}` === extraOrigin;
+}
 
 /** A station's rotating code (`/s/{token}`), or undefined when the path is not one. */
 function stationScan(path: string): Scan | undefined {

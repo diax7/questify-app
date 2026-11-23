@@ -154,7 +154,7 @@ describe("signing out while a refresh is on its way", () => {
     await flush();
     const pending = session.request(ME);
     await flush();
-    expect(api.paths()).toContain("/v1/auth/refresh");
+    expect(api.paths()).toEqual(["/v1/auth/logout", "/v1/me", "/v1/auth/refresh"]);
     logout.release();
     await first;
     refresh.release();
@@ -165,6 +165,29 @@ describe("signing out while a refresh is on its way", () => {
     expect(api.calls[0]?.body).toEqual({ refreshToken: "refresh-1" });
     expect(data.has(SESSION_KEY)).toBe(false);
     expect(second).toBe(first);
+  });
+
+  it("clears the shared sign-out when its logout call throws, so the next sign-out sends a new one", async () => {
+    const { storage, data } = recordingStorage();
+    const api = fakeClient({
+      "/v1/auth/logout": [
+        async () => {
+          throw new Error("logout failed");
+        },
+        ok(),
+      ],
+    });
+    const session = createSession({ client: api.client, storage, now: () => 0 });
+    await session.start(issued(1));
+    const first = session.signOut();
+    await expect(first).rejects.toThrow("logout failed");
+    expect(data.has(SESSION_KEY)).toBe(true);
+    const second = session.signOut();
+    expect(second).not.toBe(first);
+    await second;
+    expect(api.paths()).toEqual(["/v1/auth/logout", "/v1/auth/logout"]);
+    expect(api.calls[1]?.body).toEqual({ refreshToken: "refresh-1" });
+    expect(data.has(SESSION_KEY)).toBe(false);
   });
 
   it("is an ordinary session again once the sign-out is over", async () => {

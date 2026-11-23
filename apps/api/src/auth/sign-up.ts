@@ -193,12 +193,18 @@ async function dropSignup(deps: PasswordDeps, tokenHash: string): Promise<void> 
   );
 }
 
+/** The refusals `checkSignUpForm` can answer: the ones of the email, the form and the password policy. */
+type FormRefusal = Extract<
+  StartResult,
+  { kind: "invalid_email" | "invalid_name" | "acceptance_required" | "weak" }
+>;
+
 /** The first three refusals of step 1, in order: the email, the form (name and acceptances), the password policy. */
 async function checkSignUpForm(
   deps: PasswordDeps,
   input: SignUpInput,
   email: string,
-): Promise<StartResult | string> {
+): Promise<FormRefusal | string> {
   if (!isPlausibleEmail(email)) {
     return { kind: "invalid_email" };
   }

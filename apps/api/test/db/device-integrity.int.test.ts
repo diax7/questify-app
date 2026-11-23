@@ -197,6 +197,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("device integrity (database)", 
   });
 
   // Migration 0202 reads the install's check before `system_paid`; a reviewer's payment stays the team's doing.
+  // The submission stays `pending`: `reviewer_paid` (0148:634) only asks for a non-auto submission, not a reviewed one.
   it("raises nothing for a system-paid completion from a failed install, and flags its scan", async () => {
     const event = await newEvent();
     const quest = await newQuest(event);

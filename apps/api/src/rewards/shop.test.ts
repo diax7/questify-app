@@ -58,6 +58,8 @@ const RESERVE = { playerId: PLAYER, rewardId: REWARD, idempotencyKey: "key-1" };
 describe("reservationOf", () => {
   const unused = deps({} as Pool);
 
+  // `reserve_reward` always returns a row, so this is not a path the database takes; it pins that the read never
+  // throws on a missing one (the text "undefined" and NaN are what the call has always produced).
   it("reads an absent row as empty, as the call always has", () => {
     expect(reservationOf(unused, REWARD, {})).toEqual({
       redemption: {

@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { Client } from "pg";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   TEST_DATABASE_URL,
   connectAsOwner,
@@ -1076,6 +1076,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("signed-in devices (database)",
       older = new Client({ connectionString: db.appUrl });
       await older.connect();
     });
+    // A case that failed between BEGIN and its COMMIT must not leave `older` inside a transaction for the next one.
+    afterEach(async () => {
+      await older.query("ROLLBACK");
+    });
     afterAll(async () => {
       await older.end();
     });
@@ -1202,26 +1206,35 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("signed-in devices (database)",
       const code = { token: bytes(), code: bytes() };
       await startStaff(user, here, code.token, code.code);
       await begin({ staff: user });
+      let answer: unknown;
+      let waited = false;
+      let t2 = "";
       await db.app.query("BEGIN");
-      await db.app.query("SELECT set_config('app.staff_user_id', $1, true)", [user]);
-      const held = await db.app.query<{ outcome: string }>(confirmStaff, [
-        here.token,
-        code.token,
-        code.code,
-        randomUUID(),
-      ]);
-      expect(held.rows[0]?.outcome).toBe("confirmed");
-      const waiting = await startAlone(older, confirmStaff, [
-        here.token,
-        code.token,
-        code.code,
-        randomUUID(),
-      ]);
-      await db.app.query("COMMIT");
-      const t2 = (await staffReauth(here.id)) ?? "";
-      const answer = await waiting.run;
-      await older.query(answer instanceof Error ? "ROLLBACK" : "COMMIT");
-      expect(waiting.waited).toBe(true);
+      try {
+        await db.app.query("SELECT set_config('app.staff_user_id', $1, true)", [user]);
+        const held = await db.app.query<{ outcome: string }>(confirmStaff, [
+          here.token,
+          code.token,
+          code.code,
+          randomUUID(),
+        ]);
+        expect(held.rows[0]?.outcome).toBe("confirmed");
+        const waiting = await startAlone(older, confirmStaff, [
+          here.token,
+          code.token,
+          code.code,
+          randomUUID(),
+        ]);
+        await db.app.query("COMMIT");
+        t2 = (await staffReauth(here.id)) ?? "";
+        answer = await waiting.run;
+        waited = waiting.waited;
+        await older.query(answer instanceof Error ? "ROLLBACK" : "COMMIT");
+      } finally {
+        // A no-op after COMMIT; it frees the pooled connection when an assertion above threw first.
+        await db.app.query("ROLLBACK");
+      }
+      expect(waited).toBe(true);
       expect(codeOf(answer)).toBeUndefined();
       expect(answer).toMatchObject([{ outcome: "expired" }]);
       expect(await staffReauth(here.id)).toBe(t2);

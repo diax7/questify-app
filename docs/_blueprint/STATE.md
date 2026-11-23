@@ -1,5 +1,15 @@
 # Blueprint State — Questify
 
+## FOLLOWUPS batch 40: small code and test fixes (tier B) — 2026-11-23
+
+- **Done** (no production behaviour change): `auth/sign-up.ts` `checkSignUpForm` returns the narrow `FormRefusal | string`;
+  `event/scan.ts` `isQuestCodeHost` is a function declaration and `scan-forms.test.ts` reads its host from
+  `QUEST_CODE_HOSTS[0]`; `shop.test.ts` empty-row case commented; `session-sign-out.test.ts` exact path list plus a test
+  that a throwing logout clears the shared promise; `realtime.test.ts` pins `playTapRush` over 3 seeds;
+  `signed-in-devices.int.test.ts` lock-wait case rolls back in `finally` and `older` rolls back in `afterEach`;
+  `device-integrity.int.test.ts` comment says "non-auto". Those lines are gone from `docs/FOLLOWUPS.md`.
+- **Left:** the `session-parts.test.ts` case, the render tests, the media-route label, `registerStaffSide`.
+
 ## T-815: the app's sign-out race with a token refresh fixed (tier A, sign-in) — 2026-11-23
 
 - **Built** (plan `docs/plans/2026-11-23-t-815-sign-out-race.md`, plan review 93 GO, its findings folded in):
