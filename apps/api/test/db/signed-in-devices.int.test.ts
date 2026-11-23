@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import type { Client } from "pg";
+import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   TEST_DATABASE_URL,
@@ -27,6 +27,8 @@ const tryOn = async (client: Client, sql: string, values: unknown[] = []) => {
     return error instanceof Error ? error : new Error(String(error));
   }
 };
+/** A timestamp in microseconds (text) plus the 10-minute fresh window, in milliseconds. */
+const tenMinutesOn = (at: string) => Number(BigInt(at) / 1000n) + 600_000;
 const codeOf = (outcome: unknown) =>
   outcome instanceof Error ? (outcome as Error & { code?: string }).code : undefined;
 
@@ -1060,6 +1062,169 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("signed-in devices (database)",
           [member],
         ),
       ).toEqual([{ after: { reason: "a lost laptop at the venue", ended: 2 } }]);
+    });
+  });
+
+  // Migration 0202 (FOLLOWUPS 2026-11-12 T-599c review): `now()` is the transaction's start, so a request whose
+  // transaction began before a newer confirm committed wrote an earlier re-authentication time: on a device row it moved
+  // back silently (the contact-change cross below is the real race), on a staff session the guard refused it (23514).
+  const startStaff = (user: string, here: { token: Buffer }, token: Buffer, code: Buffer) =>
+    as({ staff: user }, "SELECT * FROM start_staff_reauth($1, $2, $3)", [here.token, token, code]);
+  describe("the re-authentication time only moves forward (0202)", () => {
+    let older: Client;
+    beforeAll(async () => {
+      older = new Client({ connectionString: db.appUrl });
+      await older.connect();
+    });
+    afterAll(async () => {
+      await older.end();
+    });
+
+    /** Opens `older`'s transaction for `who` and returns its `now()` (micros), earlier than anything after it. */
+    const begin = async (who: { player?: string; staff?: string }) => {
+      await older.query("BEGIN");
+      const { rows } = await older.query<{ at: string }>(
+        `SELECT set_config('app.player_id', $1, true), set_config('app.staff_user_id', $2, true),
+                (extract(epoch FROM now()) * 1e6)::bigint::text AS at`,
+        [who.player ?? "", who.staff ?? ""],
+      );
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      return rows[0]?.at ?? "";
+    };
+    const micros = "(extract(epoch FROM reauth_at) * 1e6)::bigint::text";
+    const deviceReauth = async (family: string) =>
+      (
+        await owner<{ at: string }>(
+          `SELECT ${micros} AS at FROM player_sign_in_device WHERE family = $1`,
+          [family],
+        )
+      )[0]?.at;
+    const staffReauth = async (id: string) =>
+      (
+        await owner<{ at: string }>(`SELECT ${micros} AS at FROM staff_session WHERE id = $1`, [id])
+      )[0]?.at;
+    const confirmStaff = "SELECT * FROM confirm_staff_reauth($1, $2, $3, $4)";
+
+    it("a contact change in an older transaction keeps a newer code's time on the device row", async () => {
+      const p = await newPlayer();
+      await age(p.first.family, 601);
+      const token = bytes();
+      const code = bytes();
+      await as({ player: p.id }, "SELECT start_contact_change($1, $2, 'email', $3, $4, $5)", [
+        randomUUID(),
+        token,
+        `later${counter}@example.com`,
+        code,
+        bytes(),
+      ]);
+      const t1 = await begin({ player: p.id });
+      const reauth = { token: bytes(), code: bytes() };
+      await start(p, p.first, "phone", reauth.token, reauth.code);
+      expect(await confirm(p, p.first, reauth.token, reauth.code)).toMatchObject({
+        outcome: "confirmed",
+      });
+      const t2 = (await deviceReauth(p.first.family)) ?? "";
+      expect(BigInt(t2)).toBeGreaterThan(BigInt(t1));
+      const changed = await older.query<{ outcome: string }>(
+        "SELECT outcome FROM confirm_contact_change($1, $2, $3, $4)",
+        [sha(p.first.access), token, code, randomUUID()],
+      );
+      await older.query("COMMIT");
+      expect(changed.rows[0]?.outcome).toBe("changed");
+      expect(await deviceReauth(p.first.family)).toBe(t2);
+    });
+
+    it("a player's code confirmed in an older transaction keeps the newer time and its fresh end", async () => {
+      const p = await newPlayer();
+      await age(p.first.family, 601);
+      const t1 = await begin({ player: p.id });
+      const first = { token: bytes(), code: bytes() };
+      await start(p, p.first, "phone", first.token, first.code);
+      await confirm(p, p.first, first.token, first.code);
+      const t2 = (await deviceReauth(p.first.family)) ?? "";
+      const second = { token: bytes(), code: bytes() };
+      await start(p, p.first, "phone", second.token, second.code);
+      const answer = await older.query<{ outcome: string; fresh_until: Date }>(
+        "SELECT * FROM confirm_player_reauth($1, $2, $3, $4)",
+        [sha(p.first.access), second.token, second.code, randomUUID()],
+      );
+      await older.query("COMMIT");
+      expect(BigInt(t2)).toBeGreaterThan(BigInt(t1));
+      expect(answer.rows[0]?.outcome).toBe("confirmed");
+      expect(
+        Math.abs((answer.rows[0]?.fresh_until.getTime() ?? 0) - tenMinutesOn(t2)),
+      ).toBeLessThanOrEqual(1);
+      expect(await deviceReauth(p.first.family)).toBe(t2);
+    });
+
+    it("a staff code confirmed in an older transaction answers confirmed with t2 + 10 minutes, never 23514", async () => {
+      const user = await staffUser();
+      const here = await session(user, 601);
+      const t1 = await begin({ staff: user });
+      const first = { token: bytes(), code: bytes() };
+      await startStaff(user, here, first.token, first.code);
+      const newer = await as<{ outcome: string }>({ staff: user }, confirmStaff, [
+        here.token,
+        first.token,
+        first.code,
+        randomUUID(),
+      ]);
+      expect(newer[0]?.outcome).toBe("confirmed");
+      const t2 = (await staffReauth(here.id)) ?? "";
+      const second = { token: bytes(), code: bytes() };
+      await startStaff(user, here, second.token, second.code);
+      const answer = await tryOn(older, confirmStaff, [
+        here.token,
+        second.token,
+        second.code,
+        randomUUID(),
+      ]);
+      await older.query(answer instanceof Error ? "ROLLBACK" : "COMMIT");
+      expect(codeOf(answer)).toBeUndefined();
+      expect(BigInt(t2)).toBeGreaterThan(BigInt(t1));
+      expect(answer).toMatchObject([{ outcome: "confirmed" }]);
+      const rows = answer as { fresh_until: Date }[];
+      expect(
+        Math.abs((rows[0]?.fresh_until.getTime() ?? 0) - tenMinutesOn(t2)),
+      ).toBeLessThanOrEqual(1);
+      expect(await staffReauth(here.id)).toBe(t2);
+      expect(
+        await owner<{ n: number }>(
+          "SELECT count(*)::int AS n FROM audit_log WHERE action = 'staff.reauth' AND target_id = $1",
+          [here.id],
+        ),
+      ).toEqual([{ n: 2 }]);
+    });
+
+    it("a staff confirm of one code waits for a newer one still open, then answers expired, without an error", async () => {
+      const user = await staffUser();
+      const here = await session(user, 601);
+      const code = { token: bytes(), code: bytes() };
+      await startStaff(user, here, code.token, code.code);
+      await begin({ staff: user });
+      await db.app.query("BEGIN");
+      await db.app.query("SELECT set_config('app.staff_user_id', $1, true)", [user]);
+      const held = await db.app.query<{ outcome: string }>(confirmStaff, [
+        here.token,
+        code.token,
+        code.code,
+        randomUUID(),
+      ]);
+      expect(held.rows[0]?.outcome).toBe("confirmed");
+      const waiting = await startAlone(older, confirmStaff, [
+        here.token,
+        code.token,
+        code.code,
+        randomUUID(),
+      ]);
+      await db.app.query("COMMIT");
+      const t2 = (await staffReauth(here.id)) ?? "";
+      const answer = await waiting.run;
+      await older.query(answer instanceof Error ? "ROLLBACK" : "COMMIT");
+      expect(waiting.waited).toBe(true);
+      expect(codeOf(answer)).toBeUndefined();
+      expect(answer).toMatchObject([{ outcome: "expired" }]);
+      expect(await staffReauth(here.id)).toBe(t2);
     });
   });
 

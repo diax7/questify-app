@@ -478,6 +478,9 @@ T-501d); every helper and trigger function is granted to nobody (outsider suite,
   and platform are personal data: kept in Saudi Arabia, exported, erased with the account, never in an audit entry
   (`model` is on the audit key guard) or a log line (a label failure logs the error's class only).
 - Ending another device or session needs a fresh factor (ADR-711), checked in the database; ending this one never asks.
+  The fresh factor's time only moves forward (0202): a contact change in a transaction older than a newer code no longer
+  moves a device row's `reauth_at` back (the real race; a device row has no guard trigger), and the staff confirm cannot
+  hit its guard's 23514 (practically unreachable before: it needed a transaction older than its own code).
   Every family end locks the device row first and a rotation of an ended family answers `invalid` (ADR-712, ADR-717),
   proven by the parallel tests in `apps/api/test/db/signed-in-devices.int.test.ts`. End-others locks its own device row
   with the others and re-reads it, so an ended device cannot end the others (0184). The sweep takes device rows first and

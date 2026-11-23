@@ -99,13 +99,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("device integrity (database)", 
     quest: string,
     device: string | null,
     method = "qr",
+    key: string = randomUUID(),
   ) =>
     owner(
       `INSERT INTO quest_completion (organizer_id, event_id, enrollment_id, quest_id, occurrence, method,
                                      idempotency_key, device_id)
        VALUES ($1, $2, $3, $4, (SELECT count(*) + 1 FROM quest_completion WHERE enrollment_id = $3 AND quest_id = $4),
                $5, $6, $7)`,
-      [ids.orgA, event, enrollment, quest, method, randomUUID(), device],
+      [ids.orgA, event, enrollment, quest, method, key, device],
     );
   const record = (player: string, install: string, passed: boolean, why: string[] = []) =>
     as(player, "SELECT record_device_check($1, 'android', $2, $3)", [install, passed, why]);
@@ -193,6 +194,27 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("device integrity (database)", 
     const flags = await cases(mine);
     expect(flags).toHaveLength(1);
     expect(flags[0]).toMatchObject({ status: "cleared", evidence: { reasons: ["nonce"] } });
+  });
+
+  // Migration 0202 reads the install's check before `system_paid`; a reviewer's payment stays the team's doing.
+  it("raises nothing for a system-paid completion from a failed install, and flags its scan", async () => {
+    const event = await newEvent();
+    const quest = await newQuest(event);
+    const me = await newPlayer();
+    const mine = await enroll(event, me);
+    const bad = randomUUID();
+    await record(me, bad, false, ["app"]);
+    const [sent] = await owner<{ id: string }>(
+      `INSERT INTO submission (organizer_id, event_id, enrollment_id, quest_id, kind, body, points, status,
+                               idempotency_key)
+       VALUES ($1, $2, $3, $4, 'text', 'My answer', 10, 'pending', $5) RETURNING id`,
+      [ids.orgA, event, mine, quest, randomUUID()],
+    );
+    await completion(event, mine, quest, bad, "submission", `sub:${sent?.id}`);
+    expect(await cases(mine)).toEqual([]);
+
+    await completion(event, mine, quest, bad);
+    expect(await cases(mine)).toHaveLength(1);
   });
 
   it("keeps the case after a pass and records the newest verdict", async () => {

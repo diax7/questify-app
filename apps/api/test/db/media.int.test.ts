@@ -320,6 +320,19 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("photo storage (database)", () 
       ).toEqual([{ ok: false }]);
     });
 
+    it("never releases a stored slot, which a retry's first try may have stored (migration 0202)", async () => {
+      const event = await newEvent();
+      const quest = await newQuest(event);
+      const { player } = await member(event);
+      const slot = await upload(player, quest);
+      expect(
+        await query({ playerId: player }, "SELECT media_release($1) AS ok", [slot.id]),
+      ).toEqual([{ ok: false }]);
+      expect(await objectOf(slot.id)).toEqual({ state: "stored" });
+      expect(await queued(slot.key)).toBe("0");
+      await owner("DELETE FROM media_object WHERE id = $1", [slot.id]);
+    });
+
     it("stores only the caller's own slot, and queues the key of a slot swept meanwhile", async () => {
       const event = await newEvent();
       const quest = await newQuest(event);

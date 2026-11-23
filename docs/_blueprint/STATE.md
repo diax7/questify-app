@@ -1,5 +1,21 @@
 # Blueprint State — Questify
 
+## FOLLOWUPS 0202: re-authentication time forward only, player slot release, integrity read order — 2026-11-23
+
+- **Built (tier A; plan `docs/plans/2026-11-23-followups-0202.md`, plan review 92 GO, its six notes folded):** migration
+  0202 (undeployed) restates four functions, no table, trigger or grant change. `confirm_player_reauth`,
+  `confirm_staff_reauth` and `confirm_contact_change` write `greatest(reauth_at, now())`, so an older transaction no
+  longer moves a device row's fresh time back (the real race: a contact change crossed with a newer code) and the staff
+  confirm cannot hit its guard's 23514 (practically unreachable before). `media_release` gives back a `reserved` slot
+  only, as 0196 for organizers. `raise_integrity_on_completion` reads `device_check` before `system_paid`. The kiosk
+  touch needs nothing. Three FOLLOWUPS lines cleared; SECURITY.md note.
+- **Checks:** signed-in devices (4 new: contact-change cross, player and staff older-transaction confirms, a staff
+  lock-wait), media (1 new), device integrity (1 new), organizer images, staff sessions, hot path, admin catalog and the
+  security suites: 1028 passed in 15 files; hand mutants (no `greatest`, `<> 'attached'`, no `system_paid`) each caught;
+  types, lint, `lint:limits`, format pass. Full suite not run (CI is the gate). Mutation globs: none (SQL only). CI 0
+  minutes (not pushed).
+- **Next:** code review; push; apply 0201 and 0202 on staging with the next deploy.
+
 ## Q-780: the data export lists the player's device checks (T-812 follow-up) — 2026-11-15
 
 - **Built:** migration 0201 (undeployed) restates `player_data_export` with a top-level `deviceChecks` section (platform,
