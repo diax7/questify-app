@@ -54,11 +54,6 @@
       "complexity": [12]
     }
   },
-  "apps/api/src/migrate-cli.ts": {
-    "verifyAppRole": {
-      "complexity": [19]
-    }
-  },
   "apps/api/src/organizers/routes.ts": {
     "answerInvite": {
       "complexity": [10]
@@ -72,40 +67,6 @@
   "apps/api/src/players/sms.ts": {
     "<anonymous>": {
       "complexity": [11]
-    }
-  },
-  "apps/api/src/plays/games.ts": {
-    "finishOf": {
-      "complexity": [9]
-    },
-    "sendResult": {
-      "complexity": [9]
-    }
-  },
-  "apps/api/src/plays/meet.ts": {
-    "meetRefusalOf": {
-      "complexity": [10]
-    }
-  },
-  "apps/api/src/plays/quizzes.ts": {
-    "<anonymous>": {
-      "complexity": [9]
-    }
-  },
-  "apps/api/src/plays/routes.ts": {
-    "flashValueOf": {
-      "complexity": [11]
-    },
-    "registerPlayRoutes": {
-      "lines": [102]
-    }
-  },
-  "apps/api/src/quests/routes.ts": {
-    "<anonymous>": {
-      "complexity": [10]
-    },
-    "answer": {
-      "complexity": [27]
     }
   },
   "apps/api/src/rewards/shop.ts": {

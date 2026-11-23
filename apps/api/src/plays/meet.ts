@@ -86,19 +86,39 @@ export type OtherSide = Readonly<{ playerId: string; completionId: string }>;
 /** The token's hash, as the database keeps it. */
 const hashOf = (token: string): Buffer => createHash("sha256").update(token).digest();
 
+type PgFields = Readonly<{ code?: string; detail?: string; hint?: string }>;
+
+const MEET_CODES: ReadonlySet<string> = new Set(["QM422", "QM409", "QM403"]);
+
+/** The reason a QM error names (its DETAIL), or undefined for any other error. */
+function reasonOf(pg: PgFields): MeetReason | undefined {
+  return MEET_CODES.has(pg.code ?? "") && REASONS.has(pg.detail ?? "")
+    ? (pg.detail as MeetReason)
+    : undefined;
+}
+
+/** The other's username, which the HINT carries on already_met only. */
+export const metNameOf = (reason: MeetReason, hint: string | undefined): string | null =>
+  reason === "already_met" ? (hint ?? null) : null;
+
+/** The cap, which the HINT carries on daily_cap only, when it reads as a number. */
+export function capOf(reason: MeetReason, hint: string | undefined): number | null {
+  const cap = Number.parseInt(hint ?? "", 10);
+  return reason === "daily_cap" && Number.isFinite(cap) ? cap : null;
+}
+
 /** A QM refusal from the database, or undefined for any other error. */
-function meetRefusalOf(error: unknown): MeetRefusal | undefined {
-  const pg = error as { code?: string; detail?: string; hint?: string };
-  if (!["QM422", "QM409", "QM403"].includes(pg.code ?? "") || !REASONS.has(pg.detail ?? "")) {
+export function meetRefusalOf(error: unknown): MeetRefusal | undefined {
+  const pg = error as PgFields;
+  const reason = reasonOf(pg);
+  if (reason === undefined) {
     return undefined;
   }
-  const reason = pg.detail as MeetReason;
-  const cap = Number.parseInt(pg.hint ?? "", 10);
   return {
     kind: "meet_refused",
     reason,
-    name: reason === "already_met" ? (pg.hint ?? null) : null,
-    cap: reason === "daily_cap" && Number.isFinite(cap) ? cap : null,
+    name: metNameOf(reason, pg.hint),
+    cap: capOf(reason, pg.hint),
   };
 }
 

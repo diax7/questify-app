@@ -1,5 +1,19 @@
 # Blueprint State — Questify
 
+## Function limits: 9 apps/api offenders split (tier B refactor) — 2026-11-23
+
+- **Built:** behaviour-preserving splits, same statuses, refusal codes, bodies, headers and SQL call order. `plays/games`
+  `finishOf` (`extrasOf`, same six reads in the same order, only after a payment) and `sendResult` (`resultLogOf`,
+  `resultOutcomeOf`); `meetRefusalOf` (`reasonOf`, `metNameOf`, `capOf`); the quiz answer step (`answerPaid`,
+  `answerResultOf`); `flashValueOf` now a `refusalThrower` table; `registerPlayRoutes` (live route moved to
+  `registerLiveRoute`, registered at the same point); `quests/routes` `answer` (a `refusalThrower` table, live-edit
+  refusals as its `otherwise`) and `questView` (`isoOf`); `migrate-cli` `verifyAppRole` (three small query helpers in the
+  same order, report built by the pure `appRoleReport` in `db/app-role-report.ts`). Completions, ledger, rewards, desk,
+  auth, route-access and organizers code untouched. The baseline shrank by 9 entries (50 to 41 limit violations).
+- **Checks:** new unit tests for every new pure helper and for every refusal of `answer` and `flashValueOf`; types, lint,
+  `lint:limits`, format, the plays, quests and db suites (unit and integration) pass.
+- **Next:** push; the other baselined offenders.
+
 ## Function limits: 5 packages/shared offenders split (tier B refactor) — 2026-11-23
 
 - **Built:** behaviour-preserving splits, no change in outputs, error codes, ordering or issue order, no new built-ins

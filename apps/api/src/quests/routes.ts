@@ -40,6 +40,7 @@ import {
 } from "#src/auth/http-errors";
 import { callerOf, parse } from "#src/auth/request";
 import { isIdempotencyKey } from "#src/conventions";
+import { refusalThrower } from "#src/refusal-table";
 import { locationQuestsOn } from "#src/completions/complete";
 import { organizerContextOf } from "#src/organizers/context";
 import {
@@ -159,6 +160,8 @@ const stepParams = z.object({ eventId: z.uuid(), stepId: z.uuid() });
 const member = { config: { access: "member" }, bodyLimit: BODY_LIMIT } as const;
 const creating = { ...member, config: { ...member.config, idempotent: true } } as const;
 
+const isoOf = (date: Date | null): string | null => date?.toISOString() ?? null;
+
 const categoryView = (category: CategoryRecord) => ({
   id: category.id,
   name: category.name,
@@ -173,7 +176,7 @@ const categoryView = (category: CategoryRecord) => ({
 });
 
 /** A quest as the dashboard sees it; members see an entry code, players never will (T-105). */
-const questView = (quest: BuilderQuest) => ({
+export const questView = (quest: BuilderQuest) => ({
   id: quest.id,
   categoryId: quest.categoryId,
   type: quest.type,
@@ -181,17 +184,17 @@ const questView = (quest: BuilderQuest) => ({
   description: quest.description,
   points: quest.points,
   repeatCap: quest.repeatCap,
-  opensAt: quest.opensAt?.toISOString() ?? null,
-  closesAt: quest.closesAt?.toISOString() ?? null,
+  opensAt: isoOf(quest.opensAt),
+  closesAt: isoOf(quest.closesAt),
   visible: quest.visible,
   position: quest.position,
   config: quest.config,
   verification: quest.verification,
   itemId: quest.itemId,
   place: quest.place,
-  pollSentAt: quest.pollSentAt?.toISOString() ?? null,
+  pollSentAt: isoOf(quest.pollSentAt),
   flash: quest.flash,
-  flashLaunchedAt: quest.flashLaunchedAt?.toISOString() ?? null,
+  flashLaunchedAt: isoOf(quest.flashLaunchedAt),
   paused: quest.paused,
   skipped: quest.skipped,
   firstBonus: quest.firstBonus,
@@ -206,71 +209,6 @@ const questView = (quest: BuilderQuest) => ({
     : {}),
 });
 
-/**
- * The answer for a result: its value through `ok`, or the error that names the refusal. A field is named as the
- * category's on the category routes and as the quest's elsewhere (both have an `opensAt`).
- */
-export function answer<T>(
-  result: Done<T>,
-  ok: (value: T) => unknown,
-  subject: "quest" | "category" = "quest",
-): unknown {
-  switch (result.kind) {
-    case "done":
-      return ok(result.value);
-    case "not_found":
-      throw notFound();
-    case "event_closed":
-      throw eventClosed();
-    case "confirm_required":
-      throw confirmRequired();
-    case "invalid":
-      throw subject === "category"
-        ? invalidCategory({ field: result.field })
-        : invalidQuest({ field: result.field });
-    case "limit_reached":
-      throw limitReached({ limit: result.limit });
-    case "order_stale":
-      throw orderStale();
-    case "last_category":
-      throw lastCategory();
-    case "category_not_empty":
-      throw categoryNotEmpty({ quests: result.quests });
-    case "category_in_use":
-      throw categoryInUse({ categories: result.categories });
-    case "has_completions":
-      throw hasCompletions();
-    case "rehearsal_data":
-      throw rehearsalData();
-    case "submission_kind_unavailable":
-      throw submissionKindUnavailable({ asked: result.asked });
-    case "quest_locked":
-      throw questLocked();
-    case "step_in_use":
-      throw stepInUse();
-    case "goal_in_use":
-      throw goalInUse();
-    case "boost_in_use":
-      throw boostInUse();
-    case "tags_in_use":
-      throw tagsInUse();
-    case "souvenir_in_use":
-      throw souvenirInUse(result.what, subject);
-    case "invalid_item":
-      throw invalidItem();
-    case "poll_locked":
-      throw pollLocked({ field: result.field });
-    case "first_bonus_paid":
-      throw firstBonusPaid();
-    case "below_given":
-      throw belowGiven({ given: result.given });
-    case "invalid_first_bonus":
-      throw invalidFirstBonus({ field: result.field });
-    default:
-      return liveEditAnswer(result);
-  }
-}
-
 /** The live points edits' refusals that carry nothing (T-604), and a submission quest's fixed `accepts` (T-301b). */
 const LIVE_EDIT_ERRORS = {
   accepts_locked: acceptsLocked,
@@ -283,10 +221,10 @@ const LIVE_EDIT_ERRORS = {
   key_reused: idempotencyKeyReused,
 } as const;
 
+type LiveEditKind = keyof typeof LIVE_EDIT_ERRORS | "over_cap" | "image_unknown";
+
 /** The live points edits' refusals (T-604), and an image a game or vote names that is not this event's (ADR-829). */
-function liveEditAnswer(
-  result: Extract<Refused, { kind: keyof typeof LIVE_EDIT_ERRORS | "over_cap" | "image_unknown" }>,
-): never {
+function liveEditAnswer(result: Extract<Refused, { kind: LiveEditKind }>): never {
   if (result.kind === "over_cap") {
     throw overCap({ cap: "each", limit: result.limit });
   }
@@ -294,6 +232,56 @@ function liveEditAnswer(
     throw imageUnknown({ field: result.field });
   }
   throw LIVE_EDIT_ERRORS[result.kind]();
+}
+
+type Subject = "quest" | "category";
+
+const refuseBuilder = refusalThrower<
+  Exclude<Refused, { kind: LiveEditKind }>,
+  [subject: Subject],
+  Extract<Refused, { kind: LiveEditKind }>
+>(
+  {
+    not_found: () => notFound(),
+    event_closed: () => eventClosed(),
+    confirm_required: () => confirmRequired(),
+    invalid: (result, subject) =>
+      subject === "category"
+        ? invalidCategory({ field: result.field })
+        : invalidQuest({ field: result.field }),
+    limit_reached: (result) => limitReached({ limit: result.limit }),
+    order_stale: () => orderStale(),
+    last_category: () => lastCategory(),
+    category_not_empty: (result) => categoryNotEmpty({ quests: result.quests }),
+    category_in_use: (result) => categoryInUse({ categories: result.categories }),
+    has_completions: () => hasCompletions(),
+    rehearsal_data: () => rehearsalData(),
+    submission_kind_unavailable: (result) => submissionKindUnavailable({ asked: result.asked }),
+    quest_locked: () => questLocked(),
+    step_in_use: () => stepInUse(),
+    goal_in_use: () => goalInUse(),
+    boost_in_use: () => boostInUse(),
+    tags_in_use: () => tagsInUse(),
+    souvenir_in_use: (result, subject) => souvenirInUse(result.what, subject),
+    invalid_item: () => invalidItem(),
+    poll_locked: (result) => pollLocked({ field: result.field }),
+    first_bonus_paid: () => firstBonusPaid(),
+    below_given: (result) => belowGiven({ given: result.given }),
+    invalid_first_bonus: (result) => invalidFirstBonus({ field: result.field }),
+  },
+  liveEditAnswer,
+);
+
+/**
+ * The answer for a result: its value through `ok`, or the error that names the refusal. A field is named as the
+ * category's on the category routes and as the quest's elsewhere (both have an `opensAt`).
+ */
+export function answer<T>(
+  result: Done<T>,
+  ok: (value: T) => unknown,
+  subject: Subject = "quest",
+): unknown {
+  return result.kind === "done" ? ok(result.value) : refuseBuilder(result, subject);
 }
 
 const empty = (reply: FastifyReply) => () => reply.code(204).send();

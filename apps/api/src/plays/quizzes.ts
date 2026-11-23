@@ -178,6 +178,27 @@ export function nextQuestion(deps: PlayDeps, step: Step): Promise<Done<QuizStep>
   });
 }
 
+/** Whether this very answer paid: not a replay, the last question's, and the quiz has its completion. */
+export function answerPaid(
+  quiz: Pick<QuizView, "total" | "completionId">,
+  answered: Pick<QuizAnswered, "position"> | undefined,
+  replayed: boolean,
+): boolean {
+  return !replayed && answered?.position === quiz.total && quiz.completionId !== null;
+}
+
+/** What the answered question says of the try; a question the quiz does not list reads as wrong with no right choice. */
+export function answerResultOf(
+  answered: Pick<QuizAnswered, "right" | "rightChoiceId"> | undefined,
+  replayed: boolean,
+): QuizAnswer["result"] {
+  return {
+    right: answered?.right ?? false,
+    rightChoiceId: answered?.rightChoiceId ?? "",
+    replayed,
+  };
+}
+
 /** One try at the served question (FR-209); the answer carries the right one. The last answer finishes the quiz. */
 export function answerQuestion(
   deps: PlayDeps,
@@ -191,15 +212,10 @@ export function answerQuestion(
     const play = await playOf(client, step.questId);
     const answered = play.quiz.answered.find((item) => item.id === step.questionId);
     const replayed = rows[0]?.replayed === true;
-    const last = answered?.position === play.quiz.total;
     return {
       ...play,
-      paid: !replayed && last && play.quiz.completionId !== null,
-      result: {
-        right: answered?.right ?? false,
-        rightChoiceId: answered?.rightChoiceId ?? "",
-        replayed,
-      },
+      paid: answerPaid(play.quiz, answered, replayed),
+      result: answerResultOf(answered, replayed),
     };
   });
 }

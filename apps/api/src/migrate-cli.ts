@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Client } from "pg";
+import { appRoleReport } from "./db/app-role-report";
 import { migrate, migrationExitCode } from "./db/migrate";
 
 /**
@@ -69,53 +70,59 @@ async function migrateMedia(flags: ReadonlySet<string>): Promise<void> {
   }
 }
 
-async function verifyAppRole(): Promise<void> {
-  const url = process.env["DATABASE_URL"];
-  if (url === undefined || url === "") {
-    throw new Error("DATABASE_URL is not set.");
+/** Whether an insert into staff_user without an identity is refused. */
+async function unidentifiedInsertBlocked(client: Client): Promise<boolean> {
+  try {
+    await client.query("INSERT INTO staff_user (email, password_hash) VALUES ('x@x.sa', 'x')");
+    return false;
+  } catch {
+    return true;
   }
-  const client = new Client({ connectionString: url });
-  await client.connect();
+}
+
+/**
+ * The community tick's settle point reads the API's own sessions through a definer owned by the migration owner,
+ * which sees them only as a superuser or with questify_app's privileges (ADR-224, migration 0053).
+ */
+async function ownerSeesSessions(client: Client): Promise<boolean> {
+  const settler = await client.query<{ sees: boolean }>(
+    `SELECT r.rolsuper OR pg_has_role(r.oid, 'questify_app', 'USAGE') AS sees
+     FROM pg_proc p JOIN pg_roles r ON r.oid = p.proowner
+     WHERE p.oid = 'public.community_settle_point()'::regprocedure`,
+  );
+  return settler.rows[0]?.sees === true;
+}
+
+async function migrationTableReadable(client: Client): Promise<boolean> {
+  try {
+    await client.query("SELECT 1 FROM schema_migration");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function verifyAppRole(): Promise<void> {
+  const client = await connected("DATABASE_URL");
   try {
     const { rows } = await client.query<{ who: string; superuser: boolean; bypass_rls: boolean }>(
       `SELECT current_user AS who, r.rolsuper AS superuser, r.rolbypassrls AS bypass_rls
        FROM pg_roles r WHERE r.rolname = current_user`,
     );
-    const role = rows[0];
     const staff = await client.query("SELECT count(*)::int AS n FROM staff_user");
     const events = await client.query("SELECT count(*)::int AS n FROM event");
-    let blockedWrite = false;
-    try {
-      await client.query("INSERT INTO staff_user (email, password_hash) VALUES ('x@x.sa', 'x')");
-    } catch {
-      blockedWrite = true;
-    }
-    // The community tick's settle point reads the API's own sessions through a definer owned by the migration owner,
-    // which sees them only as a superuser or with questify_app's privileges (ADR-224, migration 0053).
-    const settler = await client.query<{ sees: boolean }>(
-      `SELECT r.rolsuper OR pg_has_role(r.oid, 'questify_app', 'USAGE') AS sees
-       FROM pg_proc p JOIN pg_roles r ON r.oid = p.proowner
-       WHERE p.oid = 'public.community_settle_point()'::regprocedure`,
-    );
-    const ownerSeesSessions = settler.rows[0]?.sees === true;
-    let migrationTableReadable = true;
-    try {
-      await client.query("SELECT 1 FROM schema_migration");
-    } catch {
-      migrationTableReadable = false;
-    }
-    const ok =
-      role?.superuser === false &&
-      role.bypass_rls === false &&
-      staff.rows[0]?.n === 0 &&
-      blockedWrite &&
-      !migrationTableReadable &&
-      ownerSeesSessions;
-    process.stdout.write(
-      `${JSON.stringify({ ok, role: role?.who, superuser: role?.superuser, bypassRls: role?.bypass_rls, staffRowsVisible: staff.rows[0]?.n, eventsVisible: events.rows[0]?.n, unidentifiedInsertBlocked: blockedWrite, migrationTableReadable, ownerSeesSessions })}
-`,
-    );
-    if (!ok) {
+    const blockedWrite = await unidentifiedInsertBlocked(client);
+    const sees = await ownerSeesSessions(client);
+    const report = appRoleReport({
+      role: rows[0],
+      staffRows: staff.rows[0]?.n,
+      eventRows: events.rows[0]?.n,
+      blockedWrite,
+      migrationTableReadable: await migrationTableReadable(client),
+      ownerSeesSessions: sees,
+    });
+    process.stdout.write(`${JSON.stringify(report)}\n`);
+    if (!report.ok) {
       process.exitCode = 1;
     }
   } finally {

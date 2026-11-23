@@ -79,13 +79,19 @@ import {
   type MeetOutcome,
   type MeetReason,
 } from "#src/plays/meet";
-import { createLiveReader, liveEtagOf } from "#src/plays/live";
+import { createLiveReader, liveEtagOf, type LiveDeps } from "#src/plays/live";
 import type { FirstBonusCache } from "#src/quests/first-bonus";
 import type { Done, PlayDeps, PlayRefusal } from "#src/plays/run";
 import { readShare, shareQuest } from "#src/plays/shares";
 import { answerSurvey, readSurvey, surveySummary } from "#src/plays/surveys";
 import { castVote, readPoll, readVote, voteCounts } from "#src/plays/votes";
-import { FLASH_MINUTES, endFlash, launchFlash, type FlashDone } from "#src/quests/flash";
+import {
+  FLASH_MINUTES,
+  endFlash,
+  launchFlash,
+  type FlashDone,
+  type FlashRefusal,
+} from "#src/quests/flash";
 import { previewHint, sendHint, type HintDone } from "#src/quests/hint";
 import { closePoll, sendPoll, type PollDone } from "#src/quests/polls";
 import type { Ranking } from "#src/ranking/ranking";
@@ -182,6 +188,31 @@ async function withRank<T extends QuizStep>(deps: RankingDeps, playerId: string,
 }
 
 /**
+ * What is live in the event for the player (ADR-221): polled every few seconds, so a weak ETag over the body without
+ * `serverNow` answers 304 while nothing changed; the server's clock rides in a header on both answers.
+ */
+function registerLiveRoute(app: FastifyInstance, deps: LiveDeps): void {
+  const live = createLiveReader(deps);
+  app.get("/v1/events/:eventId/live", player, async (request, reply) => {
+    const { eventId } = parse(eventParams, request.params);
+    const playerId = playerIdOf(request);
+    const wait = live.allow(playerId);
+    if (wait !== undefined) {
+      reply.header("retry-after", String(wait));
+      throw tooManyAttempts({ retryAfterSeconds: wait });
+    }
+    const state = await live.read(playerId, eventId, (fields) => request.log.warn(fields));
+    const etag = liveEtagOf(state);
+    const serverNow = new Date().toISOString();
+    reply.header("etag", etag).header("server-now", serverNow).header("cache-control", "no-cache");
+    if (etagMatches(request.headers["if-none-match"], etag.slice(2))) {
+      return reply.code(304).send();
+    }
+    return { ...state, serverNow };
+  });
+}
+
+/**
  * The player's vote (FR-207) and quiz (FR-208 to FR-210). Every write needs an Idempotency-Key; a payment moves the
  * player's place like a completion.
  */
@@ -215,26 +246,7 @@ export function registerPlayRoutes(
     return valueOf(await readPoll(deps, playerIdOf(request), questId));
   });
 
-  const live = createLiveReader(deps);
-  // What is live in the event for the player (ADR-221): polled every few seconds, so a weak ETag over the body without
-  // `serverNow` answers 304 while nothing changed; the server's clock rides in a header on both answers.
-  app.get("/v1/events/:eventId/live", player, async (request, reply) => {
-    const { eventId } = parse(eventParams, request.params);
-    const playerId = playerIdOf(request);
-    const wait = live.allow(playerId);
-    if (wait !== undefined) {
-      reply.header("retry-after", String(wait));
-      throw tooManyAttempts({ retryAfterSeconds: wait });
-    }
-    const state = await live.read(playerId, eventId, (fields) => request.log.warn(fields));
-    const etag = liveEtagOf(state);
-    const serverNow = new Date().toISOString();
-    reply.header("etag", etag).header("server-now", serverNow).header("cache-control", "no-cache");
-    if (etagMatches(request.headers["if-none-match"], etag.slice(2))) {
-      return reply.code(304).send();
-    }
-    return { ...state, serverNow };
-  });
+  registerLiveRoute(app, deps);
 
   app.get("/v1/quests/:questId/survey", player, async (request) => {
     const { questId } = parse(questParams, request.params);
@@ -421,30 +433,21 @@ function pollValueOf(result: PollDone) {
   }
 }
 
+const refuseFlash = refusalThrower<FlashRefusal>({
+  not_found: () => notFound(),
+  not_flash: () => notFlashQuest(),
+  event_not_live: () => flashEventNotLive(),
+  feature_off: () => platformFeatureOff(),
+  already_launched: () => flashAlreadyLaunched(),
+  scheduled: () => flashScheduled(),
+  community_locked: () => flashCommunityLocked(),
+  too_late: () => flashTooLate(),
+  not_started: () => flashNotStarted(),
+});
+
 /** Launch's and End now's answer, or their refusal thrown (API.md, flash quests). */
-function flashValueOf(result: FlashDone) {
-  switch (result.kind) {
-    case "done":
-      return result.value;
-    case "not_found":
-      throw notFound();
-    case "not_flash":
-      throw notFlashQuest();
-    case "event_not_live":
-      throw flashEventNotLive();
-    case "feature_off":
-      throw platformFeatureOff();
-    case "already_launched":
-      throw flashAlreadyLaunched();
-    case "scheduled":
-      throw flashScheduled();
-    case "community_locked":
-      throw flashCommunityLocked();
-    case "too_late":
-      throw flashTooLate();
-    case "not_started":
-      throw flashNotStarted();
-  }
+export function flashValueOf(result: FlashDone) {
+  return result.kind === "done" ? result.value : refuseFlash(result);
 }
 
 /** The hint's count or Send's answer, or their refusal thrown (API.md, the hidden-category hint). */

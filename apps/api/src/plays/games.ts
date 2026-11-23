@@ -302,12 +302,44 @@ function verdictArgs(judgement: Judgement): [string, string | null, string | nul
 /** The longest last-input time the database's integer takes; anything longer fails the clock check anyway. */
 const MAX_INPUT_MS = 2_147_483_647;
 
+/** What a first pass's payment brought besides points; all null when the round paid nothing. */
+type PaidExtras = Pick<
+  GameResult,
+  "levelUp" | "bonus" | "item" | "boost" | "firstBonus" | "streakBonus"
+>;
+
+const NO_EXTRAS: PaidExtras = {
+  levelUp: null,
+  bonus: null,
+  item: null,
+  boost: null,
+  firstBonus: null,
+  streakBonus: null,
+};
+
+async function extrasOf(client: PoolClient, paid: string | null): Promise<PaidExtras> {
+  if (paid === null) {
+    return NO_EXTRAS;
+  }
+  return {
+    levelUp: await levelReached(client, paid),
+    bonus: await bonusPaid(client, paid),
+    item: await itemGiven(client, paid),
+    boost: await boostApplied(client, paid),
+    firstBonus: await firstBonusPaid(client, paid),
+    streakBonus: await streakBonusPaid(client, paid),
+  };
+}
+
+/** The round as the database closed it: its verdict and reason (for the log) and the answer (or the refusal). */
+type Finished = Readonly<{ verdict: string; reason: string | null; answer: GameResult | Refused }>;
+
 async function finishOf(
   client: PoolClient,
   request: ResultRequest,
   judgement: Judgement,
   target: GameTarget,
-): Promise<Readonly<{ verdict: string; reason: string | null; answer: GameResult | Refused }>> {
+): Promise<Finished> {
   const [verdict, result, reason, unlikely] = verdictArgs(judgement);
   const { rows } = await client.query<FinishRow>(
     "SELECT * FROM finish_game_round($1, $2, $3, $4, $5, $6, $7)",
@@ -325,29 +357,39 @@ async function finishOf(
   if (row.verdict === "refused") {
     return { verdict: row.verdict, reason: row.reason, answer: { impossible: row.attempts_left } };
   }
-  const paid = row.completion_id;
   const answer: GameResult = {
     verdict: row.verdict,
     result: row.result,
     target,
     attemptsLeft: row.attempts_left,
-    completionId: paid,
+    completionId: row.completion_id,
     points: Number(row.points ?? 0),
     score: Number(row.score),
     balance: Number(row.balance),
     replayed: row.replayed,
-    levelUp: paid === null ? null : await levelReached(client, paid),
-    bonus: paid === null ? null : await bonusPaid(client, paid),
-    item: paid === null ? null : await itemGiven(client, paid),
-    boost: paid === null ? null : await boostApplied(client, paid),
-    firstBonus: paid === null ? null : await firstBonusPaid(client, paid),
-    streakBonus: paid === null ? null : await streakBonusPaid(client, paid),
+    ...(await extrasOf(client, row.completion_id)),
   };
   return { verdict: row.verdict, reason: row.reason, answer };
 }
 
 /** A refused round: it counted as played; the attempts left are the only thing the player is told. */
-type Refused = Readonly<{ impossible: number | null }>;
+export type Refused = Readonly<{ impossible: number | null }>;
+
+/** What the log records of a round: the database's own verdict and reason, or the refusal's kind and no reason. */
+export function resultLogOf(
+  finished: Done<Pick<Finished, "verdict" | "reason">>,
+): Readonly<{ verdict: string; reason: string }> {
+  return finished.kind === "done"
+    ? { verdict: finished.value.verdict, reason: finished.value.reason ?? "" }
+    : { verdict: finished.kind, reason: "" };
+}
+
+/** The round's outcome: a refused round counted as played (impossible), or the counted result. */
+export function resultOutcomeOf(answer: GameResult | Refused): GameOutcome<GameResult> {
+  return "impossible" in answer
+    ? { kind: "impossible", attemptsLeft: answer.impossible }
+    : { kind: "done", value: answer };
+}
 
 /**
  * Takes a round's result (ADR-212): reads the frozen round (the caller's own, else not found), replays the phone's
@@ -384,18 +426,11 @@ export async function sendResult(
     finishOf(client, request, judgement, target),
   );
   // The database's own verdict and reason: it may turn a pass into `clock`, or answer a replayed key's first result.
-  caller.log("game.result", {
-    game,
-    verdict: finished.kind === "done" ? finished.value.verdict : finished.kind,
-    reason: finished.kind === "done" ? (finished.value.reason ?? "") : "",
-  });
+  caller.log("game.result", { game, ...resultLogOf(finished) });
   if (finished.kind !== "done") {
     return finished;
   }
-  const { answer } = finished.value;
-  return "impossible" in answer
-    ? { kind: "impossible", attemptsLeft: answer.impossible }
-    : { kind: "done", value: answer };
+  return resultOutcomeOf(finished.value.answer);
 }
 
 /** Rounds closed per tick at most; the next tick takes the rest. */
