@@ -532,6 +532,38 @@ export function buildApp(options: AppOptions): FastifyInstance {
   };
   registerStaff(app, passwordDeps, config.auth.consoleOrigin);
 
+  const core = registerPlayerCore(app, options, signInDeps, deferred);
+  const devices = registerDevicesAndShop(app, options, signInDeps, core);
+  const { invitations, translations } = registerStaffSide(app, options, signInDeps, passwordDeps, {
+    ...core,
+    ...devices,
+  });
+  const { settings } = core;
+
+  startTicks(app, options, {
+    settings,
+    keys: signInDeps.keys,
+    invitations,
+    emailChange: passwordDeps,
+  });
+  registerPlatformReads(app, options.pool, { settings, translations });
+  registerHealthRoutes(app, options);
+  return app;
+}
+
+type AuthKeysDeps = Readonly<{ keys: AuthKeys }>;
+
+/**
+ * The player's doors up to the play doors (T-204, T-206, T-313): the player guard first, then sign-in, completions,
+ * ranking, profile, Home, the operator and desk doors. Returns the keys and services the later doors share.
+ */
+function registerPlayerCore(
+  app: FastifyInstance,
+  options: AppOptions,
+  signInDeps: AuthKeysDeps,
+  deferred: Deferred,
+) {
+  const { config } = options;
   const questCodeKey = createQuestCodeKey(config.qrSecret);
   const stepCodeKey = createStepCodeKey(config.qrSecret);
   const revealCodeKey = createRevealCodeKey(config.qrSecret);
@@ -600,6 +632,31 @@ export function buildApp(options: AppOptions): FastifyInstance {
     codeKeys: { codeKey: questCodeKey, stepKey: stepCodeKey, revealKey: revealCodeKey },
     storage: options.storage,
   });
+  return {
+    questCodeKey,
+    stepCodeKey,
+    revealCodeKey,
+    operatorDeps,
+    settings,
+    firstBonus,
+    ranking,
+    suspended,
+    rehearsal,
+    screenKey,
+  };
+}
+
+type PlayerCore = ReturnType<typeof registerPlayerCore>;
+
+/** The device guard and the device, kiosk and live-code doors (T-309), the player shop and the ranking repair tick. */
+function registerDevicesAndShop(
+  app: FastifyInstance,
+  options: AppOptions,
+  signInDeps: AuthKeysDeps,
+  core: PlayerCore,
+) {
+  const { config } = options;
+  const { screenKey, settings, ranking, stepCodeKey, revealCodeKey } = core;
   const deviceClaims = {
     pool: options.pool,
     keys: signInDeps.keys,
@@ -637,7 +694,30 @@ export function buildApp(options: AppOptions): FastifyInstance {
     );
     app.addHook("onClose", tick.stop);
   }
+  return { deviceClaims, rewardCodeKey };
+}
 
+/** The console and the organizer dashboard's doors, and the public link reads. */
+function registerStaffSide(
+  app: FastifyInstance,
+  options: AppOptions,
+  signInDeps: AuthKeysDeps,
+  passwordDeps: PasswordDeps,
+  shared: PlayerCore & ReturnType<typeof registerDevicesAndShop>,
+) {
+  const { config } = options;
+  const {
+    settings,
+    suspended,
+    rehearsal,
+    questCodeKey,
+    stepCodeKey,
+    revealCodeKey,
+    rewardCodeKey,
+    operatorDeps,
+    ranking,
+    deviceClaims,
+  } = shared;
   const activation = createActivation({ pool: options.pool, onAddonsChanged: settings.forget });
   const invitations = invitationDepsOf(options);
   const staffSessions = createSessions(options.pool);
@@ -676,16 +756,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     storage: options.storage,
   });
   registerPublicLinkRoutes(app, { pool: options.pool, keys: signInDeps.keys });
-
-  startTicks(app, options, {
-    settings,
-    keys: signInDeps.keys,
-    invitations,
-    emailChange: passwordDeps,
-  });
-  registerPlatformReads(app, options.pool, { settings, translations });
-  registerHealthRoutes(app, options);
-  return app;
+  return { invitations, translations };
 }
 
 /** The media worker (T-301b), when this server has a bucket and an interval. */

@@ -21,6 +21,7 @@ import {
   type Position,
 } from "#src/completions/complete";
 import type { Ranking } from "#src/ranking/ranking";
+import { refusalThrower } from "#src/refusal-table";
 import { logStreakBonus } from "#src/streaks/streaks";
 
 /** A reading as the database takes it (migration 0048's position_of holds the same rules). */
@@ -58,34 +59,31 @@ export function positionOf(value: unknown): Position | null | "bad" {
 }
 const questParams = z.object({ questId: z.uuid() });
 
-function answer(reply: FastifyReply, result: Exclude<CompletionResult, { kind: "completed" }>) {
-  switch (result.kind) {
-    case "not_found":
-      throw notFound();
-    case "enrollment_inactive":
-      throw enrollmentInactive({ reason: result.reason });
-    case "quest_not_open":
-      throw questNotOpen({ reason: result.reason });
-    case "already_completed":
-      throw alreadyCompleted({ cap: result.cap });
-    case "invalid_code":
-      // A screen code past its window asks for a fresh scan (T-309); any other problem gets one answer, since the
-      // player can do nothing different, and the log keeps the difference.
-      throw result.problem === "expired" ? screenCodeExpired() : questCodeInvalid();
-    case "key_reused":
-      throw idempotencyKeyReused();
-    case "too_many_attempts":
-      reply.header("retry-after", String(result.retryAfterSeconds));
-      throw tooManyAttempts({ retryAfterSeconds: result.retryAfterSeconds });
-    case "location_refused":
-      throw locationRefused({
-        reason: result.reason,
-        ...(result.distanceM === null ? {} : { distanceM: result.distanceM }),
-      });
-    case "feature_off":
-      throw platformFeatureOff();
-  }
-}
+/** One HTTP answer per completion refusal; a rate limit also sets `retry-after`. Exported for its test. */
+export const refuseCompletion = refusalThrower<
+  Exclude<CompletionResult, { kind: "completed" }>,
+  [reply: FastifyReply]
+>({
+  not_found: () => notFound(),
+  enrollment_inactive: (result) => enrollmentInactive({ reason: result.reason }),
+  quest_not_open: (result) => questNotOpen({ reason: result.reason }),
+  already_completed: (result) => alreadyCompleted({ cap: result.cap }),
+  // A screen code past its window asks for a fresh scan (T-309); any other problem gets one answer, since the
+  // player can do nothing different, and the log keeps the difference.
+  invalid_code: (result) =>
+    result.problem === "expired" ? screenCodeExpired() : questCodeInvalid(),
+  key_reused: () => idempotencyKeyReused(),
+  too_many_attempts: (result, reply) => {
+    reply.header("retry-after", String(result.retryAfterSeconds));
+    return tooManyAttempts({ retryAfterSeconds: result.retryAfterSeconds });
+  },
+  location_refused: (result) =>
+    locationRefused({
+      reason: result.reason,
+      ...(result.distanceM === null ? {} : { distanceM: result.distanceM }),
+    }),
+  feature_off: () => platformFeatureOff(),
+});
 
 /**
  * `POST /v1/quests/:questId/complete` (FR-201, 211, 215, 216, 302, 304, 314): a player with a live session completes a
@@ -129,7 +127,7 @@ export function registerCompletionRoutes(
         callerOf(request),
       );
       if (result.kind !== "completed") {
-        return answer(reply, result);
+        return refuseCompletion(result, reply);
       }
       // The player's place after this completion: null when not ranked or when Redis could not answer (T-106).
       logStreakBonus(request.log, result.value);

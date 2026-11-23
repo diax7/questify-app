@@ -165,32 +165,36 @@ export function reserveReward(
       request.rewardId,
       request.idempotencyKey,
     ]);
-    return {
-      kind: "done",
-      value: {
-        redemption: {
-          id: String(row?.["redemption_id"]),
-          kind: String(row?.["kind"]),
-          status: String(row?.["status"]),
-          price: Number(row?.["price"]),
-          reservedUntil: iso(row?.["reserved_until"]),
-          ...reveal(
-            deps,
-            {
-              id: row?.["redemption_id"],
-              rewardId: request.rewardId,
-              kind: row?.["kind"],
-              status: row?.["status"],
-            },
-            row?.["code_cipher"],
-          ),
-        },
-        balance: Number(row?.["balance"]),
-        stockLeft: Number(row?.["stock_left"]),
-        replayed: row?.["replayed"] === true,
-      },
-    };
+    return { kind: "done", value: reservationOf(deps, request.rewardId, row ?? {}) };
   });
+}
+
+/**
+ * A `reserve_reward` row as the player's reservation, its code opened for them (which logs ids when it will not open).
+ * An absent row reads as empty, as before. Exported for its test.
+ */
+export function reservationOf(
+  deps: ShopDeps,
+  rewardId: string,
+  row: Readonly<Record<string, unknown>>,
+): Reservation {
+  return {
+    redemption: {
+      id: String(row["redemption_id"]),
+      kind: String(row["kind"]),
+      status: String(row["status"]),
+      price: Number(row["price"]),
+      reservedUntil: iso(row["reserved_until"]),
+      ...reveal(
+        deps,
+        { id: row["redemption_id"], rewardId, kind: row["kind"], status: row["status"] },
+        row["code_cipher"],
+      ),
+    },
+    balance: Number(row["balance"]),
+    stockLeft: Number(row["stock_left"]),
+    replayed: row["replayed"] === true,
+  };
 }
 
 /** The player gives a reservation back before pickup: the price and the unit return (FR-513, FR-1603). */

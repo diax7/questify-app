@@ -5,6 +5,8 @@ import {
   DEVICE_GUARD,
   PLAYER_GUARD,
   registerRouteInventory,
+  routeRefusal,
+  type Access,
 } from "#src/route-access";
 
 const build = () => {
@@ -172,5 +174,91 @@ describe("registerRouteInventory", () => {
       "admin",
       "device",
     ]);
+  });
+});
+
+const facts = (
+  url: string,
+  access: Access,
+  more: Readonly<{ idempotent?: boolean; guards?: readonly string[] }> = {},
+) => ({
+  name: `GET ${url}`,
+  url,
+  access,
+  idempotent: more.idempotent ?? false,
+  hasDecorator: (decorator: string) => (more.guards ?? []).includes(decorator),
+});
+const STAFF = (url: string) =>
+  `Route GET ${url} is marked staff but is outside /v1/staff/, where the session check runs.`;
+const ADMIN = (url: string) =>
+  `Route GET ${url}: admin routes, and only they, live under /v1/admin/, where the platform admin check runs.`;
+const NO_PLAYER_GUARD = (url: string) =>
+  `Route GET ${url} is marked player but the player guard is not registered before it.`;
+const DEVICE_PATH = (url: string) =>
+  `Route GET ${url} is marked device but is outside /v1/device, where the device check runs.`;
+const NO_DEVICE_GUARD = (url: string) =>
+  `Route GET ${url} is marked device but the device guard is not registered before it.`;
+const PUBLIC_KEYS = (url: string) =>
+  `Route GET ${url} is public, so it cannot take idempotency keys.`;
+
+describe("routeRefusal", () => {
+  // A route that breaks two rules is named by the earlier one.
+  const PAIRS: ReadonlyArray<[string, ReturnType<typeof facts>, string]> = [
+    [
+      "staff vs organizer",
+      facts("/v1/organizers/:organizerId/team", "staff"),
+      STAFF("/v1/organizers/:organizerId/team"),
+    ],
+    [
+      "admin vs public with keys",
+      facts("/v1/admin/pay", "public", { idempotent: true }),
+      ADMIN("/v1/admin/pay"),
+    ],
+    ["admin vs player guard", facts("/v1/admin/me", "player"), ADMIN("/v1/admin/me")],
+    [
+      "organizer vs player guard",
+      facts("/v1/organizers/:organizerId/me", "player"),
+      message("/v1/organizers/:organizerId/me"),
+    ],
+    ["device path vs device guard", facts("/v1/devices/x", "device"), DEVICE_PATH("/v1/devices/x")],
+    ["admin vs device path", facts("/v1/admin/screen", "device"), ADMIN("/v1/admin/screen")],
+  ];
+
+  it.each(PAIRS)("names the earlier rule: %s", (_name, route, expected) => {
+    expect(routeRefusal(route)).toBe(expected);
+  });
+
+  const SINGLES: ReadonlyArray<[ReturnType<typeof facts>, string]> = [
+    [facts("/me", "staff"), STAFF("/me")],
+    [facts("/v1/staff/x", "member"), message("/v1/staff/x")],
+    [facts("/v1/staff/x", "admin"), ADMIN("/v1/staff/x")],
+    [facts("/v1/me", "player"), NO_PLAYER_GUARD("/v1/me")],
+    [facts("/v1/devices", "device", { guards: ["deviceGuard"] }), DEVICE_PATH("/v1/devices")],
+    [facts("/v1/device/x", "device"), NO_DEVICE_GUARD("/v1/device/x")],
+    [facts("/pay", "public", { idempotent: true }), PUBLIC_KEYS("/pay")],
+  ];
+
+  it.each(SINGLES)("refuses %j with its own message", (route, expected) => {
+    expect(routeRefusal(route)).toBe(expected);
+  });
+
+  it("lets a route through only when it keeps every rule", () => {
+    expect(routeRefusal(facts("/healthz", "public"))).toBeUndefined();
+    expect(routeRefusal(facts("/v1/staff/me", "staff", { idempotent: true }))).toBeUndefined();
+    expect(routeRefusal(facts("/v1/organizers/:organizerId", "owner"))).toBeUndefined();
+    expect(routeRefusal(facts("/v1/admin/x", "admin"))).toBeUndefined();
+    expect(routeRefusal(facts("/v1/me", "player", { guards: [PLAYER_GUARD] }))).toBeUndefined();
+    expect(routeRefusal(facts("/v1/device", "device", { guards: [DEVICE_GUARD] }))).toBeUndefined();
+  });
+
+  it("asks the root server's decorators, so a guard on a child scope does not count", async () => {
+    const app = Fastify();
+    registerRouteInventory(app);
+    await app.register(async (scope) => {
+      scope.decorate(PLAYER_GUARD, true);
+      expect(() => scope.get("/v1/me", { config: { access: "player" } }, async () => ({}))).toThrow(
+        NO_PLAYER_GUARD("/v1/me"),
+      );
+    });
   });
 });

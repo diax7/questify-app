@@ -36,6 +36,65 @@ export const isDevicePath = (url: string): boolean =>
 const isAccess = (value: unknown): value is Access =>
   typeof value === "string" && (ACCESS_KINDS as readonly string[]).includes(value);
 
+/** What a route rule judges, once the route's access kind is known. */
+export type RouteFacts = Readonly<{
+  name: string;
+  url: string;
+  access: Access;
+  idempotent: boolean;
+  hasDecorator: (decorator: string) => boolean;
+}>;
+
+const isOrganizerPath = (url: string): boolean =>
+  url === ORGANIZER_PREFIX || url.startsWith(`${ORGANIZER_PREFIX}/`);
+
+/**
+ * The rules every route with a known access kind must keep, in the order they are judged; each answers its refusal or
+ * undefined. Every rule is asked until one refuses: none lets a route through early.
+ */
+const ROUTE_RULES: ReadonlyArray<(route: RouteFacts) => string | undefined> = [
+  ({ name, url, access }) =>
+    access === "staff" && !url.startsWith(STAFF_PREFIX)
+      ? `Route ${name} is marked staff but is outside ${STAFF_PREFIX}, where the session check runs.`
+      : undefined,
+  ({ name, url, access }) =>
+    (access === "member" || access === "owner") !== isOrganizerPath(url)
+      ? `Route ${name}: member and owner routes, and only they, live under ${ORGANIZER_PREFIX}, where the membership check runs.`
+      : undefined,
+  ({ name, url, access }) =>
+    (access === "admin") !== url.startsWith(ADMIN_PREFIX)
+      ? `Route ${name}: admin routes, and only they, live under ${ADMIN_PREFIX}, where the platform admin check runs.`
+      : undefined,
+  // A player route has no path of its own: the bearer check is one hook on every route marked `player`.
+  ({ name, access, hasDecorator }) =>
+    access === "player" && !hasDecorator(PLAYER_GUARD)
+      ? `Route ${name} is marked player but the player guard is not registered before it.`
+      : undefined,
+  ({ name, url, access }) =>
+    access === "device" && !isDevicePath(url)
+      ? `Route ${name} is marked device but is outside /v1/device, where the device check runs.`
+      : undefined,
+  ({ name, access, hasDecorator }) =>
+    access === "device" && !hasDecorator(DEVICE_GUARD)
+      ? `Route ${name} is marked device but the device guard is not registered before it.`
+      : undefined,
+  ({ name, access, idempotent }) =>
+    access === "public" && idempotent
+      ? `Route ${name} is public, so it cannot take idempotency keys.`
+      : undefined,
+];
+
+/** The first rule a route breaks, or undefined when it keeps them all. Exported for its test. */
+export function routeRefusal(route: RouteFacts): string | undefined {
+  for (const rule of ROUTE_RULES) {
+    const refusal = rule(route);
+    if (refusal !== undefined) {
+      return refusal;
+    }
+  }
+  return undefined;
+}
+
 /**
  * Records every route with its access kind and refuses a route that has none. Register it before any route.
  * An idempotent route must have a principal: the anonymous key space is shared, so one caller could replay
@@ -55,41 +114,16 @@ export function registerRouteInventory(app: FastifyInstance): RouteInfo[] {
           `Route ${name} must declare config.access (one of ${ACCESS_KINDS.join(", ")}).`,
         );
       }
-      if (access === "staff" && !route.url.startsWith(STAFF_PREFIX)) {
-        throw new Error(
-          `Route ${name} is marked staff but is outside ${STAFF_PREFIX}, where the session check runs.`,
-        );
-      }
-      const organizerRoute =
-        route.url === ORGANIZER_PREFIX || route.url.startsWith(`${ORGANIZER_PREFIX}/`);
-      if ((access === "member" || access === "owner") !== organizerRoute) {
-        throw new Error(
-          `Route ${name}: member and owner routes, and only they, live under ${ORGANIZER_PREFIX}, where the membership check runs.`,
-        );
-      }
-      if ((access === "admin") !== route.url.startsWith(ADMIN_PREFIX)) {
-        throw new Error(
-          `Route ${name}: admin routes, and only they, live under ${ADMIN_PREFIX}, where the platform admin check runs.`,
-        );
-      }
-      // A player route has no path of its own: the bearer check is one hook on every route marked `player`.
-      if (access === "player" && !app.hasDecorator(PLAYER_GUARD)) {
-        throw new Error(
-          `Route ${name} is marked player but the player guard is not registered before it.`,
-        );
-      }
-      if (access === "device" && !isDevicePath(route.url)) {
-        throw new Error(
-          `Route ${name} is marked device but is outside /v1/device, where the device check runs.`,
-        );
-      }
-      if (access === "device" && !app.hasDecorator(DEVICE_GUARD)) {
-        throw new Error(
-          `Route ${name} is marked device but the device guard is not registered before it.`,
-        );
-      }
-      if (access === "public" && route.config?.idempotent === true) {
-        throw new Error(`Route ${name} is public, so it cannot take idempotency keys.`);
+      const refusal = routeRefusal({
+        name,
+        url: route.url,
+        access,
+        idempotent: route.config?.idempotent === true,
+        // The root server's decorators, as before: never the hook's `this`.
+        hasDecorator: (decorator) => app.hasDecorator(decorator),
+      });
+      if (refusal !== undefined) {
+        throw new Error(refusal);
       }
       inventory.push({ method, url: route.url, access });
     }

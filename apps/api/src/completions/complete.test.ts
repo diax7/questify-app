@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createAuthKeys } from "#src/auth/keys";
 import type { Caller } from "#src/auth/sign-in";
 import {
+  askedOf,
   boostApplied,
   bonusPaid,
   completeQuest,
@@ -281,6 +282,36 @@ describe("when the platform's location switch is read", () => {
     );
     expect(result).toEqual({ kind: "feature_off" });
     expect(db.engineCalls()).toHaveLength(0);
+  });
+});
+
+describe("askedOf", () => {
+  const pool = {} as Pool;
+
+  it("passes a scan without a reading on unchanged, without reading the switch", async () => {
+    const settings = settingsWith({});
+    const request = requestOf({ proof: qr() });
+    expect(await askedOf(depsOf(pool, settings), request)).toEqual(request);
+    expect(settings.forEvent).not.toHaveBeenCalled();
+  });
+
+  it("reads the switch for a check-in even with no reading, and refuses it while off", async () => {
+    const settings = settingsWith({ locationQuests: { enabled: false } });
+    const asked = await askedOf(depsOf(pool, settings), requestOf({ proof: { type: "location" } }));
+    expect(asked).toBe("feature_off");
+    expect(settings.forEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops a scan's reading while off and keeps the rest, the idempotency key with it", async () => {
+    const request = requestOf({ proof: qr(), position: POSITION });
+    const asked = await askedOf(depsOf(pool, settingsWith({})), request);
+    expect(asked).toEqual({ ...request, position: null });
+  });
+
+  it("keeps the request itself while on", async () => {
+    const request = requestOf({ proof: { type: "location" }, position: POSITION });
+    const settings = settingsWith({ locationQuests: { enabled: true } });
+    expect(await askedOf(depsOf(pool, settings), request)).toBe(request);
   });
 });
 

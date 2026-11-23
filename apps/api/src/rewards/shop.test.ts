@@ -5,6 +5,7 @@ import {
   cancelRedemption,
   expireReservations,
   readShop,
+  reservationOf,
   reserveReward,
   setGoal,
 } from "#src/rewards/shop";
@@ -53,6 +54,48 @@ const deps = (pool: Pool) => ({
 });
 
 const RESERVE = { playerId: PLAYER, rewardId: REWARD, idempotencyKey: "key-1" };
+
+describe("reservationOf", () => {
+  const unused = deps({} as Pool);
+
+  it("reads an absent row as empty, as the call always has", () => {
+    expect(reservationOf(unused, REWARD, {})).toEqual({
+      redemption: {
+        id: "undefined",
+        kind: "undefined",
+        status: "undefined",
+        price: Number.NaN,
+        reservedUntil: null,
+      },
+      balance: Number.NaN,
+      stockLeft: Number.NaN,
+      replayed: false,
+    });
+  });
+
+  it("counts a replay only for a true flag, and keeps the fields in their order", () => {
+    const row = {
+      redemption_id: "r1",
+      kind: "physical",
+      status: "reserved",
+      price: "5",
+      reserved_until: AT,
+      balance: "7",
+      stock_left: "2",
+      replayed: "true",
+    };
+    const reservation = reservationOf(unused, REWARD, row);
+    expect(reservation.replayed).toBe(false);
+    expect(Object.keys(reservation.redemption)).toEqual([
+      "id",
+      "kind",
+      "status",
+      "price",
+      "reservedUntil",
+    ]);
+    expect(reservation.redemption.reservedUntil).toBe(AT.toISOString());
+  });
+});
 
 describe("reserveReward and cancelRedemption", () => {
   it("answers the reservation the database made", async () => {

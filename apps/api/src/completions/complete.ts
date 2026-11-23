@@ -644,18 +644,51 @@ export async function completeQuest(
   request: CompletionRequest,
   caller: Caller,
 ): Promise<CompletionResult> {
+  const asked = await askedOf(deps, request);
+  if (asked === "feature_off") {
+    return refused(caller, request, { kind: "feature_off" });
+  }
+  const prepared = await prepare(deps, asked);
+  if (prepared.kind === "refused") {
+    return refused(caller, asked, prepared.result);
+  }
+  const result = await runEngine(deps, asked, prepared, caller);
+  if (result.kind === "completed") {
+    caller.log("quest.completed", {
+      questId: asked.questId,
+      points: result.value.points,
+      replayed: String(result.value.replayed),
+    });
+    return result;
+  }
+  return refused(caller, asked, result);
+}
+
+/**
+ * The request as the engine may see it: the location switch is read only when a reading or a check-in needs it; while
+ * it is off a check-in is refused and a scan's reading is dropped. Exported for its test.
+ */
+export async function askedOf(
+  deps: CompletionDeps,
+  request: CompletionRequest,
+): Promise<CompletionRequest | "feature_off"> {
   const on =
     request.position === null && request.proof.type !== "location"
       ? false
       : await locationQuestsOn(deps.settings);
   if (request.proof.type === "location" && !on) {
-    return refused(caller, request, { kind: "feature_off" });
+    return "feature_off";
   }
-  const asked: CompletionRequest = on ? request : { ...request, position: null };
-  const prepared = await prepare(deps, asked);
-  if (prepared.kind === "refused") {
-    return refused(caller, asked, prepared.result);
-  }
+  return on ? request : { ...request, position: null };
+}
+
+/** The one engine transaction; the held attempt goes back on a failure, or after any answer that does not count. */
+async function runEngine(
+  deps: CompletionDeps,
+  asked: CompletionRequest,
+  prepared: Extract<Prepared, { kind: "ready" }>,
+  caller: Caller,
+): Promise<CompletionResult> {
   const { proof, reservation } = prepared;
   let result: CompletionResult;
   try {
@@ -674,15 +707,7 @@ export async function completeQuest(
   if (reservation !== undefined && !countsAsRefused(result)) {
     await release(deps, reservation, caller);
   }
-  if (result.kind === "completed") {
-    caller.log("quest.completed", {
-      questId: asked.questId,
-      points: result.value.points,
-      replayed: String(result.value.replayed),
-    });
-    return result;
-  }
-  return refused(caller, asked, result);
+  return result;
 }
 
 /** The reason a refusal is logged with: the code problem, the location reason, the status reason, or its kind. */

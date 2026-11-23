@@ -36,6 +36,7 @@ import {
 } from "#src/desk/desk";
 import { registerDeskSaleRoutes } from "#src/desk/sale";
 import { normalizeSaudiMobile } from "#src/players/phone";
+import { refusalThrower } from "#src/refusal-table";
 
 const player = { config: { access: "player" }, bodyLimit: 1024 } as const;
 const playerIdempotent = { ...player, config: { ...player.config, idempotent: true } } as const;
@@ -62,39 +63,24 @@ const playerIdOf = (request: { player?: { id: string } | undefined }): string =>
   return request.player.id;
 };
 
-/** One HTTP answer per refusal (API.md, the prize desk). */
-function refuse(result: DeskRefusal): never {
-  switch (result.kind) {
-    case "not_found":
-    case "not_in_event":
-      throw notFound();
-    case "not_operator":
-      throw notOperator();
-    case "ability_off":
-      throw abilityOff();
-    case "reservation_ended":
-      throw reservationEnded({ status: result.status });
-    case "enrollment_inactive":
-      throw enrollmentInactive({ reason: result.reason });
-    case "self_handover":
-      throw selfHandover();
-    case "handover_mode":
-      throw handoverMode();
-    case "desk_closed":
-      throw deskClosed();
-    case "offer_gone":
-      throw offerGone();
-    case "not_ready":
-      throw notReady();
-    case "held":
-      throw result.hold === "paused" ? pausedAtDesk() : heldAtDesk();
-    case "redeem_paused":
-      throw redeemPaused();
-    // Stryker disable next-line ConditionalExpression: only the lookup raises it, and the lookup answers it as a result
-    case "old_code":
-      throw notFound();
-  }
-}
+/** One HTTP answer per refusal (API.md, the prize desk). Exported for its test. */
+export const refuse = refusalThrower<DeskRefusal>({
+  not_found: () => notFound(),
+  not_in_event: () => notFound(),
+  not_operator: () => notOperator(),
+  ability_off: () => abilityOff(),
+  reservation_ended: (result) => reservationEnded({ status: result.status }),
+  enrollment_inactive: (result) => enrollmentInactive({ reason: result.reason }),
+  self_handover: () => selfHandover(),
+  handover_mode: () => handoverMode(),
+  desk_closed: () => deskClosed(),
+  offer_gone: () => offerGone(),
+  not_ready: () => notReady(),
+  held: (result) => (result.hold === "paused" ? pausedAtDesk() : heldAtDesk()),
+  redeem_paused: () => redeemPaused(),
+  // Only the lookup raises it, and the lookup answers it as a result.
+  old_code: () => notFound(),
+});
 
 const valueOf = <T>(result: DeskDone<T>): T =>
   result.kind === "done" ? result.value : refuse(result);

@@ -1,5 +1,29 @@
 # Blueprint State — Questify
 
+## Function limits: last 6 apps/api offenders split (ledger, desk, shop, route access, buildApp; tier A) — 2026-11-23
+
+- **Built** (plan `docs/plans/2026-11-23-ledger-access-function-limits.md`, plan review 91 GO, its findings folded in):
+  behaviour-preserving splits, same SQL calls in the same order, same transactions, idempotency keys, error codes,
+  statuses and log fields. `completions/complete` `completeQuest` (`askedOf`, `runEngine`; release still before the log);
+  `completions/routes` `answer` and `desk/routes` `refuse` (`refusalThrower` tables, exported for their tests; the desk
+  `old_code` Stryker disable dropped, a per-kind test pins it); `rewards/shop` `reserveReward` (`reservationOf`, row read
+  as `row ?? {}`); `route-access` hook (known kind first, then an ordered `ROUTE_RULES` list with the same messages,
+  decorators read on the root `app`); `app` `buildApp` (`registerPlayerCore`, `registerDevicesAndShop`,
+  `registerStaffSide`, bodies moved word for word). No abort rule fired. The `apps/api` baseline is now empty (25 to 19).
+- **buildApp proof (one-off, not committed):** before/after dump of the built app: `routeInventory` 798 routes identical,
+  hook lists (except `onRoute`, whose code changed), plugin tree, `addHook` sequence (18) and `onClose` order identical;
+  one call each to `createSettingsService`, `createRanking`, `createSuspendedSet`, `createFirstBonusCache`,
+  `createActivation`, two to `createSessions`, as before; the one `settings` reaches the guard, the shop and
+  `createActivation`.
+- **Checks:** types, lint, `lint:limits`, `format:check`; touched unit suites (16 files, 291 tests) and the completions,
+  desk, rewards and security (routes inventory, outsider, cross-tenant, suspension and maintenance doors) integration
+  suites (18 files, 1173 tests), all pass. New: `completions/routes-answer.test.ts`, `desk/routes-refuse.test.ts`, and
+  cases in `route-access.test.ts` (rule pairs, exact messages), `complete.test.ts` (`askedOf`) and `shop.test.ts`
+  (`reservationOf`). Full suite left to CI.
+- **Mutation (GitHub, one dispatch):** `apps/api/src/completions/complete.ts`, `completions/routes.ts`,
+  `desk/routes.ts`, `rewards/shop.ts`, `route-access.ts`.
+- **Next:** code review, push, mutation; the 19 remaining offenders are all in `apps/app` and `apps/web` (tier B).
+
 ## Function limits: 11 core apps/api offenders split (tier A refactor) — 2026-11-23
 
 - **Built** (plan `docs/plans/2026-11-23-core-function-limits.md`, plan review 92 GO, its MINORs folded in):
