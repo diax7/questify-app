@@ -1,5 +1,22 @@
 # Blueprint State — Questify
 
+## T-815: the app's sign-out race with a token refresh fixed (tier A, sign-in) — 2026-11-23
+
+- **Built** (plan `docs/plans/2026-11-23-t-815-sign-out-race.md`, plan review 93 GO, its findings folded in):
+  `api/session.ts`. `createRefresher` takes an optional `signingOut` and reads it once when a refresh starts. A
+  refresh started during a sign-out still calls, but it neither saves nor calls `end()`, and answers `"ended"`.
+  `signOut` is one shared promise (`leaving ??= leave().finally(...)`), so concurrent calls send one logout, and
+  `end()` stays quiet until the sign-out ends. No change to the `Session` type, requests or keys.
+- **Failing first (against the old `session.ts`):** 5 of the 7 new tests failed. Path 1: the request answered `ok`
+  with the refreshed pair written back. Path 2: `ended` 1, not 0. Path 2 with the next sign-in: `ended` 1, and the
+  new pair was wiped. Path 3: `ended` 1. The refresher during a sign-out: `"refreshed"`, not `"ended"`. The 2
+  regression guards ("ordinary session again", "reads the sign-out only at start") passed. After the fix: 7/7.
+- **Checks:** typecheck, lint, `lint:limits` (none new), `format:check`. `npx vitest run apps/app --maxWorkers=3`:
+  176 files, 2245 tests passed. `session.test.ts`, `session-parts.test.ts` and `player-state.test.ts` are unchanged.
+  New: `api/session-sign-out.test.ts`.
+- **Mutation (GitHub):** `apps/app/src/api/session.ts`.
+- **Next:** code review, push, mutation (with the app core function-limits files); the 13 remaining offenders.
+
 ## Function limits: 6 app core offenders split (session, sign-in, scan, staff code step; tier A) — 2026-11-23
 
 - **Built** (plan `docs/plans/2026-11-23-app-core-function-limits.md`, plan review 92 GO, its findings folded in):

@@ -152,15 +152,23 @@ export type SessionStore = ReturnType<typeof createSessionStore>;
 
 /**
  * The one refresh in flight at a time: two would present the same refresh token, and the API ends the device's sign-in
- * on a reuse it cannot explain. Only a 401 from the refresh ends the session (`end`).
+ * on a reuse it cannot explain. Only a 401 from the refresh ends the session (`end`). A refresh that starts while the
+ * player signs out (`signingOut`, read once at its start) still calls, but its answer is dropped: it neither saves a
+ * pair after the sign-out's delete nor ends the session, so a chosen sign-out is never "your session ended".
  */
 export function createRefresher(
-  deps: Readonly<{ client: Client; store: SessionStore; end: () => Promise<void> }>,
+  deps: Readonly<{
+    client: Client;
+    store: SessionStore;
+    end: () => Promise<void>;
+    signingOut?: () => boolean;
+  }>,
 ) {
   const { client, store, end } = deps;
+  const signingOut = deps.signingOut ?? (() => false);
   let inFlight: Promise<Refreshed> | undefined;
 
-  const runRefresh = async (): Promise<Refreshed> => {
+  const runRefresh = async (late: boolean): Promise<Refreshed> => {
     const pair = await store.load();
     if (pair === undefined) {
       return "ended";
@@ -170,6 +178,9 @@ export function createRefresher(
       path: "/v1/auth/refresh",
       body: { refreshToken: pair.refresh },
     });
+    if (late) {
+      return "ended";
+    }
     if (answer.kind === "ok" && isIssued(answer.body)) {
       try {
         await store.save(answer.body);
@@ -187,7 +198,7 @@ export function createRefresher(
   };
 
   const refresh = (): Promise<Refreshed> => {
-    inFlight ??= runRefresh().finally(() => {
+    inFlight ??= runRefresh(signingOut()).finally(() => {
       inFlight = undefined;
     });
     return inFlight;
@@ -210,18 +221,37 @@ export function createSession(deps: SessionDeps): Session {
   const held = createNotifier();
   const store = createSessionStore(deps.storage, now);
   const { dropAccountItems, forget, load, save } = store;
-  // A chosen sign-out is not "your session ended": a refresh that a late 401 starts meanwhile tells nobody.
-  let signingOut = false;
+  // The sign-out under way, shared by every call meanwhile. A chosen sign-out is not "your session ended".
+  let leaving: Promise<void> | undefined;
 
   const end = async () => {
     await forget();
-    if (signingOut) {
+    if (leaving !== undefined) {
       return;
     }
     ended.notify();
   };
 
-  const { refresh, settled } = createRefresher({ client: deps.client, store, end });
+  const { refresh, settled } = createRefresher({
+    client: deps.client,
+    store,
+    end,
+    signingOut: () => leaving !== undefined,
+  });
+
+  const leave = async () => {
+    // A refresh in flight would rotate the token: wait for it, then sign out with the newest one.
+    await settled();
+    const pair = await load();
+    if (pair !== undefined) {
+      await deps.client.request({
+        method: "POST",
+        path: "/v1/auth/logout",
+        body: { refreshToken: pair.refresh },
+      });
+    }
+    await forget();
+  };
 
   /** The access token to use now, refreshed first when it is about to end. */
   const access = async (): Promise<string | undefined> => {
@@ -275,24 +305,10 @@ export function createSession(deps: SessionDeps): Session {
         ? announceHold(held, await deps.client.request({ ...request, accessToken: next }))
         : next;
     },
-    signOut: async () => {
-      signingOut = true;
-      try {
-        // A refresh in flight would rotate the token: wait for it, then sign out with the newest one.
-        await settled();
-        const pair = await load();
-        if (pair !== undefined) {
-          await deps.client.request({
-            method: "POST",
-            path: "/v1/auth/logout",
-            body: { refreshToken: pair.refresh },
-          });
-        }
-        await forget();
-      } finally {
-        signingOut = false;
-      }
-    },
+    signOut: () =>
+      (leaving ??= leave().finally(() => {
+        leaving = undefined;
+      })),
     onEnded: ended.subscribe,
     onLegalHold: held.subscribe,
   };

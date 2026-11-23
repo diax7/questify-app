@@ -1906,7 +1906,7 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
     `MEDIA_*` settings, `migrate.cjs --media`, the S3 code and `aws4fetch` removed, the client keeps a loaded wall
     picture's link, the CranL file declares `questify-media-db` (budget 3 databases). Left: the size gauge and its alert
     (needs Q-786's disk size), `media.missing`, the operator's `staff-cli media-reconcile --all` (phase 4), the load test.
-- [ ] **T-815** (tier A, sign-in) The app's sign-out race with a token refresh (found planning the app core function
+- [x] **T-815** (tier A, sign-in) The app's sign-out race with a token refresh (found planning the app core function
   limits, 2026-11-23; confirmed by its plan review) — delivers no new FR; depends on: T-107
   - The problem, in `apps/app/src/api/session.ts` (local only: `sign_out_player` revokes the refresh family on the server,
     so no account stays open there): (1) `signOut` waits only for the refresh in flight when it starts; a request that
@@ -1918,3 +1918,6 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
     `save` and before `end()` notifies; a refresh started during a sign-out answers `"ended"` without a call.
   - Done when: a test for each of the three paths fails before the fix and passes after; `session.test.ts` and
     `player-state.test.ts` pass unchanged; mutation on `apps/app/src/api/session.ts`.
+  - Done 2026-11-23 (plan `docs/plans/2026-11-23-t-815-sign-out-race.md`, review 93 GO): each refresh records at its
+    start whether a sign-out is running, and drops its answer if so; one shared sign-out promise. Tests in
+    `api/session-sign-out.test.ts`. Every point is met except the mutation run, which is left to the coordinator.

@@ -34,7 +34,7 @@ session ended…" test, which expects the `/v1/auth/refresh` call. So the genera
 | Refresh in flight when sign-out starts (ok or 401) | waits, logout with newest token, signed out | same (the refresh is not late) |
 | Refresh starts during the logout call, ok lands after `forget` (path 1) | pair written back: still signed in on next launch | dropped; request answers `signed_out`; signed out |
 | Same, 401 lands after the `finally` (path 2) | `forget` + "your session ended" banner | nothing; plain signed-out screen (`ended: false`) |
-| Same 401 lands after the player signed in again | wipes the new account's pair | new pair kept |
+| Same 401 lands after the player signed in again | wipes the new account's pair | new pair kept in storage (see MINOR 1 below) |
 | Two `signOut` calls at once (path 3) | two logout POSTs; flag cleared by the first | one POST, both promises settle together; flag held till then |
 | Session ends on its own after a finished sign-out | "session ended" | same (`leaving` cleared) |
 
@@ -47,7 +47,9 @@ today.
 ## Tests first (each fails on today's code)
 
 Deterministic: `deferred()` gates hold `/v1/auth/logout` and `/v1/auth/refresh`; a `flush()` (`setTimeout` 0) lets
-microtasks run; storage records an op log (`recordingStorage` style). In `session.test.ts` (new `it`s only):
+microtasks run; storage records an op log (`recordingStorage` style). Every test asserts the call log at each gate
+(the refresh was called, with `refresh-1`, before logout is released), so none can pass through the "no pair, no
+call" path. New file `apps/app/src/api/session-sign-out.test.ts`, so the existing files stay byte for byte:
 - **Path 1:** start(1); `out = signOut()` (logout held); a request meets 401 → refresh held (answers `issued(2)`);
   release logout, `await out`; release refresh. Expect request `signed_out`, `signedIn()` false, no `set session` after
   `delete session` in the log. Fails today: the pair comes back.
@@ -70,3 +72,15 @@ three suites; full `npx vitest run` once into a log.
 
 Glob: `apps/app/src/api/session.ts` (`!**/*.test.ts`). It is already in `stryker.config.json`. Chase survivors only
 under 90%.
+
+## Plan review (93/100 GO, folded in)
+
+- The reviewer agrees with dropping the counter bumped at the start.
+- MINOR 1 (option a, no code): a request on a **new** account (signed in again right after the sign-out) that meets a
+  401 can join a late refresh that is still in flight and answer `signed_out`, so the loader's `/v1/me` could show
+  `signed_out{ended:true}` although the new pair is stored. This is bounded by the client's 15 s timeout
+  (`apps/app/src/api/client.ts:175`) and is practically unreachable, because a new SMS sign-in takes longer than that.
+- MINOR 2: each test asserts the call log at each gate (above), and failing first was done for real. Against the old
+  `session.ts`, 5 of the 7 new tests failed, and the 2 regression guards passed (see STATE).
+- NIT: `leave()` runs its synchronous part (reading `settled()`) before `leaving` is assigned. This is harmless:
+  nothing in that part reads `leaving`, and no refresh can start in between.
