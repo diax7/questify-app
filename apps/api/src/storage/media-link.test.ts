@@ -16,6 +16,9 @@ const OTHER = KEY.replace(
 const NOW = 1_800_000_000_000;
 const SECRET = "a-media-url-secret-of-32-characters!!";
 
+/** A value that is not a string but reads as one. */
+const reads = (text: string) => ({ toString: () => text, [Symbol.toPrimitive]: () => text });
+
 /** The media route's links (ADR-840): an HMAC over the key and expiry, checked in constant time, at most 305 s away. */
 describe("media links", () => {
   const linkKey = linkKeyOf(SECRET);
@@ -66,5 +69,28 @@ describe("media links", () => {
     const [left, right] = compare.mock.calls[0] ?? [];
     expect((left as Buffer).length).toBe(16);
     expect((right as Buffer).length).toBe(16);
+  });
+
+  const check = (e: unknown, sig: unknown) => checkLink(linkKey, KEY, e, sig, NOW);
+
+  it("signs to a fixed value, so links in flight keep opening across a deploy (the HKDF label is part of the contract)", () => {
+    expect(signLink(linkKey, KEY, 1_800_000_300)).toBe("XFQdGlRjtX0LybxUzr6JxQ");
+  });
+
+  it("accepts only a signature and an expiry that are exactly the strings it signed, no padding, noise or spaces around them", () => {
+    expect(check(String(expiry), s)).toBe(true);
+    for (const noisy of [`${s}=`, `${s}!`, `!${s}`, `${s}\n`, ` ${s}`]) {
+      expect(check(String(expiry), noisy), noisy).toBe(false);
+    }
+    for (const noisy of [`${expiry} `, ` ${expiry}`, `${expiry}.0`, `${expiry}\n`, `0${expiry}`]) {
+      expect(check(noisy, s), noisy).toBe(false);
+    }
+  });
+
+  it("refuses a value that is not a string even when it reads as the right string", () => {
+    expect(checkLink(linkKey, KEY, String(expiry), reads(s), NOW)).toBe(false);
+    expect(checkLink(linkKey, KEY, reads(String(expiry)), s, NOW)).toBe(false);
+    expect(checkLink(linkKey, KEY, [String(expiry)], s, NOW)).toBe(false);
+    expect(checkLink(linkKey, KEY, String(expiry), [s], NOW)).toBe(false);
   });
 });

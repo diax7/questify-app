@@ -1,5 +1,11 @@
 # Blueprint State — Questify
 
+## Mutation chase, run 45226131517: media cache, link, store and worker (tests only) — 2026-11-23
+
+- **Built:** unit tests only, no production change. `media-link.test.ts`: fixed HKDF-label signature vector, padding or noise around a signature or expiry refused, non-string values that read as strings refused. `media-store.test.ts`: failure log line (`storage.failed` op, purpose, code) for get, delete and keys; SQLSTATE reading and which codes a put retries; timeout by message only without a code; 1,000-key delete is two statements; `keysPage`; cache limits (exact 4 MB, exact budget, re-set key, default and given life, constants). New `worker.test.ts` (fake pool and store, injected `random`, fake timers; the integration file is skipped without a database, so Stryker saw none of `worker.ts`): totals, rounds (full, partial, cap of 10, failed round codes), stop mid-run and in flight, daily reconcile claim and the `media.reconcile`, `media.reconcile_blocked`, `media.reconcile_failed` events the alert reads, `media.run` level and `media.run_failed` code, jitter, reschedule, `unref`. 14 hand-applied mutants (not Stryker) all fail the new tests.
+- **Equivalent (9, in FOLLOWUPS):** media-cache 1, media-link 3, media-store 5, worker 0. `reconcile.ts` (93.07%) untouched.
+- **Next:** the coordinator may re-run `mutation.yml` for these files to confirm; no CI minutes used by this chase.
+
 ## Function limits: 9 apps/api offenders split (tier B refactor) — 2026-11-23
 
 - **Built:** behaviour-preserving splits, same statuses, refusal codes, bodies, headers and SQL call order. `plays/games`

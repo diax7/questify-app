@@ -2,7 +2,12 @@ import { createHash } from "node:crypto";
 import type { Pool } from "pg";
 import { describe, expect, it } from "vitest";
 import { StorageError } from "#src/storage/client";
-import { createMediaCache } from "#src/storage/media-cache";
+import {
+  CACHE_BYTES,
+  CACHE_ENTRY_BYTES,
+  CACHE_LIFE_MS,
+  createMediaCache,
+} from "#src/storage/media-cache";
 import { createMediaStore } from "#src/storage/media-store";
 import { pgError } from "#test/support/fake-pool";
 
@@ -124,6 +129,148 @@ describe("the media store", () => {
   });
 });
 
+const failing = (thrown: unknown) =>
+  poolOf(() => {
+    throw thrown;
+  });
+const failedGet = async (thrown: unknown, key = KEY) => {
+  const lines: unknown[] = [];
+  const { pool } = poolOf(() => {
+    throw thrown;
+  });
+  const error = await storeOn(pool, lines)
+    .get(key)
+    .catch((caught: unknown) => caught);
+  return { error: error as StorageError, lines };
+};
+
+const triesOf = async (code: string) => {
+  const { pool, calls } = poolOf(() => {
+    throw pgError({ code });
+  });
+  await storeOn(pool)
+    .put(KEY, Buffer.from("x"))
+    .catch(() => undefined);
+  return calls.length;
+};
+
+/** What the log line of a failed call carries (docs/RUNBOOK.md: `storage.failed` shows operation, purpose and status only). */
+describe("the media store's failures", () => {
+  it("logs the operation, the key's purpose and the code of a read that failed", async () => {
+    const { error, lines } = await failedGet(pgError({ code: "57014" }));
+    expect(error).toBeInstanceOf(StorageError);
+    expect(error.code).toBe("timeout");
+    expect(lines).toEqual([{ event: "storage.failed", op: "get", purpose: "logo", code: "57014" }]);
+  });
+
+  it("names the purpose only from a key shaped o/<organizer>/e/<event>/<purpose>/, and unknown otherwise", async () => {
+    const shaped = await failedGet(new Error("connect ECONNREFUSED"), KEY);
+    expect(shaped.lines).toEqual([
+      { event: "storage.failed", op: "get", purpose: "logo", code: "unavailable" },
+    ]);
+    for (const key of ["", "not-a-media-key", `x/${KEY}`, "o/a/e/b/Logo/c.png"]) {
+      const odd = await failedGet(new Error("down"), key);
+      expect(odd.lines, key).toEqual([
+        { event: "storage.failed", op: "get", purpose: "unknown", code: "unavailable" },
+      ]);
+    }
+  });
+
+  it("reads a code only when it is five characters of digits and capitals, and answers unavailable for anything else", async () => {
+    for (const code of ["ECONNREFUSED", "ETIMEDOUT", "mb409", "5701", 12345, null, undefined]) {
+      const { pool, calls } = failing(Object.assign(new Error("down"), { code }));
+      await expect(storeOn(pool).put(KEY, Buffer.from("x")), String(code)).rejects.toMatchObject({
+        code: "unavailable",
+      });
+      // No SQLSTATE was read, so the failure is a dropped connection: one more try.
+      expect(calls, String(code)).toHaveLength(2);
+    }
+    const { error, lines } = await failedGet(
+      Object.assign(new Error("down"), { code: "ECONNREFUSED" }),
+    );
+    expect(error.code).toBe("unavailable");
+    expect(lines).toEqual([
+      { event: "storage.failed", op: "get", purpose: "logo", code: "unavailable" },
+    ]);
+  });
+
+  it("survives a call that fails with nothing at all", async () => {
+    for (const thrown of [null, undefined]) {
+      const { error } = await failedGet(thrown);
+      expect(error).toBeInstanceOf(StorageError);
+      expect(error.code).toBe("unavailable");
+    }
+  });
+
+  it("answers a timeout for a failure with no code and a timeout message only", async () => {
+    const message = await failedGet(new Error("Connection terminated due to connection timeout"));
+    expect(message.error.code).toBe("timeout");
+    expect(message.lines).toEqual([
+      { event: "storage.failed", op: "get", purpose: "logo", code: "timeout" },
+    ]);
+    const coded = await failedGet(pgError({ code: "42P01" }));
+    expect(coded.error.code).toBe("unavailable");
+    const named = await failedGet(Object.assign(new Error("query timeout"), { code: "XX000" }));
+    expect(named.error.code).toBe("unavailable");
+    expect(named.lines).toEqual([
+      { event: "storage.failed", op: "get", purpose: "logo", code: "XX000" },
+    ]);
+    const thrownString = await failedGet("timeout");
+    expect(thrownString.error.code).toBe("unavailable");
+  });
+
+  it("retries a put after a dropped connection, a statement timeout and a restart, and after no other SQLSTATE", async () => {
+    for (const code of ["08000", "08006", "08P01", "57014", "57P01", "57P02", "57P03"]) {
+      expect(await triesOf(code), code).toBe(2);
+    }
+    for (const code of ["22008", "42P08", "57P04", "57P00", "23505", "MB409", "40001"]) {
+      expect(await triesOf(code), code).toBe(1);
+    }
+  });
+
+  it("logs a failed delete with its operation and the purpose of the batch's first key", async () => {
+    const lines: unknown[] = [];
+    const { pool } = poolOf(() => {
+      throw pgError({ code: "57014" });
+    });
+    await expect(storeOn(pool, lines).deleteMany([KEY])).rejects.toMatchObject({
+      code: "timeout",
+    });
+    expect(lines).toEqual([
+      { event: "storage.failed", op: "delete", purpose: "logo", code: "57014" },
+    ]);
+  });
+
+  it("deletes in whole batches only: 1,000 keys are two statements, and a statement that answers no row counts none", async () => {
+    const { pool, calls } = poolOf(() => []);
+    const keys = Array.from({ length: 1000 }, (_, n) => `${KEY}${n}`);
+    expect(await storeOn(pool).deleteMany(keys)).toBe(0);
+    expect(calls.map((call) => (call.values[0] as string[]).length)).toEqual([500, 500]);
+    const none = poolOf(() => []);
+    expect(await storeOn(none.pool).deleteMany([])).toBe(0);
+    expect(none.calls).toHaveLength(0);
+  });
+
+  it("pages keys through blob_keys_page, and logs a failed page as a keys call", async () => {
+    const when = new Date(NOW);
+    const ok = poolOf(() => [{ key: "a" }, { key: "b" }]);
+    expect(await storeOn(ok.pool).keysPage("0", when, 500)).toEqual(["a", "b"]);
+    expect(ok.calls).toEqual([
+      { sql: "SELECT key FROM blob_keys_page($1, $2, $3)", values: ["0", when, 500] },
+    ]);
+    const lines: unknown[] = [];
+    const { pool } = poolOf(() => {
+      throw pgError({ code: "57014" });
+    });
+    await expect(storeOn(pool, lines).keysPage(null, when, 500)).rejects.toMatchObject({
+      code: "timeout",
+    });
+    expect(lines).toEqual([
+      { event: "storage.failed", op: "keys", purpose: "unknown", code: "57014" },
+    ]);
+  });
+});
+
 const blob = (bytes: number) => ({
   contentType: "image/jpeg" as const,
   bytes,
@@ -149,5 +296,75 @@ describe("the media cache", () => {
     expect(big.size()).toBe(0);
     cache.evict(["c"]);
     expect(cache.size()).toBe(0);
+  });
+
+  it("is 32 MB in all, entries up to 4 MB, each kept 60 s", () => {
+    expect([CACHE_BYTES, CACHE_ENTRY_BYTES, CACHE_LIFE_MS]).toEqual([
+      33_554_432, 4_194_304, 60_000,
+    ]);
+  });
+
+  it("keeps an entry of exactly 4 MB, and skips one a byte over, leaving what it holds", () => {
+    const cache = createMediaCache();
+    cache.set("small", blob(1));
+    cache.set("exact", blob(CACHE_ENTRY_BYTES));
+    expect(cache.get("exact")?.bytes).toBe(CACHE_ENTRY_BYTES);
+    cache.set("over", blob(CACHE_ENTRY_BYTES + 1));
+    expect(cache.get("over")).toBeUndefined();
+    expect(cache.get("small")).toBeDefined();
+    expect(cache.size()).toBe(CACHE_ENTRY_BYTES + 1);
+  });
+
+  it("keeps an entry of exactly its budget by dropping the rest, and skips one over it without emptying the cache", () => {
+    const cache = createMediaCache({ maxBytes: 10 });
+    cache.set("a", blob(4));
+    cache.set("b", blob(10));
+    expect(cache.get("a")).toBeUndefined();
+    expect(cache.get("b")?.bytes).toBe(10);
+    expect(cache.size()).toBe(10);
+    cache.set("big", blob(11));
+    expect(cache.get("big")).toBeUndefined();
+    expect(cache.get("b")).toBeDefined();
+    expect(cache.size()).toBe(10);
+  });
+
+  it("fills to exactly its budget before it drops anything", () => {
+    const cache = createMediaCache({ maxBytes: 10 });
+    cache.set("a", blob(4));
+    cache.set("b", blob(6));
+    expect(cache.size()).toBe(10);
+    expect(cache.get("a")).toBeDefined();
+    expect(cache.get("b")).toBeDefined();
+    cache.set("c", blob(1));
+    expect(cache.get("a")).toBeUndefined();
+    expect(cache.size()).toBe(7);
+  });
+
+  it("counts a key set again once, with the new bytes", () => {
+    const cache = createMediaCache({ maxBytes: 10 });
+    cache.set("a", blob(4));
+    cache.set("a", blob(6));
+    expect(cache.size()).toBe(6);
+    cache.evict(["a"]);
+    expect(cache.size()).toBe(0);
+  });
+
+  it("lives 60 s by default and its own life when given one", () => {
+    let now = 1_000;
+    const byDefault = createMediaCache({ now: () => now });
+    byDefault.set("a", blob(1));
+    now = 1_000 + CACHE_LIFE_MS - 1;
+    expect(byDefault.get("a")).toBeDefined();
+    byDefault.set("b", blob(1));
+    now = 1_000 + CACHE_LIFE_MS;
+    expect(byDefault.get("a")).toBeUndefined();
+    expect(byDefault.get("b")).toBeDefined();
+    now = 0;
+    const brief = createMediaCache({ lifeMs: 1_000, now: () => now });
+    brief.set("a", blob(1));
+    now = 999;
+    expect(brief.get("a")).toBeDefined();
+    now = 1_000;
+    expect(brief.get("a")).toBeUndefined();
   });
 });
