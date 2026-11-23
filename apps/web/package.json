@@ -20,7 +20,7 @@
     "@expo-google-fonts/baloo-bhaijaan-2": "0.4.2",
     "@expo-google-fonts/rubik": "0.4.2",
     "@questify/shared": "workspace:*",
-    "next": "16.4.3",
+    "next": "16.4.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "uqr": "0.1.3",
