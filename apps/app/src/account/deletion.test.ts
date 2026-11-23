@@ -6,7 +6,9 @@ import {
   confirmDeletion,
   pendingOf,
   requestDeletionCode,
+  verifiedOf,
   verifyDeletionCode,
+  verifyFailureOf,
 } from "#src/account/deletion-api.ts";
 import {
   START,
@@ -216,5 +218,50 @@ describe("the deletion steps", () => {
     expect(deletionStep(finished, { type: "code_sent", challengeToken: "x" })).toEqual({
       step: "done",
     });
+  });
+});
+
+describe("verifiedOf", () => {
+  it("reads the deletion token and the waiting prizes", () => {
+    expect(verifiedOf({ deletionToken: "d1", pending: [] })).toEqual({
+      type: "verified",
+      deletionToken: "d1",
+      pending: [],
+    });
+    expect(verifiedOf({ deletionToken: "d1" })).toEqual({
+      type: "verified",
+      deletionToken: "d1",
+      pending: [],
+    });
+  });
+
+  it("is null without a text token or a record", () => {
+    expect(verifiedOf({ deletionToken: 3 })).toBeNull();
+    expect(verifiedOf({})).toBeNull();
+    expect(verifiedOf(null)).toBeNull();
+    expect(verifiedOf("d1")).toBeNull();
+  });
+});
+
+describe("verifyFailureOf", () => {
+  it("reads a wrong code with its tries left", () => {
+    expect(verifyFailureOf(fail(422, "invalid_code", { attemptsLeft: 1 }))).toEqual({
+      type: "wrong_code",
+      attemptsLeft: 1,
+      problem: MESSAGE,
+    });
+    expect(verifyFailureOf(fail(422, "invalid_code"))).toMatchObject({ attemptsLeft: 0 });
+  });
+
+  it("starts again on a 410 only", () => {
+    expect(verifyFailureOf(fail(410, "x"))).toEqual({ type: "start_again", problem: MESSAGE });
+    expect(verifyFailureOf(fail(409, "contact_in_use"))).toBeNull();
+  });
+
+  it("leaves every other answer to the caller", () => {
+    expect(verifyFailureOf(ok({}))).toBeNull();
+    expect(verifyFailureOf({ kind: "network" })).toBeNull();
+    expect(verifyFailureOf({ kind: "signed_out" })).toBeNull();
+    expect(verifyFailureOf(fail(500, "boom"))).toBeNull();
   });
 });

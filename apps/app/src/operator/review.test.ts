@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canReject, reviewAnswer, reviewQueueOf } from "#src/operator/review.ts";
+import { canReject, isTitle, reviewAnswer, reviewQueueOf } from "#src/operator/review.ts";
 
 const ITEM = {
   id: "7",
@@ -83,5 +83,17 @@ describe("canReject", () => {
     expect(canReject("No")).toBe(true);
     expect(canReject("x".repeat(300))).toBe(true);
     expect(canReject("x".repeat(301))).toBe(false);
+  });
+});
+
+describe("isTitle", () => {
+  it("wants a record whose two languages are text or null", () => {
+    expect(isTitle({ ar: null, en: "Tell us" })).toBe(true);
+    expect(isTitle({ ar: "س", en: null })).toBe(true);
+    expect(isTitle({ ar: "س" })).toBe(false);
+    expect(isTitle({ ar: 1, en: null })).toBe(false);
+    expect(isTitle({ ar: null, en: 2 })).toBe(false);
+    expect(isTitle(null)).toBe(false);
+    expect(isTitle("Tell us")).toBe(false);
   });
 });

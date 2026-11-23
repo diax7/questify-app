@@ -46,14 +46,16 @@ export function readRehearsalEvent(value: unknown): RehearsalEvent | undefined {
     : undefined;
 }
 
+/** What a refused card read means: a 429 is throttled, a 404 is no such code, anything else a lost connection. */
+export const refusedCardKind = (status: number): "throttled" | "not_found" | "network" =>
+  status === 429 ? "throttled" : status === 404 ? "not_found" : "network";
+
 export function rehearsalCardAnswer(answer: AuthedResult): RehearsalCardAnswer {
   if (answer.kind === "signed_out" || answer.kind === "network") {
     return { kind: answer.kind };
   }
   if (answer.kind === "error") {
-    return {
-      kind: answer.status === 429 ? "throttled" : answer.status === 404 ? "not_found" : "network",
-    };
+    return { kind: refusedCardKind(answer.status) };
   }
   const body = isRecord(answer.body) ? answer.body : {};
   const event = readRehearsalEvent(body["event"]);

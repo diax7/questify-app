@@ -1,5 +1,19 @@
 # Blueprint State — Questify
 
+## Function limits: 11 apps/app offenders split (tier B refactor) — 2026-11-23
+
+- **Built:** behaviour-preserving splits, no change in messages, ordering or returned shapes. `verifyContactCode`
+  (`contactFailureOf`), `verifyDeletionCode` (`verifiedOf`, `verifyFailureOf`), both sharing `attemptsLeftOf` in
+  `account/attempts-left.ts`; `contactStep` (`onCodeStep`); `fetchLiveCode` (`refusedLiveCode`, `liveCodeOf`);
+  `tagTokenOf` (`isQuestHost`, `isTagToken`); `uriOfMessage` (`uriOfRecord`, `withPrefix`); `desk.itemAction` (`offerLive`,
+  also used by `offerOutcome`), `lookupOf` (`refusalOf`, `holdOf`, `refusalOf` also used by `saleRewardsOf`);
+  `review.isItem` (`isTitle`); `rehearsalCardAnswer` (`refusedCardKind`); `playTapRush` (`landDueTaps`, `planReactions`,
+  a `TapRound` record; same random-call order, 450 seeded rounds compared byte for byte before and after).
+  Sign-in, `scan.ts` and `session.ts` untouched. The baseline shrank by 11 entries (61 to 50 limit violations).
+- **Checks:** new unit tests for every new helper (each branch of the old functions); types, lint, `lint:limits`, format,
+  `expo export --platform web` and the app vitest suite (170 files, 2194 tests) pass.
+- **Next:** push; the other baselined offenders.
+
 ## Function limits: 11 apps/web offenders split (tier B refactor) — 2026-11-23
 
 - **Built:** behaviour-preserving splits, no markup, copy, aria or test-id change. `CodeStep` (request hook),

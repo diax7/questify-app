@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { AuthedResult } from "#src/api/session.ts";
-import { fetchLiveCode, liveCodeLifeMs, nextLiveFetchMs } from "#src/event/live-code.ts";
+import {
+  fetchLiveCode,
+  liveCodeLifeMs,
+  liveCodeOf,
+  nextLiveFetchMs,
+  refusedLiveCode,
+} from "#src/event/live-code.ts";
 
 const answering = (result: AuthedResult) => {
   const asked: unknown[] = [];
@@ -70,5 +76,48 @@ describe("the live code (T-309b)", () => {
     expect(nextLiveFetchMs(-5, 2)).toBe(1000);
     expect(liveCodeLifeMs(12_000)).toBe(27_000);
     expect(liveCodeLifeMs(-1)).toBe(15_000);
+  });
+});
+
+const refusal = (code: string, retryAfter?: string) => ({
+  code,
+  headers: new Headers(retryAfter === undefined ? {} : { "retry-after": retryAfter }),
+});
+
+describe("refusedLiveCode", () => {
+  it("names kiosks off, a wait after a 429, and anything else a lost connection", () => {
+    expect(refusedLiveCode(refusal("feature_off"))).toEqual({ kind: "off" });
+    expect(refusedLiveCode(refusal("too_many_attempts", "7"))).toEqual({
+      kind: "slowed",
+      waitMs: 7000,
+    });
+    expect(refusedLiveCode(refusal("busy"))).toEqual({ kind: "network" });
+  });
+
+  it("waits 10 s when the 429 names no usable wait", () => {
+    for (const retryAfter of [undefined, "0", "-3", "soon"]) {
+      expect(refusedLiveCode(refusal("too_many_attempts", retryAfter))).toEqual({
+        kind: "slowed",
+        waitMs: 10_000,
+      });
+    }
+  });
+});
+
+describe("liveCodeOf", () => {
+  it("reads a code with its window", () => {
+    expect(liveCodeOf({ code: "A", changesInMs: 5 })).toEqual({
+      kind: "code",
+      code: "A",
+      changesInMs: 5,
+    });
+  });
+
+  it("reads a body that is not one as a lost connection", () => {
+    expect(liveCodeOf({ code: "A" })).toEqual({ kind: "network" });
+    expect(liveCodeOf({ code: 1, changesInMs: 5 })).toEqual({ kind: "network" });
+    expect(liveCodeOf({ code: "A", changesInMs: "5" })).toEqual({ kind: "network" });
+    expect(liveCodeOf(null)).toEqual({ kind: "network" });
+    expect(liveCodeOf("A")).toEqual({ kind: "network" });
   });
 });

@@ -20,12 +20,21 @@ export function tagTokenOf(url: string | null, extraOrigin: string | null): stri
     return null;
   }
   const host = (match[1] ?? "").toLowerCase();
-  if (!QUEST_CODE_HOSTS.includes(host) && `https://${host}` !== extraOrigin) {
+  if (!isQuestHost(host, extraOrigin)) {
     return null;
   }
   const token = match[2] ?? "";
+  return isTagToken(token) ? token : null;
+}
+
+/** A Questify host, or this build's one extra origin. */
+export const isQuestHost = (host: string, extraOrigin: string | null): boolean =>
+  QUEST_CODE_HOSTS.includes(host) || `https://${host}` === extraOrigin;
+
+/** A token that decodes to 37 bytes starting with the tag format byte. */
+export function isTagToken(token: string): boolean {
   const bytes = decodeBase64Url(token);
-  return bytes !== null && bytes.length === 37 && bytes[0] === FORMAT_TAG ? token : null;
+  return bytes !== null && bytes.length === 37 && bytes[0] === FORMAT_TAG;
 }
 
 /** One NDEF record as react-native-nfc-manager gives it: Android sends the type as text, iOS as bytes. */
@@ -50,12 +59,20 @@ export function uriOfMessage(records: readonly TagRecord[] | null | undefined): 
   if (records === null || records === undefined || records.length !== 1) {
     return null;
   }
-  const record = records[0] as TagRecord;
+  return uriOfRecord(records[0] as TagRecord);
+}
+
+/** The URL of one URI record (plain or with the "https://" prefix code); null for anything else. */
+export function uriOfRecord(record: TagRecord): string | null {
   if (record.tnf !== WELL_KNOWN || !isUriType(record.type) || record.payload.length < 2) {
     return null;
   }
   const [prefix, ...rest] = record.payload;
-  const text = asciiOf(rest);
+  return withPrefix(prefix, asciiOf(rest));
+}
+
+/** The URL for a prefix code (0 plain, 4 "https://") and the text after it; null for any other prefix or no text. */
+export function withPrefix(prefix: number | undefined, text: string | null): string | null {
   if (text === null || (prefix !== 0 && prefix !== HTTPS_PREFIX)) {
     return null;
   }

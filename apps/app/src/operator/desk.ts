@@ -138,16 +138,12 @@ export function lookupOf(body: unknown): Lookup | undefined {
     return undefined;
   }
   if (body["result"] === "refused") {
-    return {
-      kind: "refused",
-      reason: REFUSED[String(body["reason"])] ?? "operator.red.invalidCode",
-    };
+    return { kind: "refused", reason: refusalOf(body) };
   }
   const player = body["player"];
   if (body["result"] !== "found" || !isRecord(player) || !Array.isArray(body["items"])) {
     return undefined;
   }
-  const hold = body["hold"];
   return {
     kind: "found",
     player: {
@@ -156,11 +152,18 @@ export function lookupOf(body: unknown): Lookup | undefined {
       fullName: fullNameOf(player["fullName"]),
     },
     active: body["active"] === true,
-    // Anything but a known hold or none reads as held: nothing is handed over on a guess.
-    hold: hold === null || hold === undefined ? null : hold === "paused" ? "paused" : "held",
+    hold: holdOf(body["hold"]),
     items: body["items"].map(itemOf).filter((item): item is DeskItem => item !== undefined),
   };
 }
+
+/** The words for a refused look-up; an unknown reason reads as an invalid code. */
+export const refusalOf = (body: Record<string, unknown>): MessageKey =>
+  REFUSED[String(body["reason"])] ?? "operator.red.invalidCode";
+
+/** Anything but a known hold or none reads as held: nothing is handed over on a guess. */
+export const holdOf = (hold: unknown): DeskHold | null =>
+  hold === null || hold === undefined ? null : hold === "paused" ? "paused" : "held";
 
 /** Reads `POST …/desk/find` (FR-1848): the same answer as a scan, or nobody by that name or number. */
 export function findOf(body: unknown): Lookup | undefined {
@@ -212,10 +215,12 @@ export function itemAction(
   if (desk.confirm === "collect_first") {
     return item.ready ? "hand_over" : "not_ready";
   }
-  return item.offered && item.offerUntil !== null && Date.parse(item.offerUntil) > now
-    ? "waiting"
-    : "offer";
+  return offerLive(item.offered, item.offerUntil, now) ? "waiting" : "offer";
 }
+
+/** Whether an offer is live: made, and its time not yet up. */
+export const offerLive = (offered: boolean, offerUntil: string | null, now: number): boolean =>
+  offered && offerUntil !== null && Date.parse(offerUntil) > now;
 
 /** The button's words: an experience is confirmed, an item handed over (FR-509). */
 export function actionLabel(item: DeskItem, action: "hand_over" | "offer"): MessageKey {
@@ -238,9 +243,7 @@ export function offerOutcome(
   if (poll.status !== "reserved") {
     return "ended";
   }
-  return poll.offered && poll.offerUntil !== null && Date.parse(poll.offerUntil) > now
-    ? "waiting"
-    : "lapsed";
+  return offerLive(poll.offered, poll.offerUntil, now) ? "waiting" : "lapsed";
 }
 
 /** Whether the scanned player can buy a reward now (FR-1834); the desk never sees their balance. */
@@ -274,10 +277,7 @@ export function saleRewardsOf(body: unknown): SaleList | undefined {
     return undefined;
   }
   if (body["result"] === "refused") {
-    return {
-      kind: "refused",
-      reason: REFUSED[String(body["reason"])] ?? "operator.red.invalidCode",
-    };
+    return { kind: "refused", reason: refusalOf(body) };
   }
   if (body["result"] !== "found" || !Array.isArray(body["rewards"])) {
     return undefined;

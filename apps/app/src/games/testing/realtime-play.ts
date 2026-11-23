@@ -126,47 +126,72 @@ export function playCatch(seed: number, params: CatchParams, random: Prng): Play
   return { ...body, judged: judge(catchV1, { seed, params }, body), behindServer };
 }
 
+/** A tap-rush round as the phone holds it: the state, the taps passed, the taps still to land, what was seen. */
+type TapRound = {
+  state: ReturnType<typeof tapRushV1.start>;
+  readonly inputs: TapRushInput[];
+  planned: { at: number; cell: number }[];
+  readonly seen: Set<number>;
+  behindServer: boolean;
+};
+
+/** Lands the planned taps now due, in time order, through the gate; a tap while covered or past the limit is lost. */
+function landDueTaps(device: Device, round: TapRound, limitMs: number): void {
+  const due = round.planned.filter((tap) => tap.at <= device.now).sort((a, b) => a.at - b.at);
+  round.planned = round.planned.filter((tap) => tap.at > device.now);
+  for (const tap of due) {
+    const touched = gameTime(device.pause.clock, tap.at);
+    if (device.pause.cover === "none" && touched <= limitMs) {
+      round.behindServer &&= touched <= tap.at - device.issuedAt;
+      const gated = gateTap(tapRushV1, round.state, { t: touched, cell: tap.cell });
+      round.state = gated.state;
+      if (gated.accepted) {
+        round.inputs.push({ t: touched, cell: tap.cell });
+      }
+    }
+  }
+}
+
+/** Plans a reaction to each target that has just come live: usually 230 to 730 ms, sometimes a fast 150 to 230. */
+function planReactions(device: Device, round: TapRound, random: Prng, t: number): void {
+  for (const index of liveTargets(round.state, tickAt(t))) {
+    if (!round.seen.has(index)) {
+      round.seen.add(index);
+      const fast = random.below(20) === 0;
+      const reaction = fast ? 150 + random.below(81) : 230 + random.below(501);
+      round.planned.push({
+        at: device.now + reaction,
+        cell: round.state.targets[index]?.cell ?? 0,
+      });
+    }
+  }
+}
+
 /** Plays a tap-rush round the way the app does: taps stamped at the touch, through the gate, frames only draw. */
 export function playTapRush(seed: number, params: TapRushParams, random: Prng): Played {
   const limitMs = params.timeLimitSeconds * 1000;
   const schedule = scheduleOf(random, limitMs);
   const device: Device = { now: 5000, pause: startPause(5000), issuedAt: 4000, limitMs };
-  let state = tapRushV1.start(seed, params);
-  const inputs: TapRushInput[] = [];
-  const seen = new Set<number>();
-  let planned: { at: number; cell: number }[] = [];
-  let behindServer = true;
+  const round: TapRound = {
+    state: tapRushV1.start(seed, params),
+    inputs: [],
+    planned: [],
+    seen: new Set<number>(),
+    behindServer: true,
+  };
   for (let t = 0; t <= limitMs && !device.pause.ended;) {
     if (nextFrame(device, random, schedule, t)) {
-      planned = [];
+      round.planned = [];
     }
-    const due = planned.filter((tap) => tap.at <= device.now).sort((a, b) => a.at - b.at);
-    planned = planned.filter((tap) => tap.at > device.now);
-    for (const tap of due) {
-      const touched = gameTime(device.pause.clock, tap.at);
-      if (device.pause.cover === "none" && touched <= limitMs) {
-        behindServer &&= touched <= tap.at - device.issuedAt;
-        const gated = gateTap(tapRushV1, state, { t: touched, cell: tap.cell });
-        state = gated.state;
-        if (gated.accepted) {
-          inputs.push({ t: touched, cell: tap.cell });
-        }
-      }
-    }
+    landDueTaps(device, round, limitMs);
     t = gameTime(device.pause.clock, device.now);
-    for (const index of liveTargets(state, tickAt(t))) {
-      if (!seen.has(index)) {
-        seen.add(index);
-        const fast = random.below(20) === 0;
-        const reaction = fast ? 150 + random.below(81) : 230 + random.below(501);
-        planned.push({ at: device.now + reaction, cell: state.targets[index]?.cell ?? 0 });
-      }
-    }
+    planReactions(device, round, random, t);
     if (random.below(12) === 0) {
-      planned.push({ at: device.now + random.below(250), cell: random.below(14) });
+      round.planned.push({ at: device.now + random.below(250), cell: random.below(14) });
     }
   }
-  const claimed = tapRushV1.resultOf(state);
+  const claimed = tapRushV1.resultOf(round.state);
+  const { inputs, behindServer } = round;
   return {
     inputs,
     claimed,

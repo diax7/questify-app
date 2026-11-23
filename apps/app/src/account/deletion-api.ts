@@ -2,6 +2,7 @@ import { MESSAGES, type Language, type LocalizedText } from "@questify/shared";
 import type { AuthedResult, Session } from "#src/api/session.ts";
 import type { DeletionEvent, PendingPrize } from "#src/account/deletion-flow.ts";
 import type { Channel } from "#src/auth/sign-in-flow.ts";
+import { attemptsLeftOf } from "#src/account/attempts-left.ts";
 
 export type DeletionDeps = Readonly<{ session: Pick<Session, "request"> }>;
 
@@ -77,29 +78,34 @@ export async function verifyDeletionCode(
     path: "/v1/deletion/verify",
     body: input,
   });
-  if (
-    answer.kind === "ok" &&
-    isRecord(answer.body) &&
-    typeof answer.body["deletionToken"] === "string"
-  ) {
-    return {
-      type: "verified",
-      deletionToken: answer.body["deletionToken"],
-      pending: pendingOf(answer.body["pending"]),
-    };
+  const verified = answer.kind === "ok" ? verifiedOf(answer.body) : null;
+  return verified ?? verifyFailureOf(answer) ?? { type: "refused", problem: problemOf(answer) };
+}
+
+/** The deletion token and waiting prizes of a right code's answer; null when the body has no token. */
+export function verifiedOf(body: unknown): DeletionEvent | null {
+  return isRecord(body) && typeof body["deletionToken"] === "string"
+    ? {
+        type: "verified",
+        deletionToken: body["deletionToken"],
+        pending: pendingOf(body["pending"]),
+      }
+    : null;
+}
+
+/** A wrong code, or a challenge that ended (410); null for any other answer. */
+export function verifyFailureOf(answer: AuthedResult): DeletionEvent | null {
+  if (answer.kind !== "error") {
+    return null;
   }
-  if (answer.kind === "error" && answer.code === "invalid_code") {
-    const left = answer.details["attemptsLeft"];
+  if (answer.code === "invalid_code") {
     return {
       type: "wrong_code",
-      attemptsLeft: typeof left === "number" && Number.isFinite(left) ? left : 0,
+      attemptsLeft: attemptsLeftOf(answer.details),
       problem: answer.message,
     };
   }
-  if (answer.kind === "error" && answer.status === 410) {
-    return { type: "start_again", problem: answer.message };
-  }
-  return { type: "refused", problem: problemOf(answer) };
+  return answer.status === 410 ? { type: "start_again", problem: answer.message } : null;
 }
 
 /** Deletes the account (`POST /v1/deletion/confirm`); a repeat after a lost answer is a 204 too. */

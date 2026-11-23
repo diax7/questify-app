@@ -2,10 +2,15 @@ import { MESSAGES } from "@questify/shared";
 import { describe, expect, it } from "vitest";
 import type { ApiRequest } from "#src/api/client.ts";
 import type { AuthedResult } from "#src/api/session.ts";
-import { requestContactCode, verifyContactCode } from "#src/account/contact-api.ts";
+import {
+  contactFailureOf,
+  requestContactCode,
+  verifyContactCode,
+} from "#src/account/contact-api.ts";
 import {
   RESEND_AFTER_MS,
   contactStep,
+  onCodeStep,
   startContact,
   type ContactState,
 } from "#src/account/contact-flow.ts";
@@ -199,5 +204,42 @@ describe("contactStep", () => {
     const done = contactStep(CODE, { type: "changed" });
     expect(done).toEqual({ step: "done", channel: "email" });
     expect(contactStep(done, { type: "refused", problem: MESSAGE })).toBe(done);
+  });
+});
+
+describe("contactFailureOf", () => {
+  it("reads a wrong code with its tries left", () => {
+    expect(contactFailureOf(fail(422, "invalid_code", { attemptsLeft: 3 }))).toEqual({
+      type: "wrong_code",
+      attemptsLeft: 3,
+      problem: MESSAGE,
+    });
+  });
+
+  it("starts again on a 410 or a value another account took, whatever the status", () => {
+    const again = { type: "start_again", problem: MESSAGE };
+    expect(contactFailureOf(fail(410, "x"))).toEqual(again);
+    expect(contactFailureOf(fail(409, "contact_in_use"))).toEqual(again);
+    expect(contactFailureOf(fail(200, "contact_in_use"))).toEqual(again);
+  });
+
+  it("leaves every other answer to the caller", () => {
+    expect(contactFailureOf(fail(500, "boom"))).toBeNull();
+    expect(contactFailureOf(ok({}))).toBeNull();
+    expect(contactFailureOf({ kind: "network" })).toBeNull();
+    expect(contactFailureOf({ kind: "signed_out" })).toBeNull();
+  });
+});
+
+const finished = (): ContactState => ({ step: "done", channel: "email" });
+
+describe("onCodeStep", () => {
+  it("runs the change on the code step only", () => {
+    const next = finished;
+    expect(onCodeStep(CODE, next)).toEqual({ step: "done", channel: "email" });
+    const entry = startContact("email");
+    expect(onCodeStep(entry, next)).toBe(entry);
+    const done: ContactState = { step: "done", channel: "email" };
+    expect(onCodeStep(done, () => entry)).toBe(done);
   });
 });

@@ -55,12 +55,24 @@ export function contactStep(state: ContactState, event: ContactEvent): ContactSt
     case "refused":
       return { ...state, problem: event.problem };
     case "wrong_code":
-      return state.step === "code"
-        ? { ...state, attemptsLeft: event.attemptsLeft, problem: event.problem }
-        : state;
+      return onCodeStep(state, (code) => ({
+        ...code,
+        attemptsLeft: event.attemptsLeft,
+        problem: event.problem,
+      }));
     case "start_again":
       return { step: "enter", channel: state.channel, problem: event.problem };
     case "changed":
-      return state.step === "code" ? { step: "done", channel: state.channel } : state;
+      return onCodeStep(state, (code) => ({ step: "done", channel: code.channel }));
   }
+}
+
+type CodeState = Extract<ContactState, { step: "code" }>;
+
+/** The next state from the code step; any other step (a late reply) stays as it is. */
+export function onCodeStep(
+  state: ContactState,
+  next: (code: CodeState) => ContactState,
+): ContactState {
+  return state.step === "code" ? next(state) : state;
 }

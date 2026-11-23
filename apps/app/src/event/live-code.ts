@@ -23,17 +23,26 @@ export async function fetchLiveCode(session: Requester): Promise<LiveCodeAnswer>
   if (answer.kind === "signed_out" || answer.kind === "network") {
     return { kind: answer.kind };
   }
-  if (answer.kind === "error") {
-    if (answer.code === "feature_off") {
-      return { kind: "off" };
-    }
-    if (answer.code === "too_many_attempts") {
-      const seconds = Number(answer.headers.get("retry-after"));
-      return { kind: "slowed", waitMs: seconds > 0 ? seconds * 1000 : SLOWED_MS };
-    }
-    return { kind: "network" };
+  return answer.kind === "error" ? refusedLiveCode(answer) : liveCodeOf(answer.body);
+}
+
+/** What an API refusal means for the live code: kiosks off, slow down, or a lost connection. */
+export function refusedLiveCode(
+  answer: Readonly<{ code: string; headers: Headers }>,
+): LiveCodeAnswer {
+  if (answer.code === "feature_off") {
+    return { kind: "off" };
   }
-  const body = isRecord(answer.body) ? answer.body : {};
+  if (answer.code === "too_many_attempts") {
+    const seconds = Number(answer.headers.get("retry-after"));
+    return { kind: "slowed", waitMs: seconds > 0 ? seconds * 1000 : SLOWED_MS };
+  }
+  return { kind: "network" };
+}
+
+/** The code and its window from a good answer's body; anything else reads as a lost connection. */
+export function liveCodeOf(value: unknown): LiveCodeAnswer {
+  const body = isRecord(value) ? value : {};
   return typeof body["code"] === "string" && typeof body["changesInMs"] === "number"
     ? { kind: "code", code: body["code"], changesInMs: body["changesInMs"] }
     : { kind: "network" };

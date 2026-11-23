@@ -21,12 +21,14 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const nullableText = (value: unknown) => value === null || typeof value === "string";
 
+/** A quest title with both languages as text or null. */
+export const isTitle = (value: unknown): boolean =>
+  isRecord(value) && nullableText(value["ar"]) && nullableText(value["en"]);
+
 const isItem = (value: unknown): value is Record<string, unknown> =>
   isRecord(value) &&
   typeof value["id"] === "string" &&
-  isRecord(value["questTitle"]) &&
-  nullableText(value["questTitle"]["ar"]) &&
-  nullableText(value["questTitle"]["en"]) &&
+  isTitle(value["questTitle"]) &&
   nullableText(value["username"]) &&
   typeof value["avatar"] === "string" &&
   nullableText(value["text"]) &&

@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { messageOf, tagTokenOf, uidOf, uriOfMessage } from "#src/nfc/tag.ts";
+import {
+  isQuestHost,
+  isTagToken,
+  messageOf,
+  tagTokenOf,
+  uidOf,
+  uriOfMessage,
+  uriOfRecord,
+  withPrefix,
+} from "#src/nfc/tag.ts";
 
 const TAG_ID = "7c2d0c2e-3b4d-4e5f-8a6b-7c8d9e0f1a2b";
 /** A token laid out as `apps/api/src/quests/qr.ts` signs one. */
@@ -93,5 +102,40 @@ describe("uidOf", () => {
       expect(uidOf(id), String(id)).toBeNull();
     }
     expect(uidOf("00".repeat(10))).toBe("00".repeat(10));
+  });
+});
+
+describe("the tag's helpers", () => {
+  it("isQuestHost takes a Questify host or the build's extra origin only", () => {
+    expect(isQuestHost("questify.nafes.com", null)).toBe(true);
+    expect(isQuestHost("elsewhere.example", "https://elsewhere.example")).toBe(true);
+    expect(isQuestHost("elsewhere.example", "https://other.example")).toBe(false);
+    expect(isQuestHost("elsewhere.example", null)).toBe(false);
+  });
+
+  it("isTagToken wants 37 bytes that start with the tag format", () => {
+    expect(isTagToken(token())).toBe(true);
+    expect(isTagToken(token(0x01))).toBe(false);
+    expect(isTagToken(Buffer.alloc(36, 6).toString("base64url"))).toBe(false);
+    expect(isTagToken("***")).toBe(false);
+  });
+
+  it("withPrefix adds https:// for code 4, keeps plain text for code 0, refuses the rest", () => {
+    expect(withPrefix(4, "a.sa/t/x")).toBe("https://a.sa/t/x");
+    expect(withPrefix(0, "https://a.sa/t/x")).toBe("https://a.sa/t/x");
+    expect(withPrefix(3, "a.sa")).toBeNull();
+    expect(withPrefix(undefined, "a.sa")).toBeNull();
+    expect(withPrefix(4, null)).toBeNull();
+    expect(withPrefix(0, null)).toBeNull();
+  });
+
+  it("uriOfRecord reads one well-known URI record and nothing else", () => {
+    expect(uriOfRecord({ tnf: 1, type: "U", payload: [4, ...bytes("a.sa")] })).toBe("https://a.sa");
+    expect(uriOfRecord({ tnf: 1, type: [0x55], payload: [0, ...bytes("x:y")] })).toBe("x:y");
+    expect(uriOfRecord({ tnf: 2, type: "U", payload: [4, ...bytes("a.sa")] })).toBeNull();
+    expect(uriOfRecord({ tnf: 1, type: "T", payload: [4, ...bytes("a.sa")] })).toBeNull();
+    expect(uriOfRecord({ tnf: 1, type: "U", payload: [4] })).toBeNull();
+    expect(uriOfRecord({ tnf: 1, type: "U", payload: [4, 0x20] })).toBeNull();
+    expect(uriOfRecord({ tnf: 1, type: "U", payload: [9, ...bytes("a.sa")] })).toBeNull();
   });
 });

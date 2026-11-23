@@ -8,8 +8,11 @@ import {
   saleRewardsOf,
   deskStateKey,
   findOf,
+  holdOf,
   itemAction,
   lookupOf,
+  offerLive,
+  refusalOf,
   offerOutcome,
   pickupMinutesLeft,
   type DeskInfo,
@@ -392,5 +395,30 @@ describe("saleOutcome and saleEndKey (T-612)", () => {
     ["refused", null, "operator.desk.saleNotPaid"],
   ] as const)("words %s (%s) as %s", (outcome, reason, key) => {
     expect(saleEndKey(outcome, reason)).toBe(key);
+  });
+});
+
+describe("the desk's small readers", () => {
+  it("holdOf reads none, paused, and anything else as held", () => {
+    expect(holdOf(null)).toBeNull();
+    expect(holdOf(undefined)).toBeNull();
+    expect(holdOf("paused")).toBe("paused");
+    expect(holdOf("held")).toBe("held");
+    expect(holdOf("banned")).toBe("held");
+    expect(holdOf(3)).toBe("held");
+  });
+
+  it("refusalOf names the reason, an unknown one reads as an invalid code", () => {
+    expect(refusalOf({ reason: "old_code" })).toBe("operator.red.oldCode");
+    expect(refusalOf({ reason: "ability_off" })).toBe("operator.desk.abilityOff");
+    expect(refusalOf({ reason: "mystery" })).toBe("operator.red.invalidCode");
+    expect(refusalOf({})).toBe("operator.red.invalidCode");
+  });
+
+  it("offerLive is true only for a made offer whose time is not up", () => {
+    expect(offerLive(true, LATER, NOW)).toBe(true);
+    expect(offerLive(true, EARLIER, NOW)).toBe(false);
+    expect(offerLive(true, null, NOW)).toBe(false);
+    expect(offerLive(false, LATER, NOW)).toBe(false);
   });
 });

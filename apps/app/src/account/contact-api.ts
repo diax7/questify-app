@@ -2,6 +2,7 @@ import { MESSAGES, type Language, type LocalizedText } from "@questify/shared";
 import type { AuthedResult, Session } from "#src/api/session.ts";
 import type { ContactEvent } from "#src/account/contact-flow.ts";
 import type { Channel } from "#src/auth/sign-in-flow.ts";
+import { attemptsLeftOf } from "#src/account/attempts-left.ts";
 
 export type ContactDeps = Readonly<{
   session: Pick<Session, "request">;
@@ -55,18 +56,25 @@ export async function verifyContactCode(
   if (answer.kind === "ok") {
     return { type: "changed" };
   }
-  if (answer.kind === "error" && answer.code === "invalid_code") {
-    const left = answer.details["attemptsLeft"];
+  return contactFailureOf(answer) ?? { type: "refused", problem: problemOf(answer) };
+}
+
+/** A wrong code, or a challenge that ended or a value another account took; null for any other answer. */
+export function contactFailureOf(answer: AuthedResult): ContactEvent | null {
+  if (answer.kind !== "error") {
+    return null;
+  }
+  if (answer.code === "invalid_code") {
     return {
       type: "wrong_code",
-      attemptsLeft: typeof left === "number" && Number.isFinite(left) ? left : 0,
+      attemptsLeft: attemptsLeftOf(answer.details),
       problem: answer.message,
     };
   }
-  if (answer.kind === "error" && (answer.status === 410 || answer.code === "contact_in_use")) {
+  if (answer.status === 410 || answer.code === "contact_in_use") {
     return { type: "start_again", problem: answer.message };
   }
-  return { type: "refused", problem: problemOf(answer) };
+  return null;
 }
 
 /** What a refused answer says: the API's own words, or why there were none. */

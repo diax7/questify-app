@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import type { ApiRequest } from "#src/api/client.ts";
 import type { AuthedResult } from "#src/api/session.ts";
 import { isRehearsalStatus } from "#src/event/rehearsal.ts";
-import { fetchRehearsal, joinRehearsal, readRehearsalEvent } from "#src/join/rehearsal-api.ts";
+import {
+  fetchRehearsal,
+  joinRehearsal,
+  readRehearsalEvent,
+  refusedCardKind,
+} from "#src/join/rehearsal-api.ts";
 
 const headers = new Headers();
 const CARD = {
@@ -145,5 +150,14 @@ describe("isRehearsalStatus", () => {
     expect(isRehearsalStatus("scheduled")).toBe(true);
     expect(isRehearsalStatus("live")).toBe(false);
     expect(isRehearsalStatus(undefined)).toBe(false);
+  });
+});
+
+describe("refusedCardKind", () => {
+  it("calls a 429 throttled, a 404 no such code, and anything else a lost connection", () => {
+    expect(refusedCardKind(429)).toBe("throttled");
+    expect(refusedCardKind(404)).toBe("not_found");
+    expect(refusedCardKind(500)).toBe("network");
+    expect(refusedCardKind(400)).toBe("network");
   });
 });

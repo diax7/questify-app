@@ -154,21 +154,6 @@
       "complexity": [11]
     }
   },
-  "apps/app/src/account/contact-api.ts": {
-    "verifyContactCode": {
-      "complexity": [9]
-    }
-  },
-  "apps/app/src/account/contact-flow.ts": {
-    "contactStep": {
-      "complexity": [9]
-    }
-  },
-  "apps/app/src/account/deletion-api.ts": {
-    "verifyDeletionCode": {
-      "complexity": [10]
-    }
-  },
   "apps/app/src/api/session.ts": {
     "createSession": {
       "lines": [148]
@@ -189,11 +174,6 @@
       "complexity": [14]
     }
   },
-  "apps/app/src/event/live-code.ts": {
-    "fetchLiveCode": {
-      "complexity": [10]
-    }
-  },
   "apps/app/src/event/scan.ts": {
     "readScan": {
       "complexity": [18]
@@ -204,43 +184,12 @@
       "complexity": [9, 9]
     }
   },
-  "apps/app/src/games/testing/realtime-play.ts": {
-    "playTapRush": {
-      "complexity": [15]
-    }
-  },
-  "apps/app/src/join/rehearsal-api.ts": {
-    "rehearsalCardAnswer": {
-      "complexity": [9]
-    }
-  },
   "apps/app/src/nfc/native.ts": {
     "<anonymous>": {
       "complexity": [9]
     },
     "writeNdef": {
       "complexity": [11]
-    }
-  },
-  "apps/app/src/nfc/tag.ts": {
-    "tagTokenOf": {
-      "complexity": [10]
-    },
-    "uriOfMessage": {
-      "complexity": [11]
-    }
-  },
-  "apps/app/src/operator/desk.ts": {
-    "itemAction": {
-      "complexity": [9]
-    },
-    "lookupOf": {
-      "complexity": [10]
-    }
-  },
-  "apps/app/src/operator/review.ts": {
-    "<anonymous>": {
-      "complexity": [10]
     }
   },
   "apps/app/src/questify/QuestifySyncProvider.tsx": {
