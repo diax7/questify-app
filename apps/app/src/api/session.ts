@@ -91,24 +91,12 @@ export function announceHold<T extends AuthedResult>(
 
 type Refreshed = "refreshed" | "ended" | "unreachable";
 
-/**
- * The player's session on this device (T-107's rotating tokens). One refresh is in flight at a time: two would present
- * the same refresh token, and the API ends the device's sign-in on a reuse it cannot explain. Only a 401 from the
- * refresh ends the session; a network failure or any other answer keeps the tokens for the next try, inside the API's
- * 60-second grace for a lost answer.
- */
-export function createSession(deps: SessionDeps): Session {
-  const now = deps.now ?? Date.now;
-  const ended = createNotifier();
-  const held = createNotifier();
-  let inFlight: Promise<Refreshed> | undefined;
-  // A chosen sign-out is not "your session ended": a refresh that a late 401 starts meanwhile tells nobody.
-  let signingOut = false;
-
+/** The session's secure items: the pair, read and written as one, and the account's own items besides it. */
+export function createSessionStore(storage: SecretStorage, now: () => number) {
   /** Another account on this phone must never show the last one's code, offline included. */
   const dropAccountItems = async () => {
     try {
-      await deps.storage.delete(MY_QR_KEY);
+      await storage.delete(MY_QR_KEY);
     } catch {
       // Worst case the next sign-in's first My QR read replaces it.
     }
@@ -117,7 +105,7 @@ export function createSession(deps: SessionDeps): Session {
   /** Deletes the stored pair; a store that fails to delete is reported to nobody, the pair is unusable anyway. */
   const forget = async () => {
     try {
-      await deps.storage.delete(SESSION_KEY);
+      await storage.delete(SESSION_KEY);
     } catch {
       // The next read fails the same way and answers "no session".
     }
@@ -131,7 +119,7 @@ export function createSession(deps: SessionDeps): Session {
   const load = async (): Promise<Pair | undefined> => {
     let raw: string | null;
     try {
-      raw = await deps.storage.get(SESSION_KEY);
+      raw = await storage.get(SESSION_KEY);
     } catch {
       await forget();
       return undefined;
@@ -148,7 +136,7 @@ export function createSession(deps: SessionDeps): Session {
   };
 
   const save = (issued: Issued) =>
-    deps.storage.set(
+    storage.set(
       SESSION_KEY,
       JSON.stringify({
         access: issued.accessToken,
@@ -157,27 +145,34 @@ export function createSession(deps: SessionDeps): Session {
       } satisfies Pair),
     );
 
-  const end = async () => {
-    await forget();
-    if (signingOut) {
-      return;
-    }
-    ended.notify();
-  };
+  return { dropAccountItems, forget, load, save };
+}
+
+export type SessionStore = ReturnType<typeof createSessionStore>;
+
+/**
+ * The one refresh in flight at a time: two would present the same refresh token, and the API ends the device's sign-in
+ * on a reuse it cannot explain. Only a 401 from the refresh ends the session (`end`).
+ */
+export function createRefresher(
+  deps: Readonly<{ client: Client; store: SessionStore; end: () => Promise<void> }>,
+) {
+  const { client, store, end } = deps;
+  let inFlight: Promise<Refreshed> | undefined;
 
   const runRefresh = async (): Promise<Refreshed> => {
-    const pair = await load();
+    const pair = await store.load();
     if (pair === undefined) {
       return "ended";
     }
-    const answer = await deps.client.request({
+    const answer = await client.request({
       method: "POST",
       path: "/v1/auth/refresh",
       body: { refreshToken: pair.refresh },
     });
     if (answer.kind === "ok" && isIssued(answer.body)) {
       try {
-        await save(answer.body);
+        await store.save(answer.body);
       } catch {
         // The old pair stays; the API's grace gives a fresh pair for it on the next try.
         return "unreachable";
@@ -197,6 +192,36 @@ export function createSession(deps: SessionDeps): Session {
     });
     return inFlight;
   };
+
+  /** The refresh in flight now, if any, settled; its failure is not the caller's. */
+  const settled = () => inFlight?.catch(() => undefined);
+
+  return { refresh, settled };
+}
+
+/**
+ * The player's session on this device (T-107's rotating tokens), one refresh in flight at a time (`createRefresher`).
+ * A network failure or any refresh answer but a 401 keeps the tokens for the next try, inside the API's 60-second grace
+ * for a lost answer.
+ */
+export function createSession(deps: SessionDeps): Session {
+  const now = deps.now ?? Date.now;
+  const ended = createNotifier();
+  const held = createNotifier();
+  const store = createSessionStore(deps.storage, now);
+  const { dropAccountItems, forget, load, save } = store;
+  // A chosen sign-out is not "your session ended": a refresh that a late 401 starts meanwhile tells nobody.
+  let signingOut = false;
+
+  const end = async () => {
+    await forget();
+    if (signingOut) {
+      return;
+    }
+    ended.notify();
+  };
+
+  const { refresh, settled } = createRefresher({ client: deps.client, store, end });
 
   /** The access token to use now, refreshed first when it is about to end. */
   const access = async (): Promise<string | undefined> => {
@@ -254,7 +279,7 @@ export function createSession(deps: SessionDeps): Session {
       signingOut = true;
       try {
         // A refresh in flight would rotate the token: wait for it, then sign out with the newest one.
-        await inFlight?.catch(() => undefined);
+        await settled();
         const pair = await load();
         if (pair !== undefined) {
           await deps.client.request({

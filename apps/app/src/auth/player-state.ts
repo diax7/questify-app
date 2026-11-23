@@ -1,5 +1,5 @@
 import type { DailyStreak, Equipment, MarketingSummary } from "@questify/shared";
-import type { Session } from "#src/api/session.ts";
+import type { AuthedResult, Session } from "#src/api/session.ts";
 import { equipmentOf } from "#src/questify/profile-api.ts";
 import { levelOf, type QuestifyLevel } from "#src/questify/level.ts";
 import { dailyStreakOf } from "#src/streaks/daily-streak.ts";
@@ -35,6 +35,17 @@ const isMe = (value: unknown): value is Me =>
   typeof (value as Me).username === "string" &&
   typeof (value as Me).legal === "object" &&
   Array.isArray((value as Me).legal?.toAccept);
+
+/** The profile in a `/v1/me` answer, its level, equipment and streak read; undefined for any other answer. */
+export const meOf = (answer: AuthedResult): Me | undefined =>
+  answer.kind === "ok" && isMe(answer.body)
+    ? {
+        ...answer.body,
+        questify: levelOf(answer.body.questify),
+        equipment: equipmentOf(answer.body.equipment),
+        dailyStreak: dailyStreakOf(answer.body.dailyStreak),
+      }
+    : undefined;
 
 /** How long a sign-out waits for this phone's push device to be removed; the call goes on without it. */
 export const RELEASE_WAIT_MS = 3000;
@@ -79,18 +90,7 @@ export function createPlayerLoader(
       return;
     }
     // Offline: still signed in; the current account's profile comes on its next reload.
-    publish({
-      status: "signed_in",
-      me:
-        answer.kind === "ok" && isMe(answer.body)
-          ? {
-              ...answer.body,
-              questify: levelOf(answer.body.questify),
-              equipment: equipmentOf(answer.body.equipment),
-              dailyStreak: dailyStreakOf(answer.body.dailyStreak),
-            }
-          : undefined,
-    });
+    publish({ status: "signed_in", me: meOf(answer) });
   };
 
   const signOut = async () => {

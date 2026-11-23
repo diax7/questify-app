@@ -1,5 +1,24 @@
 # Blueprint State — Questify
 
+## Function limits: 6 app core offenders split (session, sign-in, scan, staff code step; tier A) — 2026-11-23
+
+- **Built** (plan `docs/plans/2026-11-23-app-core-function-limits.md`, plan review 92 GO, its findings folded in):
+  behaviour-preserving splits, same requests, secure-store reads and writes in the same order, same error kinds and
+  state transitions. `api/session` `createSession` (`createSessionStore` moved word for word, `createRefresher` owns
+  the single-flight `inFlight` and `settled()`; `end` and `signingOut` stay in `createSession`); `auth/sign-in-flow`
+  `signInStep` (`anyStep`, `fromStep`, `fromConsent`, `fromProfile`); `auth/sign-in-api` `requestCode` (`codeBody`,
+  `codeSentOf` reading the clock only on success, `codeRefusal`); `auth/player-state` `reload` (`meOf`); `event/scan`
+  `readScan` (`isQuestCodeHost`, `stationScan`, `printedScan`; same forms accepted and refused); web `CodeStep`
+  (module-level `CodeNotices`, `CodeActions`, no markup change). No abort rule fired. Baseline 19 to 13 entries.
+- **Found:** a local sign-out race with a token refresh, not fixed here (no behaviour change): T-815.
+- **Checks:** typecheck, lint, `lint:limits`, `format:check`; `npx vitest run apps/app apps/web/src` (326 files, 4247
+  tests) pass; `apps/web` build; `e2e/sign-in.spec.ts` desktop (6 passed). New: `api/session-parts.test.ts`,
+  `auth/sign-in-flow-any-step.test.ts`, `auth/sign-in-api-code.test.ts`, `auth/player-state-me.test.ts`,
+  `event/scan-forms.test.ts`.
+- **Mutation (GitHub, one dispatch, `mutate` input):** `apps/app/src/api/session.ts`, `apps/app/src/auth/sign-in-flow.ts`,
+  `apps/app/src/auth/sign-in-api.ts`, `apps/app/src/auth/player-state.ts`, `apps/app/src/event/scan.ts`.
+- **Next:** code review, push, mutation; T-815; the 13 remaining offenders (tier B, `apps/app`).
+
 ## Function limits: last 6 apps/api offenders split (ledger, desk, shop, route access, buildApp; tier A) — 2026-11-23
 
 - **Built** (plan `docs/plans/2026-11-23-ledger-access-function-limits.md`, plan review 91 GO, its findings folded in):

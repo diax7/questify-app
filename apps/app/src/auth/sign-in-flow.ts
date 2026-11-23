@@ -197,6 +197,13 @@ export function signInStep(state: SignInState, event: SignInEvent): SignInState 
   if (hasEnded(state)) {
     return state;
   }
+  return anyStep(state, event) ?? fromStep(state, event);
+}
+
+type LiveState = Exclude<SignInState, { step: "done" | "closed" | "banned" }>;
+
+/** The events every live step answers the same way, before its own: close, signed in, new terms. */
+function anyStep(state: LiveState, event: SignInEvent): SignInState | undefined {
   if (event.type === "closed") {
     return { step: "closed" };
   }
@@ -211,28 +218,46 @@ export function signInStep(state: SignInState, event: SignInEvent): SignInState 
       pending: state.pending,
     };
   }
+  return undefined;
+}
+
+function fromStep(state: LiveState, event: SignInEvent): SignInState {
   switch (state.step) {
     case "consent":
-      if (event.type === "versions_loaded") {
-        return { ...state, versions: event.versions };
-      }
-      // No versions in force, no consent, and so no code request (T-110).
-      if (event.type === "accepted" && state.versions !== undefined) {
-        return contactStep(
-          { versions: state.versions, channel: "phone", pending: state.pending },
-          null,
-        );
-      }
-      return state;
+      return fromConsent(state, event);
     case "contact":
       return fromContact(state, event);
     case "code":
       return fromCode(state, event);
     case "profile":
-      if (event.type === "refused") {
-        return { ...state, problem: event.problem };
-      }
-      // An ended signup token: back to the contact step for a new code, the pending join kept.
-      return event.type === "expired" ? contactStep(carriedOf(state), event.problem) : state;
+      return fromProfile(state, event);
   }
+}
+
+function fromConsent(
+  state: Extract<SignInState, { step: "consent" }>,
+  event: SignInEvent,
+): SignInState {
+  if (event.type === "versions_loaded") {
+    return { ...state, versions: event.versions };
+  }
+  // No versions in force, no consent, and so no code request (T-110).
+  if (event.type === "accepted" && state.versions !== undefined) {
+    return contactStep(
+      { versions: state.versions, channel: "phone", pending: state.pending },
+      null,
+    );
+  }
+  return state;
+}
+
+function fromProfile(
+  state: Extract<SignInState, { step: "profile" }>,
+  event: SignInEvent,
+): SignInState {
+  if (event.type === "refused") {
+    return { ...state, problem: event.problem };
+  }
+  // An ended signup token: back to the contact step for a new code, the pending join kept.
+  return event.type === "expired" ? contactStep(carriedOf(state), event.problem) : state;
 }

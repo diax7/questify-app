@@ -99,6 +99,28 @@ export function CodeStep({
           aria-describedby={problem === null ? CODE_HELP_ID : `${CODE_HELP_ID} code-problem`}
         />
       </Field>
+      <CodeNotices problem={problem} notice={notice} />
+      <Button type="submit" variant="primary" disabled={busy || code.length !== 6} aria-busy={busy}>
+        {t(submitLabel)}
+      </Button>
+      <CodeActions
+        language={language}
+        busy={busy}
+        wait={wait}
+        onResend={() => void resend()}
+        onRestart={() => onRestart("")}
+      />
+    </Form>
+  );
+}
+
+/** What the last request left behind: the refusal, then the "sent again" line. */
+function CodeNotices({
+  problem,
+  notice,
+}: Readonly<{ problem: string | null; notice: string | null }>) {
+  return (
+    <>
       {problem === null ? null : (
         <Notice id="code-problem" role="alert" tone="danger">
           {problem}
@@ -109,18 +131,34 @@ export function CodeStep({
           {notice}
         </Notice>
       )}
-      <Button type="submit" variant="primary" disabled={busy || code.length !== 6} aria-busy={busy}>
-        {t(submitLabel)}
+    </>
+  );
+}
+
+/** Ask for a new code once the wait is over, or start again with another account. */
+function CodeActions({
+  language,
+  busy,
+  wait,
+  onResend,
+  onRestart,
+}: Readonly<{
+  language: Language;
+  busy: boolean;
+  wait: number;
+  onResend: () => void;
+  onRestart: () => void;
+}>) {
+  const t = translatorFor(language);
+  return (
+    <Toolbar align="between">
+      <Button variant="quiet" onClick={onResend} disabled={busy || wait > 0}>
+        {wait > 0 ? t("staff.resendIn", { time: formatWait(wait) }) : t("staff.resend")}
       </Button>
-      <Toolbar align="between">
-        <Button variant="quiet" onClick={() => void resend()} disabled={busy || wait > 0}>
-          {wait > 0 ? t("staff.resendIn", { time: formatWait(wait) }) : t("staff.resend")}
-        </Button>
-        <Button variant="quiet" onClick={() => onRestart("")} disabled={busy}>
-          {t("staff.otherAccount")}
-        </Button>
-      </Toolbar>
-    </Form>
+      <Button variant="quiet" onClick={onRestart} disabled={busy}>
+        {t("staff.otherAccount")}
+      </Button>
+    </Toolbar>
   );
 }
 

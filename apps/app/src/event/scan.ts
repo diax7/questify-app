@@ -123,15 +123,32 @@ export function readScan(text: string, extraOrigin: string | null): Scan {
   if (join !== null) {
     return { kind: "join", code: join };
   }
-  const host = (link[1] ?? "").toLowerCase();
-  const known = QUEST_CODE_HOSTS.includes(host) || `https://${host}` === extraOrigin;
-  const screen = /^\/s\/([^/]+)\/?$/.exec(link[2] ?? "")?.[1];
-  if (known && screen !== undefined) {
-    const questId = screenQuestIdOf(screen);
-    return questId === null ? { kind: "other" } : { kind: "screen", questId, token: screen };
+  // Someone else's QR: no code of ours, on any path.
+  if (!isQuestCodeHost((link[1] ?? "").toLowerCase(), extraOrigin)) {
+    return { kind: "other" };
   }
-  const token = /^\/q\/([^/]+)\/?$/.exec(link[2] ?? "")?.[1];
-  if (!known || token === undefined) {
+  const path = link[2] ?? "";
+  return stationScan(path) ?? printedScan(path);
+}
+
+/** A host whose printed codes this build reads: Questify's own, or the build's one extra origin. */
+const isQuestCodeHost = (host: string, extraOrigin: string | null): boolean =>
+  QUEST_CODE_HOSTS.includes(host) || `https://${host}` === extraOrigin;
+
+/** A station's rotating code (`/s/{token}`), or undefined when the path is not one. */
+function stationScan(path: string): Scan | undefined {
+  const screen = /^\/s\/([^/]+)\/?$/.exec(path)?.[1];
+  if (screen === undefined) {
+    return undefined;
+  }
+  const questId = screenQuestIdOf(screen);
+  return questId === null ? { kind: "other" } : { kind: "screen", questId, token: screen };
+}
+
+/** A printed code (`/q/{token}`): a quest, then a passport step, then a secret category. */
+function printedScan(path: string): Scan {
+  const token = /^\/q\/([^/]+)\/?$/.exec(path)?.[1];
+  if (token === undefined) {
     return { kind: "other" };
   }
   const questId = questIdOf(token);

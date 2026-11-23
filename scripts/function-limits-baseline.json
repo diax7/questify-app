@@ -35,31 +35,6 @@
       "complexity": [11]
     }
   },
-  "apps/app/src/api/session.ts": {
-    "createSession": {
-      "lines": [148]
-    }
-  },
-  "apps/app/src/auth/player-state.ts": {
-    "<anonymous>": {
-      "complexity": [9]
-    }
-  },
-  "apps/app/src/auth/sign-in-api.ts": {
-    "requestCode": {
-      "complexity": [9]
-    }
-  },
-  "apps/app/src/auth/sign-in-flow.ts": {
-    "signInStep": {
-      "complexity": [14]
-    }
-  },
-  "apps/app/src/event/scan.ts": {
-    "readScan": {
-      "complexity": [18]
-    }
-  },
   "apps/app/src/games/TapRushGame.tsx": {
     "<anonymous>": {
       "complexity": [9, 9]
@@ -75,11 +50,6 @@
   },
   "apps/app/src/questify/QuestifySyncProvider.tsx": {
     "<anonymous>": {
-      "complexity": [9]
-    }
-  },
-  "apps/web/src/components/CodeStep.tsx": {
-    "CodeStep": {
       "complexity": [9]
     }
   }

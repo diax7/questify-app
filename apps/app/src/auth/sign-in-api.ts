@@ -39,43 +39,59 @@ const numberOf = (value: unknown, fallback: number): number =>
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
+export type CodeInput = Readonly<{
+  channel: Channel;
+  value: string;
+  lang: Language;
+  versions: SignupAcceptance;
+  previous?: string;
+}>;
+
+/** The code request's body; `previous` only when there is an earlier challenge to end. */
+export const codeBody = (input: CodeInput) => ({
+  channel: input.channel,
+  value: input.value,
+  lang: input.lang,
+  accept: input.versions,
+  ...(input.previous === undefined ? {} : { previous: input.previous }),
+});
+
 /** Asks for a code (FR-106); the versions the person just accepted travel with it (FR-1705). */
-export async function requestCode(
-  deps: SignInDeps,
-  input: Readonly<{
-    channel: Channel;
-    value: string;
-    lang: Language;
-    versions: SignupAcceptance;
-    previous?: string;
-  }>,
-): Promise<SignInEvent> {
+export async function requestCode(deps: SignInDeps, input: CodeInput): Promise<SignInEvent> {
   const answer = await deps.client.request({
     method: "POST",
     path: "/v1/auth/code",
-    body: {
-      channel: input.channel,
-      value: input.value,
-      lang: input.lang,
-      accept: input.versions,
-      ...(input.previous === undefined ? {} : { previous: input.previous }),
-    },
+    body: codeBody(input),
   });
+  return codeSentOf(answer, input, () => deps.now()) ?? codeRefusal(answer);
+}
+
+/** A sent code's event, the clock read only then; undefined for any other answer. */
+export function codeSentOf(
+  answer: ApiResult,
+  input: CodeInput,
+  now: () => number,
+): SignInEvent | undefined {
   if (
-    answer.kind === "ok" &&
-    isRecord(answer.body) &&
-    typeof answer.body["challengeToken"] === "string"
+    answer.kind !== "ok" ||
+    !isRecord(answer.body) ||
+    typeof answer.body["challengeToken"] !== "string"
   ) {
-    return {
-      type: "code_sent",
-      contact: input.value,
-      challengeToken: answer.body["challengeToken"],
-      now: deps.now(),
-      resendAfterSeconds: numberOf(answer.body["resendAfterSeconds"], 60),
-      emailFallbackAfterSeconds:
-        input.channel === "phone" ? numberOf(answer.body["emailFallbackAfterSeconds"], 30) : null,
-    };
+    return undefined;
   }
+  return {
+    type: "code_sent",
+    contact: input.value,
+    challengeToken: answer.body["challengeToken"],
+    now: now(),
+    resendAfterSeconds: numberOf(answer.body["resendAfterSeconds"], 60),
+    emailFallbackAfterSeconds:
+      input.channel === "phone" ? numberOf(answer.body["emailFallbackAfterSeconds"], 30) : null,
+  };
+}
+
+/** A code request that sent no code: new terms to accept, or a refusal in the API's words. */
+export function codeRefusal(answer: ApiResult): SignInEvent {
   // The terms changed since the screen loaded them: show the new versions; retrying with the old ones never works.
   if (answer.kind === "error" && answer.code === "acceptance_required") {
     return {
