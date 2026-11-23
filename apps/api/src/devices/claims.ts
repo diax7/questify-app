@@ -51,28 +51,35 @@ const contextOf = (actor: Actor): RequestContext =>
 const isoOrNull = (value: unknown): string | null =>
   value === null || value === undefined ? null : new Date(String(value)).toISOString();
 
+type PairedBy = Readonly<{ type?: string; name?: unknown }> | null | undefined;
+
+/** The quest's two titles, or null for a device with no quest. */
+const questOf = (row: Json): Bilingual | null =>
+  row["questId"] === null || row["questId"] === undefined
+    ? null
+    : {
+        ar: (row["questTitleAr"] as string | null) ?? null,
+        en: (row["questTitleEn"] as string | null) ?? null,
+      };
+
+/** Who paired the device: an operator or staff, with a name only when it is text. */
+const pairedByOf = (by: PairedBy): DeviceView["pairedBy"] =>
+  by === null || by === undefined
+    ? null
+    : {
+        type: by.type === "operator" ? "operator" : "staff",
+        name: typeof by.name === "string" ? by.name : null,
+      };
+
 export const viewOf = (row: Json): DeviceView => {
-  const by = row["pairedBy"] as { type?: string; name?: unknown } | null;
   return {
     id: String(row["id"]),
     kind: row["kind"] as DeviceKind,
     label: String(row["label"]),
     questId: (row["questId"] as string | null) ?? null,
-    quest:
-      row["questId"] === null || row["questId"] === undefined
-        ? null
-        : {
-            ar: (row["questTitleAr"] as string | null) ?? null,
-            en: (row["questTitleEn"] as string | null) ?? null,
-          },
+    quest: questOf(row),
     client: String(row["client"] ?? ""),
-    pairedBy:
-      by === null || by === undefined
-        ? null
-        : {
-            type: by.type === "operator" ? "operator" : "staff",
-            name: typeof by.name === "string" ? by.name : null,
-          },
+    pairedBy: pairedByOf(row["pairedBy"] as PairedBy),
     pairedAt: new Date(String(row["pairedAt"])).toISOString(),
     lastSeenAt: new Date(String(row["lastSeenAt"])).toISOString(),
     activated: row["activated"] === true,

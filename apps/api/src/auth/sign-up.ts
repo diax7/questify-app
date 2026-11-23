@@ -193,12 +193,12 @@ async function dropSignup(deps: PasswordDeps, tokenHash: string): Promise<void> 
   );
 }
 
-/**
- * Step 1. Both branches (a new email, an email that already has an account) pass the same checks, pay for the same
- * password hash and answer the same way; only the email they send differs, and only its owner reads it.
- */
-async function start(deps: PasswordDeps, input: SignUpInput, caller: Caller): Promise<StartResult> {
-  const email = normalizeEmail(input.email);
+/** The first three refusals of step 1, in order: the email, the form (name and acceptances), the password policy. */
+async function checkSignUpForm(
+  deps: PasswordDeps,
+  input: SignUpInput,
+  email: string,
+): Promise<StartResult | string> {
   if (!isPlausibleEmail(email)) {
     return { kind: "invalid_email" };
   }
@@ -207,8 +207,61 @@ async function start(deps: PasswordDeps, input: SignUpInput, caller: Caller): Pr
     return form;
   }
   const policy = checkPasswordPolicy(input.password, email);
-  if (!policy.ok) {
-    return { kind: "weak", reason: policy.reason };
+  return policy.ok ? form : { kind: "weak", reason: policy.reason };
+}
+
+type Issue = Readonly<{
+  email: string;
+  organizerName: string;
+  accepted: SignUpInput["accept"];
+  /** The new password's hash; stored only for an email without an account. */
+  passwordHash: string;
+  existing: boolean;
+}>;
+
+/**
+ * Stores the pending sign-up and emails the code (or the already-have-an-account note). Both branches insert a row and
+ * send one email; a send no sender took ends the pending sign-up.
+ */
+async function issueSignup(deps: PasswordDeps, caller: Caller, issue: Issue): Promise<StartResult> {
+  const id = randomUUID();
+  const token = generateToken();
+  const code = generateCode();
+  await withConnection(deps.pool, (client) =>
+    withPreIdentityContext(client, { kind: "signup", tokenHash: token.hash }, () =>
+      insertSignup(client, {
+        id,
+        tokenHash: token.hash,
+        codeHash: deps.keys.codeHash(id, code),
+        email: issue.email,
+        passwordHash: issue.existing ? null : issue.passwordHash,
+        organizerName: issue.organizerName,
+        accepted: issue.accepted,
+        validForSeconds: L.challengeValiditySeconds,
+      }),
+    ),
+  );
+  if (!(await deliver(deps, caller, issue.email, issue.existing ? undefined : code))) {
+    await dropSignup(deps, token.hash);
+    return { kind: "email_unavailable" };
+  }
+  say(deps, caller, "staff.sign_up_started");
+  return {
+    kind: "code_sent",
+    challengeToken: token.token,
+    expiresInSeconds: L.challengeValiditySeconds,
+  };
+}
+
+/**
+ * Step 1. Both branches (a new email, an email that already has an account) pass the same checks, pay for the same
+ * password hash and answer the same way; only the email they send differs, and only its owner reads it.
+ */
+async function start(deps: PasswordDeps, input: SignUpInput, caller: Caller): Promise<StartResult> {
+  const email = normalizeEmail(input.email);
+  const form = await checkSignUpForm(deps, input, email);
+  if (typeof form !== "string") {
+    return form;
   }
   const throttled = await admitSignup(deps, email, caller);
   if (throttled !== undefined) {
@@ -224,33 +277,13 @@ async function start(deps: PasswordDeps, input: SignUpInput, caller: Caller): Pr
     say(deps, caller, "staff.outbound_cap", { step: "sign_up" });
     return { kind: "email_unavailable" };
   }
-  const id = randomUUID();
-  const token = generateToken();
-  const code = generateCode();
-  await withConnection(deps.pool, (client) =>
-    withPreIdentityContext(client, { kind: "signup", tokenHash: token.hash }, () =>
-      insertSignup(client, {
-        id,
-        tokenHash: token.hash,
-        codeHash: deps.keys.codeHash(id, code),
-        email,
-        passwordHash: existing ? null : prepared.hash,
-        organizerName: form,
-        accepted: input.accept,
-        validForSeconds: L.challengeValiditySeconds,
-      }),
-    ),
-  );
-  if (!(await deliver(deps, caller, email, existing ? undefined : code))) {
-    await dropSignup(deps, token.hash);
-    return { kind: "email_unavailable" };
-  }
-  say(deps, caller, "staff.sign_up_started");
-  return {
-    kind: "code_sent",
-    challengeToken: token.token,
-    expiresInSeconds: L.challengeValiditySeconds,
-  };
+  return issueSignup(deps, caller, {
+    email,
+    organizerName: form,
+    accepted: input.accept,
+    passwordHash: prepared.hash,
+    existing,
+  });
 }
 
 type Judged = SignUpCodeResult | Readonly<{ kind: "ok"; typed: Buffer }>;

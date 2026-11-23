@@ -87,6 +87,23 @@ type Admitted =
   | Readonly<{ kind: "admitted"; organizerName: string }>
   | Exclude<InviteResult, { kind: "invited" | "email_unavailable" }>;
 
+/**
+ * The pending and daily caps, once the organizer's facts and today's count are read. Waiting does not empty a full list
+ * of pending invites; cancelling one does, so it gets its own answer, checked first.
+ */
+export function capRefusal(
+  fact: Readonly<{ pending: number; activated: boolean }>,
+  today: Readonly<{ count: number; retryAfterSeconds: number }>,
+): Admitted | undefined {
+  if (fact.pending >= L.invitesPending) {
+    return { kind: "pending_full" };
+  }
+  const perDay = fact.activated ? L.invitesPerDay.activated : L.invitesPerDay.notActivated;
+  return today.count >= perDay
+    ? { kind: "throttled", retryAfterSeconds: today.retryAfterSeconds }
+    : undefined;
+}
+
 /** The checks before an invite exists: the email, the limit, membership, pending and daily caps. */
 async function admitInvite(
   deps: PasswordDeps,
@@ -120,19 +137,15 @@ async function admitInvite(
   if (fact === undefined) {
     return { kind: "throttled", retryAfterSeconds: 1 };
   }
-  const perDay = fact.activated ? L.invitesPerDay.activated : L.invitesPerDay.notActivated;
   const today = await countRecent(
     client,
     BUCKETS.inviteOrganizer,
     key,
     L.invitesPerDay.windowSeconds,
   );
-  // Waiting does not empty a full list of pending invites; cancelling one does, so it gets its own answer.
-  if (fact.pending >= L.invitesPending) {
-    return { kind: "pending_full" };
-  }
-  if (today.count >= perDay) {
-    return { kind: "throttled", retryAfterSeconds: today.retryAfterSeconds };
+  const capped = capRefusal(fact, today);
+  if (capped !== undefined) {
+    return capped;
   }
   await record(client, BUCKETS.inviteOrganizer, key);
   return { kind: "admitted", organizerName: fact.name };

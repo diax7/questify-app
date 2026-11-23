@@ -55,6 +55,15 @@ describe("findSecretKey", () => {
     expect(findSecretKey({ a: { b: [{ c: 1 }, { token: "x" }] } })).toBe("token");
   });
 
+  it("names a key before any secret deeper in its own value", () => {
+    expect(findSecretKey({ token: { password: "x" } })).toBe("token");
+  });
+
+  it("names the first secret in array order", () => {
+    expect(findSecretKey([{ a: 1 }, { code: "x" }, { password: "y" }])).toBe("code");
+    expect(findSecretKey([1, "two", null])).toBeUndefined();
+  });
+
   it("finds nothing in ordinary data", () => {
     expect(
       findSecretKey({ features: { shop: { enabled: false } }, tuning: { qr: 30 } }),

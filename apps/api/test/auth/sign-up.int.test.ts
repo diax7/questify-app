@@ -235,6 +235,40 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer sign-up (T-101)", ()
         true,
       ]);
     });
+
+    it("answers 503 like a new email once the day's mail budget is spent, and mails no note", async () => {
+      const email = newEmail();
+      await createStaff(db.owner, { email });
+      await fillBudgetTo(await outboundUsed(), MAIL_MAX);
+      try {
+        const fresh = await signUp(newEmail());
+        const response = await signUp(email);
+        expect(response.statusCode).toBe(503);
+        expect(response.json()).toEqual(fresh.json());
+        expect(response.json()).toMatchObject({ code: "email_unavailable" });
+        expect(await pendingOf(email)).toBe(0);
+        expect(test.mail.to(email)).toEqual([]);
+      } finally {
+        await db.owner.query("DELETE FROM auth_throttle WHERE bucket = 'outbound_mail'");
+      }
+    });
+
+    it("answers the same 503 as a new email when the breach list is down", async () => {
+      const email = newEmail();
+      await createStaff(db.owner, { email });
+      test.breach.down = true;
+      try {
+        const fresh = await signUp(newEmail());
+        const response = await signUp(email);
+        expect(fresh.statusCode).toBe(503);
+        expect(response.statusCode).toBe(503);
+        expect(response.json()).toEqual(fresh.json());
+      } finally {
+        test.breach.down = false;
+      }
+      expect(await pendingOf(email)).toBe(0);
+      expect(test.mail.to(email)).toEqual([]);
+    });
   });
 
   describe("refusals", () => {

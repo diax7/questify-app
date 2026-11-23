@@ -1,5 +1,27 @@
 # Blueprint State — Questify
 
+## Function limits: 11 core apps/api offenders split (tier A refactor) — 2026-11-23
+
+- **Built** (plan `docs/plans/2026-11-23-core-function-limits.md`, plan review 92 GO, its MINORs folded in):
+  behaviour-preserving splits, same SQL calls in the same order, same transactions, locks, rate limits, `safeEqual`,
+  error codes and log fields. `audit/entry` `findSecretKey` (`firstSecretIn`, `secretInEntries`); `audit/record`
+  `recordAudit` (`assertAuditable`, `auditRow`); `auth/breached` (`rangeOf`, `askRange`, `bodyOf`, `listsSuffix`; same
+  clock reads); `auth/sign-in` code step and resend (positive guard `isUsable`, its Stryker disable dropped);
+  `auth/sign-up` `start` (`checkSignUpForm`, `issueSignup`; both branches still pay the same steps); `organizers/routes`
+  `answerInvite` (a `refusalThrower` table); `organizers/team` `admitInvite` (`capRefusal`); `players/sms` (`callFailed`,
+  `answerOf`); `devices/claims` `viewOf` (`questOf`, `pairedByOf`); `db/pre-identity` `lookupSetting` (`checkedEmail`,
+  a `Map` of token settings; an unknown kind is a `RangeError` before `BEGIN`). No abort rule fired. The baseline shrank
+  36 to 25.
+- **Checks:** types, lint, `lint:limits`, `format:check`; the touched unit suites and the auth, organizers,
+  audit, devices, invitations, security (outsider, cross-tenant) and db sign-in/team/devices/pre-identity integration
+  suites, 73 files and 2189 tests, all pass. New: `audit/record.test.ts`, `auth/sign-in-challenge.test.ts`,
+  `organizers/routes-invite.test.ts`, `organizers/invite-caps.test.ts`, cases in four existing unit files, and two
+  sign-up integration tests (an existing email gets the same 503 for a spent mail budget and a down breach list). Full
+  suite left to CI.
+- **Mutation (GitHub, one dispatch):** `apps/api/src/auth/sign-in.ts`, `auth/sign-up.ts`, `auth/breached.ts`,
+  `db/pre-identity.ts`, `organizers/team.ts`, `players/sms.ts`.
+- **Next:** code review, push, mutation; the other baselined offenders.
+
 ## Mutation chase, run 45226131517: media cache, link, store and worker (tests only) — 2026-11-23
 
 - **Built:** unit tests only, no production change. `media-link.test.ts`: fixed HKDF-label signature vector, padding or noise around a signature or expiry refused, non-string values that read as strings refused. `media-store.test.ts`: failure log line (`storage.failed` op, purpose, code) for get, delete and keys; SQLSTATE reading and which codes a put retries; timeout by message only without a code; 1,000-key delete is two statements; `keysPage`; cache limits (exact 4 MB, exact budget, re-set key, default and given life, constants). New `worker.test.ts` (fake pool and store, injected `random`, fake timers; the integration file is skipped without a database, so Stryker saw none of `worker.ts`): totals, rounds (full, partial, cap of 10, failed round codes), stop mid-run and in flight, daily reconcile claim and the `media.reconcile`, `media.reconcile_blocked`, `media.reconcile_failed` events the alert reads, `media.run` level and `media.run_failed` code, jitter, reschedule, `unref`. 14 hand-applied mutants (not Stryker) all fail the new tests.

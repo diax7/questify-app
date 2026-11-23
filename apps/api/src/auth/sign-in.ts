@@ -35,6 +35,7 @@ import {
   setPasswordHash,
   sweepRetention,
   type Account,
+  type Challenge,
   type PublicAccount,
   type Surface,
 } from "#src/auth/staff-store";
@@ -438,11 +439,18 @@ export const sessionSurface = (asked: Surface, account: PublicAccount): Surface 
 
 type Judged = CodeResult | Readonly<{ kind: "ok"; account: PublicAccount }>;
 
+/** A locked challenge that can still take a code or a resend: found, not consumed, not expired, attempts left. */
+export const isUsable = (challenge: Challenge | undefined): challenge is Challenge =>
+  challenge !== undefined &&
+  !challenge.consumed &&
+  !challenge.expired &&
+  challenge.attempts < L.maxCodeAttempts;
+
 /** Checks one code guess inside the locked challenge. Wrong guesses are recorded and returned, not thrown. */
 async function judgeCode(
   deps: SignInDeps,
   client: PoolClient,
-  challenge: NonNullable<Awaited<ReturnType<typeof lockChallenge>>>,
+  challenge: Challenge,
   account: PublicAccount,
   code: string,
   caller: Caller,
@@ -475,13 +483,7 @@ async function codeStep(
   const outcome = await withConnection(deps.pool, (client) =>
     withPreIdentityContext(client, { kind: "challenge", tokenHash }, async ({ promote }) => {
       const challenge = await lockChallenge(client);
-      if (
-        challenge === undefined ||
-        challenge.consumed ||
-        challenge.expired ||
-        // Stryker disable next-line ConditionalExpression,EqualityOperator: defence in depth: the bump guard and the check constraint also refuse a sixth attempt
-        challenge.attempts >= L.maxCodeAttempts
-      ) {
+      if (!isUsable(challenge)) {
         return { kind: "challenge_expired" } as const;
       }
       await promote(challenge.staffUserId);
@@ -595,13 +597,7 @@ async function resend(
       { kind: "challenge", tokenHash },
       async ({ promote }): Promise<Resending> => {
         const challenge = await lockChallenge(client);
-        if (
-          challenge === undefined ||
-          challenge.consumed ||
-          challenge.expired ||
-          // Stryker disable next-line ConditionalExpression,EqualityOperator: defence in depth: the bump guard and the check constraint also refuse a sixth attempt
-          challenge.attempts >= L.maxCodeAttempts
-        ) {
+        if (!isUsable(challenge)) {
           return { kind: "challenge_expired" };
         }
         // Stryker disable next-line ConditionalExpression,EqualityOperator,BlockStatement: defence in depth: replaceCode also refuses a fourth resend and the caller maps that to the same answer

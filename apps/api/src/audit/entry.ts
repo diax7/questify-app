@@ -59,20 +59,19 @@ export function diff(before: Plain, after: Plain): { before: Plain; after: Plain
   return { before: changedBefore, after: changedAfter };
 }
 
-/** The first key anywhere in the value that names a secret or personal data, or undefined. */
-export function findSecretKey(value: unknown): string | undefined {
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const found = findSecretKey(item);
-      if (found !== undefined) {
-        return found;
-      }
+/** The first secret key in the items, in their order, or undefined. */
+function firstSecretIn(items: readonly unknown[]): string | undefined {
+  for (const item of items) {
+    const found = findSecretKey(item);
+    if (found !== undefined) {
+      return found;
     }
-    return undefined;
   }
-  if (typeof value !== "object" || value === null) {
-    return undefined;
-  }
+  return undefined;
+}
+
+/** The first secret key among the entries: each key is checked before the value under it. */
+function secretInEntries(value: object): string | undefined {
   for (const [key, inner] of Object.entries(value)) {
     if (isForbiddenKey(key)) {
       return key;
@@ -83,4 +82,15 @@ export function findSecretKey(value: unknown): string | undefined {
     }
   }
   return undefined;
+}
+
+/** The first key anywhere in the value that names a secret or personal data, or undefined. */
+export function findSecretKey(value: unknown): string | undefined {
+  if (Array.isArray(value)) {
+    return firstSecretIn(value);
+  }
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
+  return secretInEntries(value);
 }

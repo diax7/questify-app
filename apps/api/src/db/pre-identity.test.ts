@@ -87,6 +87,20 @@ describe("withPreIdentityContext", () => {
     expect(calls).toEqual([]);
   });
 
+  it.each(["toString", "constructor", "__proto__", "hasOwnProperty", "nope"])(
+    "refuses the unknown kind %j before BEGIN",
+    async (kind) => {
+      const { client, calls } = fakeClient();
+      const lookup = { kind, tokenHash: HASH } as unknown as Parameters<
+        typeof withPreIdentityContext
+      >[1];
+      await expect(withPreIdentityContext(client, lookup, async () => 1)).rejects.toThrow(
+        new RangeError("lookup kind is not one sign-in knows."),
+      );
+      expect(calls).toHaveLength(0);
+    },
+  );
+
   it("names what is wrong with a refused lookup", async () => {
     const { client } = fakeClient();
     const run = (lookup: Parameters<typeof withPreIdentityContext>[1]) =>

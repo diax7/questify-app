@@ -23,13 +23,10 @@ export type AuditEntry = Readonly<{
 export type AuditMeta = Readonly<{ requestId?: string | undefined }>;
 
 /**
- * Writes one audit entry inside the transaction the caller already opened, so the change and its entry are saved or
- * dropped together. Nothing is read back (the caller may not be allowed to read the entry it writes).
- *
- * @throws Error when the action is not a dotted name, or when the entry would hold a secret or personal data. The
- *   error rolls back the change as well: a permanent record must never be the place a secret leaks to.
+ * Refuses an entry whose action is not a dotted name, then one that would hold a secret or personal data. The messages
+ * name the action and the key, never a value.
  */
-export async function recordAudit(client: Client | PoolClient, entry: AuditEntry): Promise<void> {
+export function assertAuditable(entry: AuditEntry): void {
   if (!isAction(entry.action)) {
     throw new Error(
       `Audit action "${entry.action}" must be dotted lower-case words, like event.update.`,
@@ -41,21 +38,37 @@ export async function recordAudit(client: Client | PoolClient, entry: AuditEntry
       `Audit entry ${entry.action} must not hold "${forbidden}": no secrets or personal data.`,
     );
   }
+}
+
+/** The ten parameters of the audit_log insert, in its column order. */
+export function auditRow(entry: AuditEntry): readonly unknown[] {
+  return [
+    entry.actor.type,
+    entry.actor.type === "system" ? null : entry.actor.id,
+    entry.organizerId ?? null,
+    entry.eventId ?? null,
+    entry.action,
+    entry.target.type,
+    entry.target.id ?? null,
+    entry.before === undefined ? null : JSON.stringify(entry.before),
+    entry.after === undefined ? null : JSON.stringify(entry.after),
+    entry.requestId ?? null,
+  ];
+}
+
+/**
+ * Writes one audit entry inside the transaction the caller already opened, so the change and its entry are saved or
+ * dropped together. Nothing is read back (the caller may not be allowed to read the entry it writes).
+ *
+ * @throws Error when the action is not a dotted name, or when the entry would hold a secret or personal data. The
+ *   error rolls back the change as well: a permanent record must never be the place a secret leaks to.
+ */
+export async function recordAudit(client: Client | PoolClient, entry: AuditEntry): Promise<void> {
+  assertAuditable(entry);
   await client.query(
     `INSERT INTO audit_log
        (actor_type, actor_id, organizer_id, event_id, action, target_type, target_id, before, after, request_id)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-    [
-      entry.actor.type,
-      entry.actor.type === "system" ? null : entry.actor.id,
-      entry.organizerId ?? null,
-      entry.eventId ?? null,
-      entry.action,
-      entry.target.type,
-      entry.target.id ?? null,
-      entry.before === undefined ? null : JSON.stringify(entry.before),
-      entry.after === undefined ? null : JSON.stringify(entry.after),
-      entry.requestId ?? null,
-    ],
+    [...auditRow(entry)],
   );
 }

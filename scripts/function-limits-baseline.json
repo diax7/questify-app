@@ -4,31 +4,6 @@
       "lines": [174]
     }
   },
-  "apps/api/src/audit/entry.ts": {
-    "findSecretKey": {
-      "complexity": [9]
-    }
-  },
-  "apps/api/src/audit/record.ts": {
-    "recordAudit": {
-      "complexity": [10]
-    }
-  },
-  "apps/api/src/auth/breached.ts": {
-    "<anonymous>": {
-      "complexity": [9]
-    }
-  },
-  "apps/api/src/auth/sign-in.ts": {
-    "<anonymous>": {
-      "complexity": [10, 9]
-    }
-  },
-  "apps/api/src/auth/sign-up.ts": {
-    "start": {
-      "complexity": [9]
-    }
-  },
   "apps/api/src/completions/complete.ts": {
     "completeQuest": {
       "complexity": [12]
@@ -39,34 +14,9 @@
       "complexity": [12]
     }
   },
-  "apps/api/src/db/pre-identity.ts": {
-    "lookupSetting": {
-      "complexity": [11]
-    }
-  },
   "apps/api/src/desk/routes.ts": {
     "refuse": {
       "complexity": [16]
-    }
-  },
-  "apps/api/src/devices/claims.ts": {
-    "<anonymous>": {
-      "complexity": [12]
-    }
-  },
-  "apps/api/src/organizers/routes.ts": {
-    "answerInvite": {
-      "complexity": [10]
-    }
-  },
-  "apps/api/src/organizers/team.ts": {
-    "admitInvite": {
-      "complexity": [9]
-    }
-  },
-  "apps/api/src/players/sms.ts": {
-    "<anonymous>": {
-      "complexity": [11]
     }
   },
   "apps/api/src/rewards/shop.ts": {

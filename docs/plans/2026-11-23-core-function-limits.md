@@ -9,8 +9,8 @@ error code, status, header, log event or log field changes. Measured today with 
 **Rules for every split.** (1) Same database calls in the same order on every path, same transaction boundaries (no
 helper opens or closes one, no `withConnection` moves). (2) Same checks in the same order, so the first refusal for any
 input is unchanged. (3) `safeEqual`, lock (`tryLock`) and rate-limit (`countRecent`/`record`) calls are not touched or
-moved. (4) Logs and errors keep exactly their current fields; no helper takes or logs an email, phone, password, code or
-SMS text. (5) Every `// Stryker disable` comment moves with its line. Abort rule: if a split cannot meet (1)–(3), keep
+moved. (4) Logs and errors keep exactly their current fields; no helper writes an email, phone, password, code, SMS text or
+token hash into a log line or an error message. (5) Every `// Stryker disable` comment moves with its line. Abort rule: if a split cannot meet (1)–(3), keep
 the function as is and leave it in the baseline.
 
 | # | Function (complexity) | What it does | Split |
@@ -42,7 +42,7 @@ Existing pins (all must pass unchanged): #1 `src/audit/entry.test.ts`; #2 `test/
 #10 `src/devices/claims.test.ts`; #11 `src/db/pre-identity.test.ts` and the `test/db/*` pre-identity suites.
 
 New unit tests (pure, no database): `audit/entry.test.ts` (key named before a deeper secret in its value; array order),
-`audit/record.test.ts` (`auditRow` system actor → null id, JSON before/after; `assertAuditable` order: a bad action
+new `audit/record.test.ts` (`auditRow` system actor → null id, JSON before/after; `assertAuditable` order: a bad action
 with a secret names the action), `auth/breached.test.ts` (`listsSuffix` count 0 and other suffixes), new
 `auth/sign-in-challenge.test.ts` (`challengeUnusable`: each of the four reasons and a usable one, attempts 4 vs 5),
 new `organizers/routes-invite.test.ts` (every kind's code and status; `throttled` sets `retry-after`; `invalid_email`
@@ -57,6 +57,19 @@ once into a log.
 
 Run after the build review, one dispatch: `apps/api/src/auth/sign-in.ts`, `apps/api/src/auth/sign-up.ts`,
 `apps/api/src/auth/breached.ts`, `apps/api/src/db/pre-identity.ts` (sign-in), `apps/api/src/organizers/team.ts`
-(tenant isolation: invites and team caps), each `!**/*.test.ts`. Not mutated: `audit/*` (append-only audit, not one of
-the four areas), `organizers/routes.ts` (a mapping table, pinned by the new per-kind test), `players/sms.ts` (outside
-call), `devices/claims.ts` (view mapper, outside `stryker.config.json`). Chase only files under 90%, one round.
+(tenant isolation: invites and team caps), `apps/api/src/players/sms.ts` (sign-in codes; review MINOR 4), each `!**/*.test.ts`. Not mutated: `audit/*` (append-only audit, not one of
+the four areas), `organizers/routes.ts` (a mapping table, pinned by the new per-kind test), `devices/claims.ts` (view mapper, outside `stryker.config.json`). Chase only files under 90%, one round.
+
+## Plan review (92/100 GO, folded in)
+
+- MINOR 1: #4–5 use a positive guard `isUsable(challenge): challenge is LockedChallenge` and
+  `if (!isUsable(challenge)) return expired`. The Stryker disable on the attempts line is dropped, not moved: the new
+  attempts 4-vs-5 test kills that mutant.
+- MINOR 2: #11 `TOKEN_SETTINGS` is a `Map` (as `refusal-table.ts`), so an inherited key (`toString`) never matches; an
+  unknown kind throws `RangeError` before `BEGIN` (new test).
+- MINOR 3: two new sign-up integration tests: an existing email with the mail budget used up gets 503; an existing
+  email with the breach check down gets the same 503 as a new email.
+- MINOR 4: `apps/api/src/players/sms.ts` joins the mutation scope.
+- MINOR 5: rule (4) reworded (above).
+- NITs: `audit/record.test.ts` is new; in #3 `rangeOf(password)` still runs before `AbortSignal.timeout`, and the
+  response-cleanup block stays in the main function; `lint:limits` is a pure shrink, 36 to 25 violations.

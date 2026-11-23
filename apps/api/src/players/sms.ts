@@ -35,6 +35,32 @@ const causeCode = (error: unknown): string | undefined => {
   return typeof cause?.code === "string" ? cause.code : undefined;
 };
 
+/** A call that threw: `retry` only when the request provably never left, else unknown (it may still arrive). */
+function callFailed(error: unknown): SmsResult | "retry" {
+  const code = causeCode(error);
+  if (code !== undefined && NEVER_LEFT.has(code)) {
+    return "retry";
+  }
+  return {
+    kind: "unknown",
+    reason: (error as Error).name === "TimeoutError" ? "timeout" : "network",
+  };
+}
+
+/** Msegat's answer: sent, refused with its code, or unknown with the HTTP status when no code could be read. */
+export async function answerOf(response: Response): Promise<SmsResult> {
+  const body = (await response.json().catch(() => undefined)) as { code?: unknown } | undefined;
+  const code = body?.code === undefined ? undefined : String(body.code);
+  if (code !== undefined && SUCCESS.has(code)) {
+    return { kind: "sent" };
+  }
+  if (code !== undefined) {
+    // A definite answer from Msegat: the code did not go out (balance 1060, sender 1110, number 1120, IP M0037…).
+    return { kind: "refused", reason: code };
+  }
+  return { kind: "unknown", reason: `http_${response.status}` };
+}
+
 /**
  * Msegat's `sendsms.php` (INTEGRATIONS.md): JSON body with the account, the services sender, the number without `+`,
  * the text in UTF-8; success is code `1` or `M0000`. Five-second limit; one retry only when the request provably never
@@ -61,25 +87,9 @@ export function createMsegatSender(options: MsegatOptions): SmsSender {
         signal: AbortSignal.timeout(options.timeoutMs ?? 5000),
       });
     } catch (error) {
-      const code = causeCode(error);
-      if (code !== undefined && NEVER_LEFT.has(code)) {
-        return "retry";
-      }
-      return {
-        kind: "unknown",
-        reason: (error as Error).name === "TimeoutError" ? "timeout" : "network",
-      };
+      return callFailed(error);
     }
-    const body = (await response.json().catch(() => undefined)) as { code?: unknown } | undefined;
-    const code = body?.code === undefined ? undefined : String(body.code);
-    if (code !== undefined && SUCCESS.has(code)) {
-      return { kind: "sent" };
-    }
-    if (code !== undefined) {
-      // A definite answer from Msegat: the code did not go out (balance 1060, sender 1110, number 1120, IP M0037…).
-      return { kind: "refused", reason: code };
-    }
-    return { kind: "unknown", reason: `http_${response.status}` };
+    return answerOf(response);
   };
   return {
     name: "msegat",

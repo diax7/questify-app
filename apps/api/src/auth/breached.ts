@@ -37,26 +37,10 @@ export function createBreachCheck(options: Options = {}): BreachCheck {
   const deadlineMs = options.deadlineMs ?? DEADLINE_MS;
 
   return async (password) => {
-    const digest = createHash("sha1")
-      .update(normalizePassword(password))
-      .digest("hex")
-      .toUpperCase();
-    const prefix = digest.slice(0, 5);
-    const suffix = digest.slice(5);
+    const { prefix, suffix } = rangeOf(password);
     const signal = AbortSignal.timeout(deadlineMs);
     const started = now();
-
-    const attempt = async (): Promise<Response | Error> => {
-      try {
-        return await call(`${RANGE_URL}${prefix}`, {
-          headers: { "add-padding": "true", "user-agent": "Questify-API" },
-          redirect: "error",
-          signal,
-        });
-      } catch (error) {
-        return error instanceof Error ? error : new Error(String(error));
-      }
-    };
+    const attempt = () => askRange(call, prefix, signal);
 
     let outcome = await attempt();
     if (isRetryable(outcome) && deadlineMs - (now() - started) >= RETRY_FLOOR_MS) {
@@ -68,21 +52,51 @@ export function createBreachCheck(options: Options = {}): BreachCheck {
       // Stryker restore all
       outcome = await attempt();
     }
-    if (outcome instanceof Error || !outcome.ok) {
-      const reason = outcome instanceof Error ? outcome.name : `status ${outcome.status}`;
-      throw new BreachCheckUnavailable(`The breached-password check did not answer (${reason}).`);
-    }
-    let body: string;
-    try {
-      body = await outcome.text();
-    } catch (error) {
-      throw new BreachCheckUnavailable("The breached-password check did not answer (body).", {
-        cause: error,
-      });
-    }
-    return body.split("\n").some((line) => {
-      const [hashSuffix, count] = line.split(":");
-      return hashSuffix === suffix && Number(count) > 0;
-    });
+    return listsSuffix(await bodyOf(outcome), suffix);
   };
 }
+
+/** The password's SHA-1 (of its NFKC form) in upper-case hex: the five characters sent, and the rest kept. */
+function rangeOf(password: string): Readonly<{ prefix: string; suffix: string }> {
+  const digest = createHash("sha1").update(normalizePassword(password)).digest("hex").toUpperCase();
+  return { prefix: digest.slice(0, 5), suffix: digest.slice(5) };
+}
+
+/** One call for the range; a thrown failure comes back as an Error value. */
+async function askRange(
+  call: typeof fetch,
+  prefix: string,
+  signal: AbortSignal,
+): Promise<Response | Error> {
+  try {
+    return await call(`${RANGE_URL}${prefix}`, {
+      headers: { "add-padding": "true", "user-agent": "Questify-API" },
+      redirect: "error",
+      signal,
+    });
+  } catch (error) {
+    return error instanceof Error ? error : new Error(String(error));
+  }
+}
+
+/** The answer's body, or `BreachCheckUnavailable` naming only the error's name or the status. */
+async function bodyOf(outcome: Response | Error): Promise<string> {
+  if (outcome instanceof Error || !outcome.ok) {
+    const reason = outcome instanceof Error ? outcome.name : `status ${outcome.status}`;
+    throw new BreachCheckUnavailable(`The breached-password check did not answer (${reason}).`);
+  }
+  try {
+    return await outcome.text();
+  } catch (error) {
+    throw new BreachCheckUnavailable("The breached-password check did not answer (body).", {
+      cause: error,
+    });
+  }
+}
+
+/** True when the body lists the suffix with a count above 0 (padding rows have 0). */
+export const listsSuffix = (body: string, suffix: string): boolean =>
+  body.split("\n").some((line) => {
+    const [hashSuffix, count] = line.split(":");
+    return hashSuffix === suffix && Number(count) > 0;
+  });

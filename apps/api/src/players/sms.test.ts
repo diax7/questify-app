@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createMsegatSender } from "#src/players/sms";
+import { answerOf, createMsegatSender } from "#src/players/sms";
 
 const OPTIONS = { userName: "nafes", apiKey: "test-key", sender: "Questify" } as const;
 const MESSAGE = { to: "+966551234567", text: "رمز الدخول إلى Questify: 123456" } as const;
@@ -98,5 +98,19 @@ describe("the Msegat sender", () => {
       },
     });
     expect(await sender.send(MESSAGE)).toEqual({ kind: "sent" });
+  });
+});
+
+describe("answerOf, Msegat's answer", () => {
+  it("calls a 200 with an unreadable body unknown, naming only the status", async () => {
+    expect(await answerOf(answer("not json"))).toEqual({ kind: "unknown", reason: "http_200" });
+    expect(await answerOf(answer({ message: "no code" }))).toEqual({
+      kind: "unknown",
+      reason: "http_200",
+    });
+  });
+
+  it("refuses with Msegat's own code, as text", async () => {
+    expect(await answerOf(answer({ code: 1060 }))).toEqual({ kind: "refused", reason: "1060" });
   });
 });

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { BreachCheckUnavailable, createBreachCheck } from "#src/auth/breached";
+import { BreachCheckUnavailable, createBreachCheck, listsSuffix } from "#src/auth/breached";
 
 const PASSWORD = "correct horse battery staple";
 const SHA1 = createHash("sha1").update(PASSWORD).digest("hex").toUpperCase();
@@ -130,5 +130,14 @@ describe("createBreachCheck", () => {
       message: "The breached-password check did not answer (body).",
       cause: new Error("reset"),
     });
+  });
+});
+
+describe("listsSuffix", () => {
+  it("matches only its own suffix with a count above 0", () => {
+    expect(listsSuffix(`${OTHER}:9\n${SUFFIX}:2`, SUFFIX)).toBe(true);
+    expect(listsSuffix(`${SUFFIX}:0`, SUFFIX)).toBe(false);
+    expect(listsSuffix(`${OTHER}:9`, SUFFIX)).toBe(false);
+    expect(listsSuffix("", SUFFIX)).toBe(false);
   });
 });

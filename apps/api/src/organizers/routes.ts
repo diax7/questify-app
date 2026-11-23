@@ -28,6 +28,7 @@ import type { Rehearsal } from "#src/rehearsal/service";
 import type { Sessions } from "#src/auth/session";
 import { callerOf, parse } from "#src/auth/request";
 import { waitThen } from "#src/http-error";
+import { refusalThrower } from "#src/refusal-table";
 import { guardStaffDoor } from "#src/auth/staff-guard";
 import type { Events } from "#src/events/events";
 import type { SuspendedSet } from "#src/events/suspended-set";
@@ -139,28 +140,28 @@ const scopeBody = z.object({ eventScope: scopeList.nullable() });
 const memberParams = z.object({ staffUserId: z.uuid() });
 const inviteParams = z.object({ inviteId: z.uuid() });
 
-function answerInvite(reply: FastifyReply, result: InviteResult) {
-  switch (result.kind) {
-    case "invited":
-      return reply.code(201).send({ id: result.id });
-    case "invalid_email":
-      throw invalidRequest();
-    case "self":
-      throw inviteSelf();
-    case "already_member":
-      throw alreadyMember();
-    case "invalid_scope":
-      throw invalidScope();
-    case "mail_cap":
-      throw mailCap();
-    case "pending_full":
-      throw invitesPendingFull();
-    case "email_unavailable":
-      throw emailUnavailable();
-    case "throttled":
-      waitThen(reply, result.retryAfterSeconds);
-      throw tooManyAttempts({ retryAfterSeconds: result.retryAfterSeconds });
-  }
+const refuseTeamInvite = refusalThrower<
+  Exclude<InviteResult, { kind: "invited" }>,
+  [reply: FastifyReply]
+>({
+  invalid_email: () => invalidRequest(),
+  self: () => inviteSelf(),
+  already_member: () => alreadyMember(),
+  invalid_scope: () => invalidScope(),
+  mail_cap: () => mailCap(),
+  pending_full: () => invitesPendingFull(),
+  email_unavailable: () => emailUnavailable(),
+  throttled: (result, reply) => {
+    waitThen(reply, result.retryAfterSeconds);
+    return tooManyAttempts({ retryAfterSeconds: result.retryAfterSeconds });
+  },
+});
+
+/** 201 with the new invite's id, or the refusal's error (a wait first sets `retry-after`). */
+export function answerInvite(reply: FastifyReply, result: InviteResult) {
+  return result.kind === "invited"
+    ? reply.code(201).send({ id: result.id })
+    : refuseTeamInvite(result, reply);
 }
 
 function answerChange(reply: FastifyReply, result: ChangeResult) {

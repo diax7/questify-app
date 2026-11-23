@@ -52,30 +52,36 @@ const hasControlCharacter = (text: string): boolean =>
     return code < 0x20 || code === 0x7f;
   });
 
-function lookupSetting(lookup: Lookup): readonly [string, string] {
-  switch (lookup.kind) {
-    case "email": {
-      if (
-        lookup.email.length > MAX_EMAIL_LENGTH ||
-        lookup.email !== lookup.email.toLowerCase() ||
-        hasControlCharacter(lookup.email) ||
-        !EMAIL.test(lookup.email)
-      ) {
-        throw new RangeError("email must be a normalized (lowercase) address.");
-      }
-      return ["app.auth_email", lookup.email];
-    }
-    case "session":
-      return ["app.session_token_hash", checkedHash("tokenHash", lookup.tokenHash)];
-    case "challenge":
-      return ["app.challenge_token_hash", checkedHash("tokenHash", lookup.tokenHash)];
-    case "reset":
-      return ["app.reset_token_hash", checkedHash("tokenHash", lookup.tokenHash)];
-    case "signup":
-      return ["app.signup_token_hash", checkedHash("tokenHash", lookup.tokenHash)];
-    case "invite":
-      return ["app.invite_token_hash", checkedHash("tokenHash", lookup.tokenHash)];
+function checkedEmail(email: string): string {
+  if (
+    email.length > MAX_EMAIL_LENGTH ||
+    email !== email.toLowerCase() ||
+    hasControlCharacter(email) ||
+    !EMAIL.test(email)
+  ) {
+    throw new RangeError("email must be a normalized (lowercase) address.");
   }
+  return email;
+}
+
+/** The setting each token kind opens. A Map, so an inherited name (`toString`) is never a kind. */
+const TOKEN_SETTINGS: ReadonlyMap<string, string> = new Map([
+  ["session", "app.session_token_hash"],
+  ["challenge", "app.challenge_token_hash"],
+  ["reset", "app.reset_token_hash"],
+  ["signup", "app.signup_token_hash"],
+  ["invite", "app.invite_token_hash"],
+]);
+
+function lookupSetting(lookup: Lookup): readonly [string, string] {
+  if (lookup.kind === "email") {
+    return ["app.auth_email", checkedEmail(lookup.email)];
+  }
+  const setting = TOKEN_SETTINGS.get(lookup.kind);
+  if (setting === undefined) {
+    throw new RangeError("lookup kind is not one sign-in knows.");
+  }
+  return [setting, checkedHash("tokenHash", lookup.tokenHash)];
 }
 
 /**
