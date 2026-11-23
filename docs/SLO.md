@@ -75,6 +75,7 @@ the rules rewritten; the alert test checks the underscore spelling against the c
 | `http.server.request.duration` (`http_server_request_duration_seconds_*`) | histogram, seconds | method, route pattern, status, route class | every request; buckets 5 ms to 10 s with an edge at 1 s |
 | `questify.log.events` (`questify_log_events_total`) | counter | event, level | every log line that names an event: `community.settle_failed`, `push.notice_parked`, ... |
 | `questify.outbound.requests` (`questify_outbound_requests_total`) and `.duration` | counter, histogram | operation (`sms`, `email`, `push`), provider, outcome | calls to Msegat, Gmail, Resend, APNs, FCM |
+| `questify.media.reads` (`questify_media_reads_total`) | counter | outcome (`ok`, `not_modified`, `refused`, `busy`, `unavailable`) | every `GET /v1/media/<key>` by how it ended: bytes sent, 304, the one 404, gate full (503), media database down (503) |
 | `questify.tick.runs`, `.duration`, `.last_run` | counter, histogram, gauge | loop, outcome | the nine background loops: `lifecycle`, `community`, `souvenir`, `invitation`, `rank_push`, `organizer_alerts`, `team_alerts`, `ranking_repair`, `push_worker` |
 | `questify.db.pool.connections` (`questify_db_pool_connections`) | gauge | pool (`api`, `push`), state (`total`, `idle`, `waiting`) | connections held and clients waiting |
 

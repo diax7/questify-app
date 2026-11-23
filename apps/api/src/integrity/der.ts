@@ -1,7 +1,7 @@
 /**
  * Just enough DER (X.690) to read one extension of an X.509 certificate (T-812): Node's `X509Certificate` checks the
  * chain and the dates but does not expose an extension it does not know, such as App Attest's nonce
- * (1.2.840.113635.100.8.2). Lengths up to 4 bytes; anything malformed throws.
+ * (1.2.840.113635.100.8.2). Lengths up to 4 bytes, in their shortest form; anything malformed throws.
  */
 
 export type Der = Readonly<{ tag: number; value: Buffer }>;
@@ -14,6 +14,25 @@ export class DerError extends Error {
   }
 }
 
+/** The length at `offset` (up to 4 bytes, in its shortest form) and where its content starts. */
+function lengthAt(bytes: Buffer, offset: number): Readonly<{ length: number; start: number }> {
+  const first = bytes.readUInt8(offset);
+  if (!(first & 0x80)) {
+    return { length: first, start: offset + 1 };
+  }
+  const size = first & 0x7f;
+  const start = offset + 1 + size;
+  if (size === 0 || size > 4 || start > bytes.length) {
+    throw new DerError("bad length");
+  }
+  const lead = bytes.readUInt8(offset + 1);
+  // DER wants the shortest form: no leading zero byte, and nothing under 128 in the long form.
+  if (lead === 0 || (size === 1 && lead < 0x80)) {
+    throw new DerError("non-minimal length");
+  }
+  return { length: bytes.readUIntBE(offset + 1, size), start };
+}
+
 /** The element at `offset` and where the next one starts. */
 function element(bytes: Buffer, offset: number): Readonly<{ der: Der; next: number }> {
   if (offset + 2 > bytes.length) {
@@ -23,17 +42,7 @@ function element(bytes: Buffer, offset: number): Readonly<{ der: Der; next: numb
   if ((tag & 0x1f) === 0x1f) {
     throw new DerError("long tags are not read");
   }
-  const first = bytes.readUInt8(offset + 1);
-  let start = offset + 2;
-  let length = first;
-  if (first & 0x80) {
-    const size = first & 0x7f;
-    if (size === 0 || size > 4 || start + size > bytes.length) {
-      throw new DerError("bad length");
-    }
-    length = bytes.readUIntBE(start, size);
-    start += size;
-  }
+  const { length, start } = lengthAt(bytes, offset + 1);
   const end = start + length;
   if (end > bytes.length) {
     throw new DerError("truncated");

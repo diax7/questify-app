@@ -35,6 +35,12 @@ export const METRICS = {
     kind: "histogram",
     description: "How long an outside provider took to answer.",
   },
+  mediaReads: {
+    name: "questify.media.reads",
+    unit: "{read}",
+    kind: "counter",
+    description: "Media route reads, by outcome (ok, not_modified, refused, busy, unavailable).",
+  },
   tickRuns: {
     name: "questify.tick.runs",
     unit: "{run}",
@@ -77,6 +83,7 @@ export type Instruments = Readonly<{
   logEvents: Counter;
   outboundRequests: Counter;
   outboundDuration: Histogram;
+  mediaReads: Counter;
   tickRuns: Counter;
   tickDuration: Histogram;
 }>;
@@ -128,6 +135,7 @@ export function createInstruments(meter: Meter): Instruments {
     logEvents: counter(METRICS.logEvents),
     outboundRequests: counter(METRICS.outboundRequests),
     outboundDuration: histogramOf(meter, METRICS.outboundDuration, CALL_BUCKETS),
+    mediaReads: counter(METRICS.mediaReads),
     tickRuns: counter(METRICS.tickRuns),
     tickDuration: histogramOf(meter, METRICS.tickDuration, RUN_BUCKETS),
   };

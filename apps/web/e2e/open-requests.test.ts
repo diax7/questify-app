@@ -87,4 +87,29 @@ describe("the request count waitUntilSettled reads", () => {
     setTimeout(() => emit("requestfinished", read), 600);
     expect(await timeToSettle(page)).toBeGreaterThanOrEqual(600 + QUIET_MS - 50);
   });
+
+  it("stops waiting for a commit when the navigation request fails, so a later pushState keeps real reads", async () => {
+    const { page, emit } = fakePage();
+    const aborted = request("/en/download", true);
+    emit("request", aborted);
+    emit("requestfailed", aborted);
+    const read = request("/v1/organizers/o/events", false);
+    emit("request", read);
+    emit("framenavigated", TOP);
+    setTimeout(() => emit("requestfinished", read), 600);
+    expect(await timeToSettle(page)).toBeGreaterThanOrEqual(600 + QUIET_MS - 50);
+  });
+
+  it("keeps waiting for the commit when an older navigation fails after a newer one began", async () => {
+    const { page, emit } = fakePage();
+    const older = request("/en/a", true);
+    const newer = request("/en/b", true);
+    emit("request", older);
+    emit("request", newer);
+    emit("requestfailed", older);
+    emit("request", request("/v1/device", false));
+    emit("requestfinished", newer);
+    emit("framenavigated", TOP);
+    expect(await timeToSettle(page)).toBeLessThan(2000);
+  });
 });

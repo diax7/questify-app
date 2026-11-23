@@ -38,11 +38,7 @@ const emptyBody = z.union([z.strictObject({}), z.undefined(), z.null()]);
 const SETTLING_RETRY_SECONDS = 5;
 
 /** One HTTP answer per refusal (API.md, community quests). */
-export function refuse(reply: FastifyReply, result: CommunityRefusal): never {
-  return refuseCommunity(result, reply);
-}
-
-const refuseCommunity = refusalThrower<CommunityRefusal, [reply: FastifyReply]>({
+export const refuseCommunity = refusalThrower<CommunityRefusal, [reply: FastifyReply]>({
   not_found: () => notFound(),
   invalid: (result) => invalidGoal({ issues: result.issues }),
   overlap: () => goalOverlap(),
@@ -60,7 +56,7 @@ const refuseCommunity = refusalThrower<CommunityRefusal, [reply: FastifyReply]>(
 });
 
 const valueOf = <T>(reply: FastifyReply, result: CommunityDone<T>): T =>
-  result.kind === "done" ? result.value : refuse(reply, result);
+  result.kind === "done" ? result.value : refuseCommunity(result, reply);
 
 /** The body checked here first, with the fields at fault named (`invalid_goal {issues}`). */
 const bodyOf = (body: unknown) => {

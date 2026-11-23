@@ -31,21 +31,32 @@ function opensNewDocument(page: WatchedPage, request: Request): boolean {
  * The same holds for a read the old document starts after the next document's request began: the pairing pages poll
  * `GET /v1/device` every 300 ms to 3 s, so one poll often fires in that gap, is cut off by the commit and is never
  * reported (the phone a11y sweep on /kiosk, 2026-11-14). So the commit of a new top-frame document (`framenavigated`
- * after a navigation request, not a pushState) drops every read still open as well.
+ * after a navigation request, not a pushState) drops every read still open as well. A navigation request that fails
+ * never commits, so its `requestfailed` ends the wait for a commit; otherwise a later pushState would clear real reads.
  */
 export function watchRequests(page: WatchedPage): void {
-  const requests = { open: new Set<Request>(), lastActivity: Date.now(), loading: false };
+  const requests = {
+    open: new Set<Request>(),
+    lastActivity: Date.now(),
+    loading: false,
+    navigation: undefined as Request | undefined,
+  };
   const change = (request: Request, started: boolean): void => {
     if (started && opensNewDocument(page, request)) {
       requests.open.clear();
       requests.loading = true;
+      requests.navigation = request;
     }
     requests.open[started ? "add" : "delete"](request);
     requests.lastActivity = Date.now();
   };
   page.on("request", (request) => change(request, true));
   page.on("requestfinished", (request) => change(request, false));
-  page.on("requestfailed", (request) => change(request, false));
+  page.on("requestfailed", (request) => {
+    // A navigation that fails (abort, download, refused) never commits: stop waiting for a commit that will not come.
+    if (request === requests.navigation) requests.loading = false;
+    change(request, false);
+  });
   page.on("framenavigated", (frame) => {
     if (frame === page.mainFrame() && requests.loading) {
       requests.loading = false;

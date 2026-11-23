@@ -1,11 +1,12 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import type { Pool } from "pg";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { registerConventions } from "#src/conventions";
 import { MemoryIdempotencyStore } from "#src/idempotency-store";
 import { StorageError, type ObjectStore, type StoredBlob } from "#src/storage/client";
 import { createMediaStore } from "#src/storage/media-store";
 import { createReadGate, registerMediaRoutes, type ReadGate } from "#src/storage/media-route";
+import { recordTelemetry, type Recording } from "#test/support/telemetry";
 
 const KEY =
   "o/11111111-1111-4111-8111-111111111111/e/22222222-2222-4222-8222-222222222222/submission/33333333-3333-4333-8333-333333333333.jpg";
@@ -198,5 +199,50 @@ describe("the read gate", () => {
     gate.leave();
     gate.leave();
     expect(await gate.enter()).toBe(true);
+  });
+});
+
+describe("the media read counter", () => {
+  let recording: Recording;
+  beforeEach(() => {
+    recording = recordTelemetry();
+  });
+  afterEach(async () => {
+    await recording.shutdown();
+  });
+
+  it("counts every read by how it ended: ok, not_modified, refused, busy, unavailable", async () => {
+    const storage = storeWith(async () => BLOB, { count: 0 });
+    const server = await serve(storage);
+    const etag = `"${BLOB.sha256.toString("base64url")}"`;
+    await server.inject({ method: "GET", url: pathOf(storage) });
+    await server.inject({ method: "GET", url: pathOf(storage) });
+    await server.inject({
+      method: "GET",
+      url: pathOf(storage),
+      headers: { "if-none-match": etag },
+    });
+    await server.inject({ method: "GET", url: `/v1/media/${KEY}?e=1&s=${"A".repeat(22)}` });
+    await server.inject({ method: "GET", url: "/v1/media/not-a-key" });
+    await app?.close();
+    const empty = storeWith(async () => undefined, { count: 0 });
+    await (await serve(empty)).inject({ method: "GET", url: pathOf(empty) });
+    await app?.close();
+    const full = await serve(storage, { enter: async () => false, leave: () => undefined });
+    await full.inject({ method: "GET", url: pathOf(storage) });
+    await app?.close();
+    const down = storeWith(
+      async () => {
+        throw new StorageError("get", "unavailable");
+      },
+      { count: 0 },
+    );
+    await (await serve(down)).inject({ method: "GET", url: pathOf(down) });
+    const points = (await recording.metrics()).get("questify.media.reads") ?? [];
+    expect(
+      Object.fromEntries(
+        points.map((point) => [point.attributes["questify.outcome"], point.value]),
+      ),
+    ).toEqual({ ok: 2, not_modified: 1, refused: 3, busy: 1, unavailable: 1 });
   });
 });

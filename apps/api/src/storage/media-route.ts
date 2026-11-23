@@ -2,6 +2,8 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { mediaBusy, notFound } from "#src/auth/http-errors";
 import { etagMatches } from "#src/etag";
 import { StorageError, type ObjectStore, type StoredBlob } from "#src/storage/client";
+import { instruments } from "#src/telemetry/instruments";
+import { safeAttributes } from "#src/telemetry/attributes";
 
 /** Media reads at a time and waiting, then 503 (plan review 86 MINOR 7; phase 3 tunes them from the load test). */
 export const READ_ACTIVE = 8;
@@ -47,6 +49,12 @@ export type MediaRouteDeps = Readonly<{
 
 const busy = mediaBusy;
 
+/** How a media read ended: the label of `questify.media.reads`. */
+type Outcome = "ok" | "not_modified" | "refused" | "busy" | "unavailable";
+
+const countRead = (outcome: Outcome): void =>
+  instruments().mediaReads.add(1, safeAttributes({ "questify.outcome": outcome }));
+
 /** The key a request names, only when its raw path is exactly `/v1/media/<key>` (no encoding, no extra segment). */
 function keyOf(request: FastifyRequest): string | undefined {
   const path = request.url.split("?")[0] ?? "";
@@ -66,6 +74,7 @@ async function read(
   reply: FastifyReply,
 ): Promise<StoredBlob | undefined> {
   if (!(await deps.gate.enter())) {
+    countRead("busy");
     reply.header("retry-after", "1");
     throw busy();
   }
@@ -73,6 +82,7 @@ async function read(
     return await storage.get(key);
   } catch (error) {
     if (!(error instanceof StorageError)) throw error;
+    countRead("unavailable");
     reply.header("retry-after", "1");
     throw busy();
   } finally {
@@ -95,7 +105,11 @@ function answer(
     .header("content-security-policy", "default-src 'none'")
     .header("x-content-type-options", "nosniff")
     .header("accept-ranges", "none");
-  if (etagMatches(request.headers["if-none-match"], etag)) return reply.code(304).send();
+  if (etagMatches(request.headers["if-none-match"], etag)) {
+    countRead("not_modified");
+    return reply.code(304).send();
+  }
+  countRead("ok");
   return reply
     .header("content-type", blob.contentType)
     .header("content-disposition", "inline")
@@ -116,10 +130,19 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRouteDeps):
     const key = keyOf(request);
     const storage = deps.storage;
     const expiry = queryValue(request, "e");
-    if (key === undefined || storage === undefined) throw notFound();
-    if (!storage.checkLink(key, expiry, queryValue(request, "s"))) throw notFound();
+    if (
+      key === undefined ||
+      storage === undefined ||
+      !storage.checkLink(key, expiry, queryValue(request, "s"))
+    ) {
+      countRead("refused");
+      throw notFound();
+    }
     const blob = await read(gated, storage, key, reply);
-    if (blob === undefined) throw notFound();
+    if (blob === undefined) {
+      countRead("refused");
+      throw notFound();
+    }
     const left = Math.max(1, Math.min(300, Number(expiry) - Math.floor(now() / 1000)));
     return answer(reply, request, blob, left);
   });

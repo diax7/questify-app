@@ -55,6 +55,30 @@ describe("the DER reader (T-812)", () => {
     expect(extensionOf(issue({ cn: "plain" }).der, "2.5.29.19")).toBeUndefined();
   });
 
+  it("reads the shortest form of every length and refuses a longer one", () => {
+    for (const [head, size] of [
+      [[0x04, 0x7f], 127],
+      [[0x04, 0x81, 0x80], 128],
+      [[0x04, 0x81, 0xff], 255],
+      [[0x04, 0x82, 0x01, 0x00], 256],
+    ] as const) {
+      const read = readDer(Buffer.concat([Buffer.from(head), Buffer.alloc(size, 1)]));
+      expect(read.value.length, JSON.stringify(head)).toBe(size);
+    }
+    for (const [head, size] of [
+      [[0x04, 0x81, 0x05], 5],
+      [[0x04, 0x81, 0x7f], 127],
+      [[0x04, 0x82, 0x00, 0x80], 128],
+      [[0x04, 0x82, 0x00, 0x05], 5],
+      [[0x04, 0x84, 0x00, 0x00, 0x00, 0x05], 5],
+    ] as const) {
+      expect(
+        () => readDer(Buffer.concat([Buffer.from(head), Buffer.alloc(size, 1)])),
+        JSON.stringify(head),
+      ).toThrow(DerError);
+    }
+  });
+
   it("refuses malformed DER", () => {
     for (const bytes of [
       [0x30],

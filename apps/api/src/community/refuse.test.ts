@@ -13,7 +13,7 @@ import {
   platformFeatureOff,
   unlockTaken,
 } from "#src/auth/http-errors";
-import { refuse } from "#src/community/routes";
+import { refuseCommunity } from "#src/community/routes";
 import type { HttpError } from "#src/http-error";
 import { answerOf, describeError } from "#test/support/refusal-answer";
 
@@ -47,10 +47,10 @@ const CASES: readonly Case[] = [
   [{ kind: "settling", ...EXTRA }, communitySettling()],
 ];
 
-describe("refuse (community), one HTTP answer per refusal", () => {
+describe("refuseCommunity, one HTTP answer per refusal", () => {
   it.each(CASES)("answers %j as pinned", (input, expected) => {
     const { reply } = replyWith();
-    expect(answerOf(() => refuse(reply, input as never))).toEqual(describeError(expected));
+    expect(answerOf(() => refuseCommunity(input as never, reply))).toEqual(describeError(expected));
   });
 
   it("carries the fields each answer names", () => {
@@ -61,11 +61,11 @@ describe("refuse (community), one HTTP answer per refusal", () => {
 
   it("sets Retry-After: 5 on settling only, before it throws", () => {
     const { reply, headers } = replyWith();
-    answerOf(() => refuse(reply, { kind: "settling" }));
+    answerOf(() => refuseCommunity({ kind: "settling" }, reply));
     expect(headers).toEqual([["retry-after", "5"]]);
     for (const [input] of CASES.filter(([item]) => item["kind"] !== "settling")) {
       const other = replyWith();
-      answerOf(() => refuse(other.reply, input as never));
+      answerOf(() => refuseCommunity(input as never, other.reply));
       expect(other.headers).toEqual([]);
     }
   });
@@ -73,7 +73,7 @@ describe("refuse (community), one HTTP answer per refusal", () => {
   it("returns nothing for a kind it does not know, even one that names an inherited property", () => {
     for (const kind of ["nope", "constructor", "__proto__", "toString"]) {
       const { reply, headers } = replyWith();
-      expect(answerOf(() => refuse(reply, { kind } as never))).toBe("returned");
+      expect(answerOf(() => refuseCommunity({ kind } as never, reply))).toBe("returned");
       expect(headers).toEqual([]);
     }
   });
