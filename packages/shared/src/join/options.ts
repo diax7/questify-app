@@ -26,6 +26,29 @@ const tooLong = (text: string | null) => text !== null && [...text].length > JOI
 const sameLabel = (a: string | null, b: string | null) =>
   a !== null && b !== null && a.toLocaleLowerCase() === b.toLocaleLowerCase();
 
+/** Whether the labels break a rule: none at all, one too long, or one an earlier option already has in that language. */
+export function labelsRefused(
+  ar: string | null,
+  en: string | null,
+  cleaned: readonly JoinOption[],
+): boolean {
+  return (
+    (ar === null && en === null) ||
+    tooLong(ar) ||
+    tooLong(en) ||
+    cleaned.some((other) => sameLabel(other.ar, ar) || sameLabel(other.en, en))
+  );
+}
+
+/** Whether a named id breaks a rule: the field does not have it now, or an earlier option of the list named it. */
+export function idRefused(
+  id: string | undefined,
+  taken: ReadonlySet<string>,
+  used: ReadonlySet<string>,
+): boolean {
+  return id !== undefined && (!taken.has(id) || used.has(id));
+}
+
 /**
  * The options to save, or undefined when the list breaks a rule: 2 to 20; each with a label (at most 60 characters);
  * no two alike in a language; a kept option names an id the field has now, once. A new option gets an id from
@@ -45,15 +68,7 @@ export function cleanOptions(
   for (const typed of input) {
     const ar = labelOf(typed.ar);
     const en = labelOf(typed.en);
-    const kept = typed.id === undefined || taken.has(typed.id);
-    if (
-      (ar === null && en === null) ||
-      tooLong(ar) ||
-      tooLong(en) ||
-      !kept ||
-      (typed.id !== undefined && used.has(typed.id)) ||
-      cleaned.some((other) => sameLabel(other.ar, ar) || sameLabel(other.en, en))
-    ) {
+    if (labelsRefused(ar, en, cleaned) || idRefused(typed.id, taken, used)) {
       return undefined;
     }
     const id = typed.id ?? freshId(makeId, taken);

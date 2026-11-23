@@ -453,18 +453,26 @@ export function parseVerification(
   if (value === undefined) {
     return [...(current ?? offered.slice(0, 1))];
   }
-  if (
-    !Array.isArray(value) ||
-    !value.every((item) => offered.includes(item as QuestVerification))
-  ) {
+  if (!isOfferedList(value, offered)) {
     return undefined;
   }
   const chosen = offered.filter((method) => value.includes(method));
-  if (chosen.includes("nfc") && !chosen.includes("quest_qr")) {
-    return undefined;
-  }
-  if (chosen.includes("screen_qr") && chosen.includes("quest_qr")) {
+  if (verificationsConflict(chosen)) {
     return undefined;
   }
   return offered.length > 0 && chosen.length === 0 ? undefined : chosen;
+}
+
+/** Whether a value is a list whose every item is a method the type offers (an empty list is one). */
+export function isOfferedList(
+  value: unknown,
+  offered: readonly QuestVerification[],
+): value is unknown[] {
+  return Array.isArray(value) && value.every((item) => offered.includes(item as QuestVerification));
+}
+
+/** Whether chosen methods break a pairing rule: NFC needs the quest QR (FR-305), and the screen QR cannot join it. */
+export function verificationsConflict(chosen: readonly QuestVerification[]): boolean {
+  const hasQuestQr = chosen.includes("quest_qr");
+  return (chosen.includes("nfc") && !hasQuestQr) || (chosen.includes("screen_qr") && hasQuestQr);
 }

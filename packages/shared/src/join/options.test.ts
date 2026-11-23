@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { cleanOptions, joinOptionLabel, type JoinOption } from "#src/join/options";
+import {
+  cleanOptions,
+  idRefused,
+  joinOptionLabel,
+  labelsRefused,
+  type JoinOption,
+} from "#src/join/options";
 
 const ids = (...made: string[]) => {
   const queue = [...made];
@@ -92,5 +98,36 @@ describe("choice field options", () => {
     expect(joinOptionLabel({ id: "a", ar: null, en: "Women" }, "ar")).toBe("Women");
     expect(joinOptionLabel({ id: "a", ar: "نساء", en: null }, "en")).toBe("نساء");
     expect(joinOptionLabel({ id: "a", ar: null, en: null }, "en")).toBe("");
+  });
+});
+
+describe("option rule helpers", () => {
+  const earlier: JoinOption[] = [{ id: "a", ar: "نساء", en: "Women" }];
+
+  it.each([
+    ["no label at all", null, null, true],
+    ["an Arabic label only", "رجال", null, false],
+    ["an English label only", null, "Men", false],
+    ["an Arabic label too long", "ا".repeat(61), "Men", true],
+    ["an English label too long", "رجال", "x".repeat(61), true],
+    ["labels of 60 characters", "ا".repeat(60), "x".repeat(60), false],
+    ["the Arabic label of an earlier option", "نساء", "Men", true],
+    ["the English label of an earlier option, any case", "رجال", "WOMEN", true],
+    ["labels new in both languages", "رجال", "Men", false],
+  ])("labelsRefused: %s", (_name, ar, en, expected) => {
+    expect(labelsRefused(ar, en, earlier)).toBe(expected);
+  });
+
+  it("labelsRefused does not count a missing label as a clash", () => {
+    expect(labelsRefused("رجال", null, [{ id: "b", ar: "نساء", en: null }])).toBe(false);
+  });
+
+  it.each([
+    ["no id (a new option)", undefined, false],
+    ["an id the field has, not yet named", "women", false],
+    ["an id the field has, named before", "men", true],
+    ["an id the field does not have", "ghost", true],
+  ])("idRefused: %s", (_name, id, expected) => {
+    expect(idRefused(id, new Set(["women", "men"]), new Set(["men"]))).toBe(expected);
   });
 });

@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { MESSAGES } from "#src/i18n/messages";
 import {
   QR_QUEST_TYPES,
+  isOfferedList,
   parseVerification,
+  verificationsConflict,
   QUEST_TYPES,
   QUEST_TYPE_NAMES,
   isLivePoll,
@@ -473,5 +475,45 @@ describe("game quests", () => {
     expect(
       parseQuestConfig("game", { game: "memory_match", level: "easy", extra: 1 }),
     ).toBeUndefined();
+  });
+});
+
+describe("verification helpers", () => {
+  const offered = ["quest_qr", "my_qr", "nfc"] as const;
+
+  it.each([
+    ["a list of offered methods", ["quest_qr", "nfc"], true],
+    ["an empty list", [], true],
+    ["a method the type does not offer", ["quest_qr", "kiosk"], false],
+    ["a non-string item", ["quest_qr", 1], false],
+    ["a string", "quest_qr", false],
+    ["undefined", undefined, false],
+    ["an object", { 0: "quest_qr", length: 1 }, false],
+  ])("isOfferedList takes %s: %s", (_name, value, expected) => {
+    expect(isOfferedList(value, offered)).toBe(expected);
+  });
+
+  it.each([
+    [["quest_qr"], false],
+    [["quest_qr", "nfc"], false],
+    [["nfc"], true],
+    [["my_qr", "nfc"], true],
+    [["screen_qr"], false],
+    [["my_qr", "screen_qr"], false],
+    [["quest_qr", "screen_qr"], true],
+    [["quest_qr", "nfc", "screen_qr"], true],
+    [[], false],
+  ] as const)("verificationsConflict(%j) is %s", (chosen, expected) => {
+    expect(verificationsConflict(chosen)).toBe(expected);
+  });
+
+  it("parseVerification keeps the default, the current methods and the empty answer", () => {
+    expect(parseVerification("scan_qr", undefined)).toEqual(["quest_qr"]);
+    expect(parseVerification("scan_qr", undefined, ["my_qr"])).toEqual(["my_qr"]);
+    expect(parseVerification("vote", undefined)).toEqual([]);
+    expect(parseVerification("vote", [])).toEqual([]);
+    expect(parseVerification("scan_qr", [])).toBeUndefined();
+    expect(parseVerification("scan_qr", "quest_qr")).toBeUndefined();
+    expect(parseVerification("scan_qr", ["kiosk", "x"])).toBeUndefined();
   });
 });

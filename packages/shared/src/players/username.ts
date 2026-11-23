@@ -30,11 +30,16 @@ export function checkUsername(raw: string): UsernameCheck {
     return { ok: false, reason: "characters" };
   }
   if (!ARABIC.test(username) && !LATIN.test(username)) {
-    return EITHER.test(username) &&
-      HAS_ARABIC_LETTER.test(username) &&
-      HAS_LATIN_LETTER.test(username)
-      ? { ok: false, reason: "mixed_scripts" }
-      : { ok: false, reason: "characters" };
+    return { ok: false, reason: mixedOrOther(username) };
   }
   return { ok: true, username };
+}
+
+/** Why a name that is neither all Arabic nor all Latin is refused: both scripts in one name, else a stray character. */
+export function mixedOrOther(username: string): "mixed_scripts" | "characters" {
+  return EITHER.test(username) &&
+    HAS_ARABIC_LETTER.test(username) &&
+    HAS_LATIN_LETTER.test(username)
+    ? "mixed_scripts"
+    : "characters";
 }

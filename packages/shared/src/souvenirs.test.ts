@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { souvenirBodySchema, souvenirListSchema, souvenirRuleSchema } from "#src/souvenirs";
+import {
+  categoryMismatch,
+  rankRangeIssue,
+  souvenirBodySchema,
+  souvenirListSchema,
+  souvenirRuleSchema,
+  visualKeyMismatch,
+} from "#src/souvenirs";
 
 const body = {
   kind: "frame",
@@ -263,5 +270,60 @@ describe("souvenir rule and list answers", () => {
     for (const patch of [{ due: -1 }, { scanning: -1 }, { failed: 0.5 }, { archived: "no" }])
       expect(souvenirListSchema.safeParse({ ...list, ...patch }).success).toBe(false);
     expect(souvenirListSchema.safeParse({ ...list, rules: [{}] }).success).toBe(false);
+  });
+});
+
+describe("souvenir body helpers", () => {
+  it("categoryMismatch is true only when category and audience disagree", () => {
+    const id = "6f1c1c0e-5a7e-4b53-9c53-2f1f6c1d9a10";
+    expect(categoryMismatch({ audience: "category", categoryId: id })).toBe(false);
+    expect(categoryMismatch({ audience: "category", categoryId: null })).toBe(true);
+    expect(categoryMismatch({ audience: "all", categoryId: id })).toBe(true);
+    expect(categoryMismatch({ audience: "joined", categoryId: null })).toBe(false);
+  });
+
+  it.each([
+    ["rank", 1, 3, null],
+    ["rank", 2, 2, null],
+    ["rank", null, 3, "rankTo"],
+    ["rank", 1, null, "rankTo"],
+    ["rank", null, null, "rankTo"],
+    ["rank", 4, 3, "rankTo"],
+    ["all", null, null, null],
+    ["joined", 1, null, "rankFrom"],
+    ["category", null, 2, "rankFrom"],
+  ] as const)("rankRangeIssue(%s, %s, %s) is %s", (audience, rankFrom, rankTo, expected) => {
+    expect(rankRangeIssue({ audience, rankFrom, rankTo })).toBe(expected);
+  });
+
+  it.each([
+    ["title", null, false],
+    ["title", "frame-01", true],
+    ["character", "chest", false],
+    ["character", null, true],
+    ["character", "frame-01", true],
+    ["frame", "frame-01", false],
+    ["frame", "frame-14", false],
+    ["frame", "frame-15", true],
+    ["frame", "frame-00", true],
+    ["frame", null, true],
+  ] as const)("visualKeyMismatch(%s, %s) is %s", (kind, visualKey, expected) => {
+    expect(visualKeyMismatch({ kind, visualKey })).toBe(expected);
+  });
+
+  it("reports the issues in the order categoryId, rank, visualKey", () => {
+    const result = souvenirBodySchema.safeParse({
+      kind: "title",
+      name: { ar: "ا", en: "a" },
+      visualKey: "chest",
+      audience: "all",
+      categoryId: "6f1c1c0e-5a7e-4b53-9c53-2f1f6c1d9a10",
+      rankFrom: 1,
+    });
+    expect(result.success ? [] : result.error.issues.map((issue) => issue.path[0])).toEqual([
+      "categoryId",
+      "rankFrom",
+      "visualKey",
+    ]);
   });
 });

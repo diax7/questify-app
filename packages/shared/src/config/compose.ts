@@ -13,7 +13,13 @@ import {
   composedQuestifyHomeOf,
   type ComposedQuestifyHome,
 } from "#src/layout/questify-home";
-import type { EventConfig, PlatformSettings, Registries } from "./registry";
+import type {
+  EventConfig,
+  FeatureDefinition,
+  PlatformFeatureSetting,
+  PlatformSettings,
+  Registries,
+} from "./registry";
 import { DEFAULT_TERMS, type EventTerms } from "./terms";
 import { NO_EVENT_TEXTS, type EventTexts } from "./texts";
 
@@ -59,6 +65,59 @@ export type ComposedBody = Omit<ComposedConfig, "legal">;
 // The keys of an object are unique, so two of them are never equal.
 const byKey = ([a]: [string, unknown], [b]: [string, unknown]): number => (a < b ? -1 : 1);
 
+/** Whether the platform leaves a feature on: its stored switch, else the shipped default (ADR-208). */
+export function platformAllows(
+  definition: FeatureDefinition,
+  setting: PlatformFeatureSetting | undefined,
+): boolean {
+  return setting?.enabled ?? definition.offByDefault !== true;
+}
+
+/** Whether an add-on is open to the event: an ungated feature always, a gated one once Questify unlocked it (FR-1729). */
+export function unlockedFor(
+  definition: FeatureDefinition,
+  event: EventConfig | undefined,
+  key: string,
+): boolean {
+  return !definition.gated || event?.unlocked?.includes(key) === true;
+}
+
+/** Whether the event's own switch leaves a feature on (FR-1623); a platform-level feature has none. */
+export function eventSwitchOn(
+  definition: FeatureDefinition,
+  event: EventConfig | undefined,
+  key: string,
+): boolean {
+  return (
+    definition.level === "platform" ||
+    (event?.features?.[key] ?? definition.eventOffByDefault !== true)
+  );
+}
+
+/** Whether the event leaves a feature on: unlocked when gated, and its own switch. */
+export function eventAllows(
+  definition: FeatureDefinition,
+  event: EventConfig | undefined,
+  key: string,
+): boolean {
+  return unlockedFor(definition, event, key) && eventSwitchOn(definition, event, key);
+}
+
+/** One feature as the app receives it: on only when the platform and the event both leave it on. */
+export function composeFeature(
+  definition: FeatureDefinition,
+  setting: PlatformFeatureSetting | undefined,
+  event: EventConfig | undefined,
+  key: string,
+): ComposedFeature {
+  const platformOn = platformAllows(definition, setting);
+  return {
+    enabled: platformOn && eventAllows(definition, event, key),
+    minAppVersion: setting?.minAppVersion ?? null,
+    message: platformOn ? null : (setting?.message ?? null),
+  };
+}
+
 function composeFeatures(
   registries: Registries,
   platform: PlatformSettings,
@@ -66,20 +125,10 @@ function composeFeatures(
 ): Record<string, ComposedFeature> {
   const entries = Object.entries(registries.features).sort(byKey);
   return Object.fromEntries(
-    entries.map(([key, definition]) => {
-      const setting = platform.features?.[key];
-      const platformOn = setting?.enabled ?? definition.offByDefault !== true;
-      const unlocked = !definition.gated || event?.unlocked?.includes(key) === true;
-      const eventOn =
-        definition.level === "platform" ||
-        (event?.features?.[key] ?? definition.eventOffByDefault !== true);
-      const feature: ComposedFeature = {
-        enabled: platformOn && unlocked && eventOn,
-        minAppVersion: setting?.minAppVersion ?? null,
-        message: platformOn ? null : (setting?.message ?? null),
-      };
-      return [key, feature];
-    }),
+    entries.map(([key, definition]) => [
+      key,
+      composeFeature(definition, platform.features?.[key], event, key),
+    ]),
   );
 }
 

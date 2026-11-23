@@ -201,30 +201,5 @@
     "CodeStep": {
       "complexity": [9]
     }
-  },
-  "packages/shared/src/config/compose.ts": {
-    "<anonymous>": {
-      "complexity": [18]
-    }
-  },
-  "packages/shared/src/join/options.ts": {
-    "cleanOptions": {
-      "complexity": [14]
-    }
-  },
-  "packages/shared/src/players/username.ts": {
-    "checkUsername": {
-      "complexity": [10]
-    }
-  },
-  "packages/shared/src/quests/registry.ts": {
-    "parseVerification": {
-      "complexity": [11]
-    }
-  },
-  "packages/shared/src/souvenirs.ts": {
-    "<anonymous>": {
-      "complexity": [15]
-    }
   }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { composeConfig } from "./compose";
+import { composeConfig, composeFeature, eventAllows, platformAllows } from "./compose";
 import { DEFAULT_TERMS } from "./terms";
 import { NO_EVENT_TEXTS } from "./texts";
 import { DEFAULT_COMPOSED_LAYOUT, readEventLayout } from "#src/layout/layout";
@@ -309,5 +309,69 @@ describe("composeConfig server-only numbers", () => {
       undefined,
     );
     expect(composed.tuning).toEqual({ graceSeconds: 5, qrSeconds: 50 });
+  });
+});
+
+describe("feature helpers", () => {
+  const message = { ar: "م", en: "m" };
+
+  it.each([
+    ["no setting, on by default", { gated: false }, undefined, true],
+    ["no setting, off by default", { gated: false, offByDefault: true }, undefined, false],
+    ["a setting on, off by default", { gated: false, offByDefault: true }, { enabled: true }, true],
+    ["a setting that says off", { gated: false }, { enabled: false }, false],
+    ["a setting without the switch", { gated: false }, { minAppVersion: "1.0.0" }, true],
+  ] as const)("platformAllows: %s", (_name, definition, setting, expected) => {
+    expect(platformAllows(definition, setting)).toBe(expected);
+  });
+
+  it.each([
+    ["ungated, no event", { gated: false }, undefined, true],
+    ["gated, no event", { gated: true }, undefined, false],
+    ["gated, not unlocked", { gated: true }, { unlocked: ["other"] }, false],
+    ["gated, unlocked", { gated: true }, { unlocked: ["key"] }, true],
+    ["ungated, event switch off", { gated: false }, { features: { key: false } }, false],
+    ["ungated, event switch on", { gated: false }, { features: { key: true } }, true],
+    ["event-off by default, no switch", { gated: false, eventOffByDefault: true }, {}, false],
+    [
+      "event-off by default, switched on",
+      { gated: false, eventOffByDefault: true },
+      { features: { key: true } },
+      true,
+    ],
+    [
+      "platform-level, event switch off",
+      { gated: false, level: "platform" },
+      { features: { key: false } },
+      true,
+    ],
+    ["platform-level but gated, not unlocked", { gated: true, level: "platform" }, {}, false],
+    [
+      "gated, unlocked, switched off",
+      { gated: true },
+      { unlocked: ["key"], features: { key: false } },
+      false,
+    ],
+  ] as const)("eventAllows: %s", (_name, definition, event, expected) => {
+    expect(eventAllows(definition, event, "key")).toBe(expected);
+  });
+
+  it("composeFeature carries the version, and the message only while the platform has it off", () => {
+    const open = { gated: false } as const;
+    expect(composeFeature(open, undefined, undefined, "key")).toEqual({
+      enabled: true,
+      minAppVersion: null,
+      message: null,
+    });
+    expect(
+      composeFeature(open, { enabled: false, message, minAppVersion: "2.0.0" }, undefined, "key"),
+    ).toEqual({ enabled: false, minAppVersion: "2.0.0", message });
+    expect(composeFeature(open, { enabled: false }, undefined, "key").message).toBeNull();
+    expect(composeFeature(open, { message }, undefined, "key").message).toBeNull();
+    expect(composeFeature(open, undefined, { features: { key: false } }, "key")).toEqual({
+      enabled: false,
+      minAppVersion: null,
+      message: null,
+    });
   });
 });

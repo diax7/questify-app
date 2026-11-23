@@ -10,6 +10,46 @@ const name = z
   .min(1)
   .max(60)
   .refine((value) => !FORBIDDEN.test(value), "must hold no control or direction characters");
+type SouvenirAudience = "joined" | "category" | "all" | "rank";
+const FRAME_KEY = /^frame-(0[1-9]|1[0-4])$/;
+
+/** Whether the category and the audience disagree: a category goes with the category audience, both ways. */
+export function categoryMismatch(body: {
+  audience: SouvenirAudience;
+  categoryId: string | null;
+}): boolean {
+  return (body.audience === "category") !== (body.categoryId !== null);
+}
+
+/**
+ * The field at fault in a rank range, or null: the rank audience needs both ends in order (the end place is named),
+ * any other audience takes none (the start place is named).
+ */
+export function rankRangeIssue(body: {
+  audience: SouvenirAudience;
+  rankFrom: number | null;
+  rankTo: number | null;
+}): "rankTo" | "rankFrom" | null {
+  if (body.audience === "rank") {
+    const { rankFrom, rankTo } = body;
+    return rankFrom === null || rankTo === null || rankFrom > rankTo ? "rankTo" : null;
+  }
+  return body.rankFrom !== null || body.rankTo !== null ? "rankFrom" : null;
+}
+
+/** Whether the art does not fit the kind: a title has none, a character only the chest, a frame one of the 14 frames. */
+export function visualKeyMismatch(body: {
+  kind: "frame" | "title" | "character";
+  visualKey: string | null;
+}): boolean {
+  const visual = body.visualKey;
+  return (
+    (body.kind === "title" && visual !== null) ||
+    (body.kind === "character" && visual !== "chest") ||
+    (body.kind === "frame" && (visual === null || !FRAME_KEY.test(visual)))
+  );
+}
+
 export const souvenirBodySchema = z
   .strictObject({
     kind: z.enum(["frame", "title", "character"]),
@@ -22,18 +62,10 @@ export const souvenirBodySchema = z
   })
   .superRefine((body, context) => {
     const issue = (path: string) => context.addIssue({ code: "custom", path: [path] });
-    if ((body.audience === "category") !== (body.categoryId !== null)) issue("categoryId");
-    if (body.audience === "rank") {
-      if (body.rankFrom === null || body.rankTo === null || body.rankFrom > body.rankTo)
-        issue("rankTo");
-    } else if (body.rankFrom !== null || body.rankTo !== null) issue("rankFrom");
-    const visual = body.visualKey;
-    if (
-      (body.kind === "title" && visual !== null) ||
-      (body.kind === "character" && visual !== "chest") ||
-      (body.kind === "frame" && (visual === null || !/^frame-(0[1-9]|1[0-4])$/.test(visual)))
-    )
-      issue("visualKey");
+    if (categoryMismatch(body)) issue("categoryId");
+    const rankIssue = rankRangeIssue(body);
+    if (rankIssue !== null) issue(rankIssue);
+    if (visualKeyMismatch(body)) issue("visualKey");
   });
 export type SouvenirBody = z.infer<typeof souvenirBodySchema>;
 export const souvenirRuleSchema = z.object({

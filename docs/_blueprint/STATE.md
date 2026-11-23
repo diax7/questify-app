@@ -1,5 +1,20 @@
 # Blueprint State — Questify
 
+## Function limits: 5 packages/shared offenders split (tier B refactor) — 2026-11-23
+
+- **Built:** behaviour-preserving splits, no change in outputs, error codes, ordering or issue order, no new built-ins
+  (Hermes-safe, no dependency). `composeFeatures` callback (`composeFeature`, `platformAllows`, `eventAllows`, `unlockedFor`, `eventSwitchOn`);
+  `cleanOptions` (`labelsRefused`, `idRefused`); `checkUsername` (`mixedOrOther`; the plain character rule only, the
+  blocked-word name filter of Q-754 lives in the API and migration 0178 and is untouched); `parseVerification`
+  (`isOfferedList`, `verificationsConflict`); the `souvenirBodySchema` refinement (`categoryMismatch`,
+  `rankRangeIssue`, `visualKeyMismatch`, called in the old order). Before/after check with the old code kept beside the
+  new (not committed): 4,000 random registries and settings for `composeConfig`, 20,000 option lists (also the
+  `makeId` call count), 100,000 usernames, 3,000 inputs per quest type for `parseVerification`, 20,000 souvenir
+  bodies (full zod results): all identical. The baseline shrank by 5 entries.
+- **Checks:** new unit tests for every branch of the new helpers; types, lint, `lint:limits`, format, shared, app and
+  web vitest suites pass.
+- **Next:** push; the other baselined offenders.
+
 ## Function limits: 11 apps/app offenders split (tier B refactor) — 2026-11-23
 
 - **Built:** behaviour-preserving splits, no change in messages, ordering or returned shapes. `verifyContactCode`

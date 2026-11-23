@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkUsername } from "#src/players/username";
+import { checkUsername, mixedOrOther } from "#src/players/username";
 
 describe("checkUsername", () => {
   it.each([
@@ -33,5 +33,21 @@ describe("checkUsername", () => {
     ["صقرfalcon", "mixed_scripts"],
   ])("refuses %j (%s)", (raw, reason) => {
     expect(checkUsername(raw)).toEqual({ ok: false, reason });
+  });
+});
+
+describe("mixedOrOther", () => {
+  it.each([
+    ["صقرfalcon", "mixed_scripts"],
+    ["falcon_صقر7", "mixed_scripts"],
+    ["fal con", "characters"],
+    ["صقر fal", "characters"],
+    ["صَقر", "characters"],
+    ["falcon!", "characters"],
+    ["صقر!falcon", "characters"],
+    ["صقر", "characters"],
+    ["falcon", "characters"],
+  ])("gives %j as %s", (username, reason) => {
+    expect(mixedOrOther(username)).toBe(reason);
   });
 });
