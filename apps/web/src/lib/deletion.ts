@@ -48,3 +48,19 @@ export function deletionTokenOf(body: unknown): string | undefined {
   const token = isRecord(body) ? body["deletionToken"] : undefined;
   return typeof token === "string" ? token : undefined;
 }
+
+/** The challenge token a code-request answer carries (as text), or an empty one. */
+export function challengeTokenOf(body: unknown): string {
+  return isRecord(body) && "challengeToken" in body ? String(body["challengeToken"]) : "";
+}
+
+/** The deletion token and the waiting prizes a verify answer carries; missing parts read as empty. */
+export function verifyAnswerOf(body: unknown): {
+  deletionToken: string;
+  pending: PendingPrize[];
+} {
+  return {
+    deletionToken: deletionTokenOf(body) ?? "",
+    pending: pendingOf(isRecord(body) ? body["pending"] : undefined),
+  };
+}

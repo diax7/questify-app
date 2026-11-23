@@ -1,5 +1,20 @@
 # Blueprint State — Questify
 
+## Function limits: 11 apps/web offenders split (tier B refactor) — 2026-11-23
+
+- **Built:** behaviour-preserving splits, no markup, copy, aria or test-id change. `CodeStep` (request hook),
+  `callFor` (`writeCall`), `DeleteAccountForm.nextStep` (`challengeTokenOf`, `verifyAnswerOf` in `lib/deletion.ts`),
+  `DevicePairing.poll` (`settlePolled`), `DevicesPanel.ConfirmFields` (`QuestPicker`), `KioskScanner.Kiosk`
+  (`ScanStatus`, `bannerKey` in `lib/kiosk.ts`, shared `QuestHeading`), `RewardsPanel.DeskForm` (`DeskHours`),
+  `StationScreen` (`screenStepOf` in `lib/device.ts` for the code loop, `StationBody`, `QuestHeading`),
+  `TeamPanel` (`LeaveButton`), `staff-api.fetchMe` (`meHeaders`, `readMeResponse`). The baseline shrank by 11
+  entries (70 to 59 rule entries).
+- **Checks:** new unit tests for `readMeResponse`, `challengeTokenOf`, `verifyAnswerOf`, `bannerKey` and `screenStepOf`;
+  types, lint, `lint:limits`, format, web build and the web vitest suite (152 files, 2016 tests) pass. Browser
+  specs, desktop project, one worker: layout, stations, kiosks, console-questify, delete-account, rewards, organizers
+  and sign-in, 26 passed (the Team page's Leave button has no spec of its own).
+- **Next:** push; the other baselined offenders.
+
 ## FOLLOWUPS 0202: re-authentication time forward only, player slot release, integrity read order — 2026-11-23
 
 - **Built (tier A; plan `docs/plans/2026-11-23-followups-0202.md`, plan review 92 GO, its six notes folded):** migration

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   KIOSK_DROP_MS,
   KIOSK_IN_PROGRESS_WAIT_MS,
+  bannerKey,
   createDecoder,
   createKioskReader,
   frameSize,
@@ -210,6 +211,13 @@ describe("the kiosk's answers", () => {
     expect(kioskShutKey("method_off")).toBe("kiosk.methodOff");
     expect(kioskShutKey("feature_off")).toBe("device.notAvailable");
     expect(kioskShutKey("hidden")).toBeUndefined();
+  });
+
+  it("names the line under the camera for each banner, offline alone as reconnecting", () => {
+    expect(bannerKey("slowed")).toBe("kiosk.slowDown");
+    expect(bannerKey("off")).toBe("device.notAvailable");
+    expect(bannerKey("reconnecting")).toBe("device.reconnecting");
+    expect(bannerKey(null)).toBe("device.reconnecting");
   });
 });
 

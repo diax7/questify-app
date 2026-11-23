@@ -168,25 +168,43 @@ export function TeamPanel({
           />
         </>
       ) : (
-        <Toolbar>
-          <Button
-            variant="danger"
-            disabled={busy}
-            onClick={() =>
-              confirmation.ask({
-                title: t("staff.leave.title"),
-                body: t("staff.leave.body"),
-                confirmLabel: t("staff.leave"),
-                run: leave,
-              })
-            }
-          >
-            {t("staff.leave")}
-          </Button>
-        </Toolbar>
+        <LeaveButton language={language} busy={busy} ask={confirmation.ask} leave={leave} />
       )}
       {confirmation.dialog}
     </Stack>
+  );
+}
+
+/** An editor's way out of the team, behind a confirmation. */
+function LeaveButton({
+  language,
+  busy,
+  ask,
+  leave,
+}: Readonly<{
+  language: Language;
+  busy: boolean;
+  ask: ReturnType<typeof useConfirmation>["ask"];
+  leave: () => Promise<void>;
+}>) {
+  const t = translatorFor(language);
+  return (
+    <Toolbar>
+      <Button
+        variant="danger"
+        disabled={busy}
+        onClick={() =>
+          ask({
+            title: t("staff.leave.title"),
+            body: t("staff.leave.body"),
+            confirmLabel: t("staff.leave"),
+            run: leave,
+          })
+        }
+      >
+        {t("staff.leave")}
+      </Button>
+    </Toolbar>
   );
 }
 

@@ -4,29 +4,17 @@ import { formatNumber, type Language } from "@questify/shared";
 import { useEffect, useState } from "react";
 import { DevicePairing } from "#src/components/DevicePairing.tsx";
 import {
-  codeGraceMs,
-  nextCodeDelayMs,
-  screenCodeOf,
+  screenStepOf,
   shutKey,
+  type HeldCode,
   type PairedView,
-  type ScreenCodeView,
+  type ScreenShown,
 } from "#src/lib/device.ts";
 import { qrDrawing } from "#src/lib/qr.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { textFor } from "#src/lib/quests.ts";
-import { errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import styles from "#src/components/device.module.css";
-
-/** What the station shows now: a code (with when it was fetched), a shut reason, or why there is no code. */
-type Shown =
-  | Readonly<{ kind: "loading" }>
-  | Readonly<{ kind: "code"; code: Extract<ScreenCodeView, { state: "open" }>; at: number }>
-  | Readonly<{ kind: "shut"; shut: string }>
-  | Readonly<{ kind: "reconnecting" }>
-  | Readonly<{ kind: "off" }>;
-
-const RETRY_MS = 3000;
 
 /** Asks the screen to stay on where the browser can (Screen Wake Lock); a refusal changes nothing. */
 export function useWakeLock(): void {
@@ -57,12 +45,12 @@ export function useWakeLock(): void {
  * from this screen's clock. Offline or on an error the current code stays only until its grace ends, then
  * "Reconnecting…" and no code (never a dead one). A 401 hands back to pairing.
  */
-function useScreenCode(restart: () => void): Shown {
-  const [shown, setShown] = useState<Shown>({ kind: "loading" });
+function useScreenCode(restart: () => void): ScreenShown {
+  const [shown, setShown] = useState<ScreenShown>({ kind: "loading" });
   useEffect(() => {
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    let held: Extract<Shown, { kind: "code" }> | undefined;
+    let held: HeldCode | undefined;
     const later = (ms: number) => {
       timer = setTimeout(() => void fetchCode(), ms);
     };
@@ -71,33 +59,14 @@ function useScreenCode(restart: () => void): Shown {
       if (stopped) {
         return;
       }
-      const code = errorCodeOf(read.body);
-      if (code === "device_unpaired") {
+      const step = screenStepOf(read, held, Date.now(), Math.random());
+      if (step.restart) {
         restart();
         return;
       }
-      if (code === "feature_off") {
-        setShown({ kind: "off" });
-        later(RETRY_MS * 10);
-        return;
-      }
-      const answer = read.ok ? screenCodeOf(read.body) : undefined;
-      if (answer === undefined) {
-        const alive =
-          held !== undefined && Date.now() - held.at < codeGraceMs(held.code.changesInMs);
-        setShown(alive && held !== undefined ? held : { kind: "reconnecting" });
-        later(RETRY_MS);
-        return;
-      }
-      if (answer.state === "shut") {
-        held = undefined;
-        setShown({ kind: "shut", shut: answer.shut });
-        later(RETRY_MS);
-        return;
-      }
-      held = { kind: "code", code: answer, at: Date.now() };
-      setShown(held);
-      later(nextCodeDelayMs(answer.changesInMs, Math.random()));
+      held = step.held;
+      setShown(step.shown);
+      later(step.delayMs);
     };
     void fetchCode();
     return () => {
@@ -132,16 +101,66 @@ function BigCode({ url, ms, label }: Readonly<{ url: string; ms: number; label: 
   );
 }
 
+/** The quest's title and points under the event name, or nothing for a device without one. */
+export function QuestHeading({
+  quest,
+  language,
+}: Readonly<{ quest: PairedView["quest"]; language: Language }>) {
+  const t = translatorFor(language);
+  if (quest === null) {
+    return null;
+  }
+  return (
+    <>
+      <h1 className={styles.title} dir="auto">
+        {textFor(quest.title, language)}
+      </h1>
+      <p className={styles.points}>
+        {t("station.points", { points: formatNumber(quest.points, language) })}
+      </p>
+    </>
+  );
+}
+
+/** Under the heading: the shut reason, the code with its hint, "not available", or reconnecting/starting. */
+function StationBody({
+  shut,
+  shown,
+  language,
+}: Readonly<{ shut: string | null; shown: ScreenShown; language: Language }>) {
+  const t = translatorFor(language);
+  if (shut !== null) {
+    return (
+      <p className={styles.message} role="status">
+        {t(shutKey(shut))}
+      </p>
+    );
+  }
+  if (shown.kind === "code") {
+    return (
+      <>
+        <BigCode url={shown.code.url} ms={shown.code.changesInMs} label={t("station.scan")} />
+        <p className={styles.muted}>{t("station.scan")}</p>
+      </>
+    );
+  }
+  return (
+    <p className={styles.message} role="status">
+      {shown.kind === "off"
+        ? t("device.notAvailable")
+        : t(shown.kind === "reconnecting" ? "device.reconnecting" : "device.pair.starting")}
+    </p>
+  );
+}
+
 function Station({
   view,
   language,
   restart,
 }: Readonly<{ view: PairedView; language: Language; restart: () => void }>) {
-  const t = translatorFor(language);
   useWakeLock();
   const shown = useScreenCode(restart);
   const shut = view.shut ?? (shown.kind === "shut" ? shown.shut : null);
-  const quest = view.quest;
   if (shut === "event_ended") {
     return (
       <main className={styles.screen}>
@@ -154,34 +173,8 @@ function Station({
       <p className={styles.event} dir="auto">
         {textFor(view.event.name, language)}
       </p>
-      {quest === null ? null : (
-        <>
-          <h1 className={styles.title} dir="auto">
-            {textFor(quest.title, language)}
-          </h1>
-          <p className={styles.points}>
-            {t("station.points", { points: formatNumber(quest.points, language) })}
-          </p>
-        </>
-      )}
-      {shut !== null ? (
-        <p className={styles.message} role="status">
-          {t(shutKey(shut))}
-        </p>
-      ) : shown.kind === "code" ? (
-        <>
-          <BigCode url={shown.code.url} ms={shown.code.changesInMs} label={t("station.scan")} />
-          <p className={styles.muted}>{t("station.scan")}</p>
-        </>
-      ) : shown.kind === "off" ? (
-        <p className={styles.message} role="status">
-          {t("device.notAvailable")}
-        </p>
-      ) : (
-        <p className={styles.message} role="status">
-          {t(shown.kind === "reconnecting" ? "device.reconnecting" : "device.pair.starting")}
-        </p>
-      )}
+      <QuestHeading quest={view.quest} language={language} />
+      <StationBody shut={shut} shown={shown} language={language} />
       <p className={styles.corner} dir="auto">
         {view.label}
       </p>

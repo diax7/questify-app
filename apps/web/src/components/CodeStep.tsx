@@ -1,7 +1,7 @@
 "use client";
 
 import { toWesternDigits, type Language, type MessageKey } from "@questify/shared";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type RefObject } from "react";
 import { isolate, translatorFor } from "#src/lib/language.ts";
 import { postJson } from "#src/lib/post-json.ts";
 import { RESEND_SPACING_SECONDS, describeProblem, formatWait } from "#src/lib/sign-in-errors.ts";
@@ -61,56 +61,19 @@ export function CodeStep({
   const t = translatorFor(language);
   const field = useRef<HTMLInputElement>(null);
   const [code, setCode] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [wait, setWait] = useCountdown();
+  const { busy, problem, notice, submit, resend } = useCodeRequests({
+    language,
+    challengeToken,
+    code,
+    paths,
+    field,
+    setWait,
+    onRestart,
+    onSignedIn,
+  });
 
   useEffect(() => field.current?.focus(), []);
-
-  const fail = (body: unknown): void => {
-    const described = describeProblem(body, language, t);
-    if (described.resendWaitSeconds !== undefined) {
-      setWait(described.resendWaitSeconds);
-    }
-    if (described.restart) {
-      onRestart(described.text);
-    } else {
-      setProblem(described.text);
-      field.current?.focus();
-    }
-  };
-
-  const submit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
-    event.preventDefault();
-    setBusy(true);
-    setProblem(null);
-    setNotice(null);
-    const result = await postJson(paths.code, { challengeToken, code });
-    if (result.ok) {
-      if (onSignedIn === undefined) {
-        window.location.assign(`/${language}`);
-      } else {
-        await onSignedIn();
-      }
-      return;
-    }
-    setBusy(false);
-    fail(result.body);
-  };
-
-  const resend = async (): Promise<void> => {
-    setBusy(true);
-    setProblem(null);
-    const result = await postJson(paths.resend, { challengeToken });
-    setBusy(false);
-    if (result.ok) {
-      setNotice(t("staff.resent"));
-      setWait(RESEND_SPACING_SECONDS);
-      return;
-    }
-    fail(result.body);
-  };
 
   return (
     <Form onSubmit={(event) => void submit(event)}>
@@ -159,4 +122,78 @@ export function CodeStep({
       </Toolbar>
     </Form>
   );
+}
+
+type CodeRequests = Readonly<{
+  language: Language;
+  challengeToken: string;
+  code: string;
+  paths: CodePaths;
+  field: RefObject<HTMLInputElement | null>;
+  setWait: (seconds: number) => void;
+  onRestart: (reason: string) => void;
+  onSignedIn: (() => Promise<void>) | undefined;
+}>;
+
+/** The two requests of this step, the code and its resend, with the busy flag and the words they leave behind. */
+function useCodeRequests({
+  language,
+  challengeToken,
+  code,
+  paths,
+  field,
+  setWait,
+  onRestart,
+  onSignedIn,
+}: CodeRequests) {
+  const t = translatorFor(language);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const fail = (body: unknown): void => {
+    const described = describeProblem(body, language, t);
+    if (described.resendWaitSeconds !== undefined) {
+      setWait(described.resendWaitSeconds);
+    }
+    if (described.restart) {
+      onRestart(described.text);
+    } else {
+      setProblem(described.text);
+      field.current?.focus();
+    }
+  };
+
+  const submit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+    setBusy(true);
+    setProblem(null);
+    setNotice(null);
+    const result = await postJson(paths.code, { challengeToken, code });
+    if (result.ok) {
+      if (onSignedIn === undefined) {
+        window.location.assign(`/${language}`);
+      } else {
+        await onSignedIn();
+      }
+      return;
+    }
+    setBusy(false);
+    fail(result.body);
+  };
+
+  const resend = async (): Promise<void> => {
+    setBusy(true);
+    setProblem(null);
+    const result = await postJson(paths.resend, { challengeToken });
+    setBusy(false);
+    if (result.ok) {
+      setNotice(t("staff.resent"));
+      setWait(RESEND_SPACING_SECONDS);
+      return;
+    }
+    fail(result.body);
+  };
+
+  return { busy, problem, notice, submit, resend };
 }

@@ -374,6 +374,81 @@ const CONFIRM_TEXT: Readonly<Record<(typeof HANDOVER_CONFIRM)[number], MessageKe
   desk_offer: "rewards.desk.confirm.deskOffer",
 };
 
+/** The desk's opening hours: the switch, and while it is on the windows with Add and Remove (off: always open). */
+function DeskHours({
+  language,
+  draft,
+  invalid,
+  set,
+}: Readonly<{
+  language: Language;
+  draft: DeskDraft;
+  invalid: DeskField | undefined;
+  set: (change: Partial<DeskDraft>) => void;
+}>) {
+  const t = translatorFor(language);
+  const setWindow = (index: number, change: Partial<DeskDraft["windows"][number]>) =>
+    set({ windows: draft.windows.map((w, i) => (i === index ? { ...w, ...change } : w)) });
+  return (
+    <>
+      <Checkbox
+        label={t("rewards.desk.hoursOn")}
+        info={infoTip(t, "rewards.desk.hoursHint")}
+        checked={draft.hoursOn}
+        onChange={(e) =>
+          set({
+            hoursOn: e.target.checked,
+            windows:
+              e.target.checked && draft.windows.length === 0 ? [nextWindow([])] : draft.windows,
+          })
+        }
+      />
+      {draft.hoursOn ? (
+        <>
+          {draft.windows.map((window, index) => (
+            <FieldGroup layout="columns" key={index}>
+              <Field label={t("rewards.desk.opens")}>
+                <Input
+                  type="datetime-local"
+                  dir="ltr"
+                  value={window.opensAt}
+                  aria-invalid={invalid === "deskHours"}
+                  onChange={(e) => setWindow(index, { opensAt: e.target.value })}
+                />
+              </Field>
+              <Field label={t("rewards.desk.closes")}>
+                <Input
+                  type="datetime-local"
+                  dir="ltr"
+                  value={window.closesAt}
+                  aria-invalid={invalid === "deskHours"}
+                  onChange={(e) => setWindow(index, { closesAt: e.target.value })}
+                />
+              </Field>
+              <Button
+                variant="quiet"
+                onClick={() => set({ windows: draft.windows.filter((_, i) => i !== index) })}
+              >
+                {t("rewards.desk.removeWindow")}
+              </Button>
+            </FieldGroup>
+          ))}
+          {draft.windows.length < DESK_WINDOWS ? (
+            <Button
+              variant="quiet"
+              onClick={() => set({ windows: [...draft.windows, nextWindow(draft.windows)] })}
+            >
+              {t("rewards.desk.addWindow")}
+            </Button>
+          ) : null}
+        </>
+      ) : (
+        <Muted>{t("rewards.desk.alwaysOpen")}</Muted>
+      )}
+    </>
+  );
+}
+
 /**
  * The event's one prize desk (FR-1716, ADR-150): its place, an optional map pin, optional opening hours as windows in
  * the event's zone (off: open the whole time), and how players confirm a pickup in their own app (ADR-137).
@@ -393,8 +468,6 @@ function DeskForm({
   const [draft, setDraft] = useState(initial);
   const [invalid, setInvalid] = useState<DeskField | undefined>(undefined);
   const set = (change: Partial<DeskDraft>) => setDraft((current) => ({ ...current, ...change }));
-  const setWindow = (index: number, change: Partial<DeskDraft["windows"][number]>) =>
-    set({ windows: draft.windows.map((w, i) => (i === index ? { ...w, ...change } : w)) });
   const send = (event: FormEvent) => {
     event.preventDefault();
     const problem = deskProblem(draft);
@@ -439,62 +512,7 @@ function DeskForm({
             change={(lng) => set({ lng })}
           />
         </FieldGroup>
-        <Checkbox
-          label={t("rewards.desk.hoursOn")}
-          info={infoTip(t, "rewards.desk.hoursHint")}
-          checked={draft.hoursOn}
-          onChange={(e) =>
-            set({
-              hoursOn: e.target.checked,
-              windows:
-                e.target.checked && draft.windows.length === 0 ? [nextWindow([])] : draft.windows,
-            })
-          }
-        />
-        {draft.hoursOn ? (
-          <>
-            {draft.windows.map((window, index) => (
-              <FieldGroup layout="columns" key={index}>
-                <Field label={t("rewards.desk.opens")}>
-                  <Input
-                    type="datetime-local"
-                    dir="ltr"
-                    value={window.opensAt}
-                    aria-invalid={invalid === "deskHours"}
-                    onChange={(e) => setWindow(index, { opensAt: e.target.value })}
-                  />
-                </Field>
-                <Field label={t("rewards.desk.closes")}>
-                  <Input
-                    type="datetime-local"
-                    dir="ltr"
-                    value={window.closesAt}
-                    aria-invalid={invalid === "deskHours"}
-                    onChange={(e) => setWindow(index, { closesAt: e.target.value })}
-                  />
-                </Field>
-                <Button
-                  variant="quiet"
-
-                  onClick={() => set({ windows: draft.windows.filter((_, i) => i !== index) })}
-                >
-                  {t("rewards.desk.removeWindow")}
-                </Button>
-              </FieldGroup>
-            ))}
-            {draft.windows.length < DESK_WINDOWS ? (
-              <Button
-                variant="quiet"
-
-                onClick={() => set({ windows: [...draft.windows, nextWindow(draft.windows)] })}
-              >
-                {t("rewards.desk.addWindow")}
-              </Button>
-            ) : null}
-          </>
-        ) : (
-          <Muted>{t("rewards.desk.alwaysOpen")}</Muted>
-        )}
+        <DeskHours language={language} draft={draft} invalid={invalid} set={set} />
         <FieldGroup legend={t("rewards.desk.confirm")} layout="choices">
           {HANDOVER_CONFIRM.map((confirm) => (
             <Radio

@@ -78,6 +78,11 @@ async function poll(kind: DeviceKind, current: Phase): Promise<Step> {
   if (!read.ok || answer === undefined) {
     return { phase: current, slowed: false };
   }
+  return settlePolled(answer, current);
+}
+
+/** A polled answer: a code already on screen stays until it is about to expire, then it is renewed. */
+function settlePolled(answer: DeviceAnswer, current: Phase): Promise<Step> | Step {
   if (answer.state === "pending" && current.kind === "pending" && current.code !== null) {
     const expired = Date.parse(answer.expiresAt) <= Date.now() + 1000;
     return expired ? settle({ ...answer, code: null }) : { phase: current, slowed: false };

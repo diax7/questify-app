@@ -101,6 +101,14 @@ const KIOSK_SHUT_KEYS: Readonly<Record<string, MessageKey>> = {
 /** The sentence a shut kiosk shows instead of the camera, or undefined for the station's shared ones. */
 export const kioskShutKey = (shut: string): MessageKey | undefined => KIOSK_SHUT_KEYS[shut];
 
+/** The line under the camera for a banner; offline with no banner reads as reconnecting. */
+export const bannerKey = (banner: "slowed" | "reconnecting" | "off" | null): MessageKey =>
+  banner === "slowed"
+    ? "kiosk.slowDown"
+    : banner === "off"
+      ? "device.notAvailable"
+      : "device.reconnecting";
+
 const retryAfterMs = (body: unknown): number => {
   const details = isRecord(body) && isRecord(body["details"]) ? body["details"] : {};
   const seconds = Number(details["retryAfterSeconds"]);

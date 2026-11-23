@@ -250,56 +250,7 @@
   },
   "apps/web/src/components/CodeStep.tsx": {
     "CodeStep": {
-      "complexity": [9],
-      "lines": [114]
-    }
-  },
-  "apps/web/src/components/ConsoleQuestify.tsx": {
-    "callFor": {
       "complexity": [9]
-    }
-  },
-  "apps/web/src/components/DeleteAccountForm.tsx": {
-    "nextStep": {
-      "complexity": [10]
-    }
-  },
-  "apps/web/src/components/DevicePairing.tsx": {
-    "poll": {
-      "complexity": [9]
-    }
-  },
-  "apps/web/src/components/DevicesPanel.tsx": {
-    "ConfirmFields": {
-      "complexity": [9]
-    }
-  },
-  "apps/web/src/components/KioskScanner.tsx": {
-    "Kiosk": {
-      "complexity": [13]
-    }
-  },
-  "apps/web/src/components/RewardsPanel.tsx": {
-    "DeskForm": {
-      "lines": [140]
-    }
-  },
-  "apps/web/src/components/StationScreen.tsx": {
-    "<anonymous>": {
-      "complexity": [10]
-    },
-    "Station": {
-      "complexity": [9]
-    }
-  },
-  "apps/web/src/components/TeamPanel.tsx": {
-    "TeamPanel": {
-      "lines": [108]
-    }
-  },
-  "apps/web/src/lib/staff-api.ts": {
-    "fetchMe": {
-      "complexity": [11]
     }
   },
   "packages/shared/src/config/compose.ts": {

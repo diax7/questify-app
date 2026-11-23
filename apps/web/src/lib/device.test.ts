@@ -8,7 +8,9 @@ import {
   pairUrl,
   pollDelayMs,
   screenCodeOf,
+  screenStepOf,
   shutKey,
+  type HeldCode,
 } from "#src/lib/device.ts";
 
 describe("the device's answers (T-309)", () => {
@@ -139,5 +141,69 @@ describe("the device page's timing and addresses (T-309)", () => {
   it("keeps a code up only until 15 seconds after it changed", () => {
     expect(codeGraceMs(10_000)).toBe(25_000);
     expect(codeGraceMs(-1)).toBe(15_000);
+  });
+});
+
+describe("the station's step for one screen-code answer (FR-314)", () => {
+  const OPEN = { state: "open", url: "https://q.test/c/1", changesInMs: 10_000, quest: null };
+  const held: HeldCode = {
+    kind: "code",
+    code: { state: "open", url: "https://q.test/c/0", changesInMs: 10_000, quest: null },
+    at: 1000,
+  };
+
+  it("hands back to pairing when the device is no longer paired", () => {
+    expect(screenStepOf({ ok: false, body: { code: "device_unpaired" } }, held, 2000, 0)).toEqual({
+      restart: true,
+    });
+  });
+
+  it("says the feature is off and asks again in 30 seconds, keeping what it holds", () => {
+    expect(screenStepOf({ ok: false, body: { code: "feature_off" } }, held, 2000, 0)).toEqual({
+      restart: false,
+      shown: { kind: "off" },
+      held,
+      delayMs: 30_000,
+    });
+  });
+
+  it("keeps the held code until its grace ends, then shows reconnecting", () => {
+    const failed = { ok: false, body: undefined };
+    expect(screenStepOf(failed, held, 25_999, 0)).toEqual({
+      restart: false,
+      shown: held,
+      held,
+      delayMs: 3000,
+    });
+    expect(screenStepOf(failed, held, 26_000, 0)).toEqual({
+      restart: false,
+      shown: { kind: "reconnecting" },
+      held,
+      delayMs: 3000,
+    });
+    expect(screenStepOf(failed, undefined, 2000, 0)).toMatchObject({
+      shown: { kind: "reconnecting" },
+      held: undefined,
+    });
+    expect(screenStepOf({ ok: true, body: { nonsense: 1 } }, undefined, 2000, 0)).toMatchObject({
+      shown: { kind: "reconnecting" },
+    });
+  });
+
+  it("shows a shut reason and drops the held code", () => {
+    expect(
+      screenStepOf({ ok: true, body: { state: "paused", quest: null } }, held, 2000, 0.5),
+    ).toEqual({
+      restart: false,
+      shown: { kind: "shut", shut: "paused" },
+      held: undefined,
+      delayMs: 3000,
+    });
+  });
+
+  it("holds a fresh code and asks again when it changes plus jitter", () => {
+    const step = screenStepOf({ ok: true, body: OPEN }, undefined, 5000, 0.5);
+    const fresh = { kind: "code", code: OPEN, at: 5000 };
+    expect(step).toEqual({ restart: false, shown: fresh, held: fresh, delayMs: 10_750 });
   });
 });

@@ -115,6 +115,38 @@ function DeviceCard({
   );
 }
 
+/** The quest a station or kiosk is paired with, or the line saying there is none to pick. */
+function QuestPicker({
+  language,
+  kind,
+  choices,
+  questId,
+  setQuestId,
+}: Readonly<{
+  language: Language;
+  kind: DeviceKind;
+  choices: readonly DeviceQuest[];
+  questId: string;
+  setQuestId: (questId: string) => void;
+}>) {
+  const t = useTranslator(language);
+  if (choices.length === 0) {
+    return <Muted>{t(kind === "kiosk" ? "devices.noKioskQuests" : "devices.noQuests")}</Muted>;
+  }
+  return (
+    <Field label={t("devices.quest")}>
+      <Select value={questId} onChange={(event) => setQuestId(event.target.value)}>
+        <option value="" />
+        {choices.map((quest) => (
+          <option key={quest.id} value={quest.id}>
+            {textFor(quest.title, language)}
+          </option>
+        ))}
+      </Select>
+    </Field>
+  );
+}
+
 /** The second step: what the screen said it is, its quest (a station or kiosk) and its label, then Pair. */
 function ConfirmFields({
   language,
@@ -150,19 +182,14 @@ function ConfirmFields({
             : t("devices.client", { client: preview.client })}
         </span>
       </Toolbar>
-      {!needsQuest ? null : choices.length === 0 ? (
-        <Muted>{t(preview.kind === "kiosk" ? "devices.noKioskQuests" : "devices.noQuests")}</Muted>
-      ) : (
-        <Field label={t("devices.quest")}>
-          <Select value={questId} onChange={(event) => setQuestId(event.target.value)}>
-            <option value="" />
-            {choices.map((quest) => (
-              <option key={quest.id} value={quest.id}>
-                {textFor(quest.title, language)}
-              </option>
-            ))}
-          </Select>
-        </Field>
+      {!needsQuest ? null : (
+        <QuestPicker
+          language={language}
+          kind={preview.kind}
+          choices={choices}
+          questId={questId}
+          setQuestId={setQuestId}
+        />
       )}
       <Field label={t("devices.label")}>
         <Input

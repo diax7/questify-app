@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { fetchMe } from "#src/lib/staff-api.ts";
+import { fetchMe, readMeResponse } from "#src/lib/staff-api.ts";
 import { startUpstream, type Upstream } from "#src/lib/upstream.test-support.ts";
 
 const ME = {
@@ -145,5 +145,30 @@ describe("fetchMe", () => {
     expect(await ask()).toEqual({ kind: "unavailable" });
     api.answer(() => undefined);
     expect(await ask()).toEqual({ kind: "unavailable" });
+  });
+});
+
+describe("readMeResponse", () => {
+  it("reads a 401 as signed out, ended only for an expired session", () => {
+    expect(readMeResponse(401, false, { code: "session_expired" })).toEqual({
+      kind: "signed_out",
+      ended: true,
+    });
+    expect(readMeResponse(401, false, undefined)).toEqual({ kind: "signed_out", ended: false });
+    expect(readMeResponse(401, false, "session_expired")).toEqual({
+      kind: "signed_out",
+      ended: false,
+    });
+  });
+
+  it("reads a failed or unreadable answer as unavailable, and a good one as signed in", () => {
+    expect(readMeResponse(500, false, { id: "u1", email: "a@b.c", memberships: [] })).toEqual({
+      kind: "unavailable",
+    });
+    expect(readMeResponse(200, true, { id: "u1" })).toEqual({ kind: "unavailable" });
+    expect(readMeResponse(200, true, { id: "u1", email: "a@b.c", memberships: [] })).toEqual({
+      kind: "signed_in",
+      me: { id: "u1", email: "a@b.c", isAdmin: false, memberships: [] },
+    });
   });
 });

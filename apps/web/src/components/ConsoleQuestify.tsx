@@ -27,6 +27,7 @@ import {
   secondInterestsQuest,
   targetFixed,
   withMetric,
+  type Checked,
   type CampaignDraft,
   type QuestDraft,
 } from "#src/lib/console-questify.ts";
@@ -736,30 +737,32 @@ type Call =
       write: Readonly<{ method: "POST" | "PUT"; path: string; body: unknown; done: string }>;
     }>;
 
+/** The request a checked form sends: a new one is created (POST), an open one is updated (PUT). */
+function writeCall(
+  checked: Checked<unknown>,
+  id: string | null,
+  collection: "/campaigns" | "/quests",
+  done: string,
+): Call {
+  if (!checked.ok) {
+    return { kind: "invalid", message: invalidKey(checked.field) };
+  }
+  const path = id === null ? collection : `${collection}/${id}`;
+  return {
+    kind: "write",
+    write: { method: id === null ? "POST" : "PUT", path, body: checked.body, done },
+  };
+}
+
 /** Checks the open form and turns it into the request it sends, or says which field to fix. */
 function callFor(editing: Editing, t: Translate): Call {
   const done = t("console.questify.saved");
   if (editing.kind === "campaign") {
-    const checked = campaignBodyOf(editing.draft);
-    if (!checked.ok) {
-      return { kind: "invalid", message: invalidKey(checked.field) };
-    }
-    const path = editing.id === null ? "/campaigns" : `/campaigns/${editing.id}`;
-    return {
-      kind: "write",
-      write: { method: editing.id === null ? "POST" : "PUT", path, body: checked.body, done },
-    };
+    return writeCall(campaignBodyOf(editing.draft), editing.id, "/campaigns", done);
   }
   const checked =
     editing.id === null
       ? questBodyOf(editing.draft, editing.campaignId)
       : questPatchOf(editing.draft);
-  if (!checked.ok) {
-    return { kind: "invalid", message: invalidKey(checked.field) };
-  }
-  const path = editing.id === null ? "/quests" : `/quests/${editing.id}`;
-  return {
-    kind: "write",
-    write: { method: editing.id === null ? "POST" : "PUT", path, body: checked.body, done },
-  };
+  return writeCall(checked, editing.id, "/quests", done);
 }

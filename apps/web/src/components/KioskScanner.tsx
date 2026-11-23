@@ -3,12 +3,13 @@
 import { AVATARS, formatNumber, type Language } from "@questify/shared";
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { DevicePairing } from "#src/components/DevicePairing.tsx";
-import { useWakeLock } from "#src/components/StationScreen.tsx";
+import { QuestHeading, useWakeLock } from "#src/components/StationScreen.tsx";
 import { shutKey, type PairedView } from "#src/lib/device.ts";
 import {
   KIOSK_CARD_MS,
   KIOSK_FRAME_MS,
   ZXING_WASM_PATH,
+  bannerKey,
   createDecoder,
   createKioskReader,
   frameSize,
@@ -328,6 +329,38 @@ function CameraArea({
   );
 }
 
+/** Under the camera: the scanner failure, the offline or banner line, and the result card of the last scan. */
+function ScanStatus({
+  language,
+  decoderFailed,
+  offline,
+  banner,
+  card,
+}: Readonly<{
+  language: Language;
+  decoderFailed: boolean;
+  offline: boolean;
+  banner: Banner;
+  card: KioskCard | null;
+}>) {
+  const t = translatorFor(language);
+  return (
+    <>
+      {decoderFailed ? (
+        <p className={styles.message} role="alert">
+          {t("kiosk.scannerFailed")}
+        </p>
+      ) : null}
+      {offline || banner !== null ? (
+        <p className={styles.message} role="status">
+          {t(bannerKey(banner))}
+        </p>
+      ) : null}
+      {card === null ? null : <ResultCard card={card} language={language} />}
+    </>
+  );
+}
+
 function Kiosk({
   view,
   language,
@@ -356,22 +389,12 @@ function Kiosk({
       </main>
     );
   }
-  const quest = view.quest;
   return (
     <main className={styles.screen}>
       <p className={styles.event} dir="auto">
         {textFor(view.event.name, language)}
       </p>
-      {quest === null ? null : (
-        <>
-          <h1 className={styles.title} dir="auto">
-            {textFor(quest.title, language)}
-          </h1>
-          <p className={styles.points}>
-            {t("station.points", { points: formatNumber(quest.points, language) })}
-          </p>
-        </>
-      )}
+      <QuestHeading quest={view.quest} language={language} />
       {shut !== null ? (
         <p className={styles.message} role="status">
           {t(kioskShutKey(shut) ?? shutKey(shut))}
@@ -388,23 +411,13 @@ function Kiosk({
             flip={flip}
             language={language}
           />
-          {decoderFailed ? (
-            <p className={styles.message} role="alert">
-              {t("kiosk.scannerFailed")}
-            </p>
-          ) : null}
-          {!online || banner !== null ? (
-            <p className={styles.message} role="status">
-              {t(
-                banner === "slowed"
-                  ? "kiosk.slowDown"
-                  : banner === "off"
-                    ? "device.notAvailable"
-                    : "device.reconnecting",
-              )}
-            </p>
-          ) : null}
-          {card === null ? null : <ResultCard card={card} language={language} />}
+          <ScanStatus
+            language={language}
+            decoderFailed={decoderFailed}
+            offline={!online}
+            banner={banner}
+            card={card}
+          />
         </>
       )}
       <p className={styles.corner} dir="auto">

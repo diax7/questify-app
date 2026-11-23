@@ -150,15 +150,30 @@ export type MeRequest = Readonly<{
   fetchImpl?: typeof fetch;
 }>;
 
+/** The request headers: the session cookie, and the browser's chain when the edge sent one. */
+function meHeaders(sessionToken: string, forwardedFor: string | null): Headers {
+  const headers = new Headers({ cookie: `${SESSION_COOKIE}=${sessionToken}` });
+  if (forwardedFor !== null) {
+    headers.set("x-forwarded-for", forwardedFor);
+  }
+  return headers;
+}
+
+/** What the `/me` answer means: signed out (401, with whether the session ran out), signed in, or unavailable. */
+export function readMeResponse(status: number, ok: boolean, body: unknown): MeResult {
+  if (status === 401) {
+    return { kind: "signed_out", ended: isRecord(body) && body["code"] === "session_expired" };
+  }
+  const me = ok ? readMe(body) : undefined;
+  return me === undefined ? { kind: "unavailable" } : { kind: "signed_in", me };
+}
+
 /** Asks the API who holds this session. Server to server, over the private network, never cached. */
 export async function fetchMe(request: MeRequest): Promise<MeResult> {
   if (request.sessionToken === undefined || request.sessionToken === "") {
     return { kind: "signed_out", ended: false };
   }
-  const headers = new Headers({ cookie: `${SESSION_COOKIE}=${request.sessionToken}` });
-  if (request.forwardedFor !== null) {
-    headers.set("x-forwarded-for", request.forwardedFor);
-  }
+  const headers = meHeaders(request.sessionToken, request.forwardedFor);
   try {
     const response = await (request.fetchImpl ?? fetch)(`${request.apiOrigin}/v1/staff/me`, {
       headers,
@@ -167,11 +182,7 @@ export async function fetchMe(request: MeRequest): Promise<MeResult> {
       signal: AbortSignal.timeout(request.timeoutMs ?? 15_000),
     });
     const body: unknown = await response.json().catch(() => undefined);
-    if (response.status === 401) {
-      return { kind: "signed_out", ended: isRecord(body) && body["code"] === "session_expired" };
-    }
-    const me = response.ok ? readMe(body) : undefined;
-    return me === undefined ? { kind: "unavailable" } : { kind: "signed_in", me };
+    return readMeResponse(response.status, response.ok, body);
   } catch {
     return { kind: "unavailable" };
   }

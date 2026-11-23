@@ -2,7 +2,13 @@
 
 import { toWesternDigits, type Language } from "@questify/shared";
 import { useState, type FormEvent } from "react";
-import { deletionTokenOf, pendingOf, textIn, type PendingPrize } from "#src/lib/deletion.ts";
+import {
+  challengeTokenOf,
+  pendingOf,
+  textIn,
+  verifyAnswerOf,
+  type PendingPrize,
+} from "#src/lib/deletion.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { postJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
@@ -143,17 +149,10 @@ function ConfirmStep({ language, state, busy, submit }: StepProps<"confirm">) {
 /** The next step after a successful answer to a step's request. */
 function nextStep(state: Step, body: unknown): Step {
   if (state.step === "contact") {
-    const token =
-      typeof body === "object" && body !== null && "challengeToken" in body
-        ? String(body.challengeToken)
-        : "";
-    return { step: "code", challengeToken: token };
+    return { step: "code", challengeToken: challengeTokenOf(body) };
   }
   if (state.step === "code") {
-    const deletionToken = deletionTokenOf(body) ?? "";
-    const pending =
-      typeof body === "object" && body !== null && "pending" in body ? pendingOf(body.pending) : [];
-    return { step: "confirm", deletionToken, pending };
+    return { step: "confirm", ...verifyAnswerOf(body) };
   }
   return { step: "done" };
 }

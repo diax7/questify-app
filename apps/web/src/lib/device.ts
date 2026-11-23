@@ -1,5 +1,6 @@
 import { readEventTerms, type EventTerms, type MessageKey } from "@questify/shared";
 import { runningOf, type RunningScene } from "#src/lib/big-screen.ts";
+import { errorCodeOf } from "#src/lib/sign-in-errors.ts";
 
 /** The three kinds of paired browser (T-309, ADR-239); each has its own page with no ids in its address. */
 export type DeviceKind = "station" | "kiosk" | "screen";
@@ -147,3 +148,64 @@ export const nextCodeDelayMs = (changesInMs: number, random: number): number =>
 
 /** How long a fetched code may stay up without a fresh answer: until 15 seconds after it changed (the door's grace). */
 export const codeGraceMs = (changesInMs: number): number => Math.max(changesInMs, 0) + 15_000;
+
+/** What the station shows now: a code (with when it was fetched), a shut reason, or why there is no code. */
+export type ScreenShown =
+  | Readonly<{ kind: "loading" }>
+  | Readonly<{ kind: "code"; code: Extract<ScreenCodeView, { state: "open" }>; at: number }>
+  | Readonly<{ kind: "shut"; shut: string }>
+  | Readonly<{ kind: "reconnecting" }>
+  | Readonly<{ kind: "off" }>;
+
+/** The code a station holds, with when it was fetched. */
+export type HeldCode = Extract<ScreenShown, { kind: "code" }>;
+
+/** How long a station waits before asking again after a refusal, a shut answer or no answer. */
+export const SCREEN_RETRY_MS = 3000;
+
+/** What a station does with one answer: hand back to pairing, or show something, keep or drop its code, ask again. */
+export type ScreenStep =
+  | Readonly<{ restart: true }>
+  | Readonly<{
+      restart: false;
+      shown: ScreenShown;
+      held: HeldCode | undefined;
+      delayMs: number;
+    }>;
+
+/**
+ * The station's decision for one `GET /v1/device/screen-code` answer (FR-314). A 401 for an unpaired device restarts;
+ * `feature_off` shows that and asks again slowly; no usable answer keeps the held code only until its grace ends;
+ * a shut answer drops the held code; an open one becomes the held code, the next ask timed from it.
+ */
+export function screenStepOf(
+  read: Readonly<{ ok: boolean; body: unknown }>,
+  held: HeldCode | undefined,
+  now: number,
+  random: number,
+): ScreenStep {
+  const code = errorCodeOf(read.body);
+  if (code === "device_unpaired") {
+    return { restart: true };
+  }
+  if (code === "feature_off") {
+    return { restart: false, shown: { kind: "off" }, held, delayMs: SCREEN_RETRY_MS * 10 };
+  }
+  const answer = read.ok ? screenCodeOf(read.body) : undefined;
+  if (answer === undefined) {
+    const alive = held !== undefined && now - held.at < codeGraceMs(held.code.changesInMs);
+    const shown: ScreenShown = alive ? held : { kind: "reconnecting" };
+    return { restart: false, shown, held, delayMs: SCREEN_RETRY_MS };
+  }
+  if (answer.state === "shut") {
+    const shown: ScreenShown = { kind: "shut", shut: answer.shut };
+    return { restart: false, shown, held: undefined, delayMs: SCREEN_RETRY_MS };
+  }
+  const fresh: HeldCode = { kind: "code", code: answer, at: now };
+  return {
+    restart: false,
+    shown: fresh,
+    held: fresh,
+    delayMs: nextCodeDelayMs(answer.changesInMs, random),
+  };
+}
