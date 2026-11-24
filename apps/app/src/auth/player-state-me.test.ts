@@ -20,6 +20,12 @@ describe("meOf", () => {
     expect(meOf(ok({ ...ME, id: 1 }))).toBeUndefined();
   });
 
+  it("has no profile, and does not throw, for a null body, a non-text username or a null legal block", () => {
+    expect(meOf(ok(null))).toBeUndefined();
+    expect(meOf(ok({ ...ME, username: 7 }))).toBeUndefined();
+    expect(meOf(ok({ ...ME, legal: null }))).toBeUndefined();
+  });
+
   it("keeps the profile and reads its level, equipment and streak", () => {
     const me = meOf(ok({ ...ME, dailyStreak: "broken" }));
     expect(me).toMatchObject(ME);
